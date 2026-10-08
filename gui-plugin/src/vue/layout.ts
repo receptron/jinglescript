@@ -46,3 +46,22 @@ export function lanes(data: PlayerData): Lane[] {
       }),
   }));
 }
+
+export interface KaraokeLine {
+  key: string;
+  /** `progress` 0–1: how much of the syllable has been sung (the wipe). */
+  syllables: { text: string; progress: number }[];
+}
+
+const progressOf = (t: number, end: number, now: number): number => (end > t ? Math.min(1, Math.max(0, (now - t) / (end - t))) : now >= t ? 1 : 0);
+
+/** The lyric lines to show at `now`: the line being sung (or the first, before it starts) and the next. */
+export function karaoke(lyrics: PlayerData["timing"]["lyrics"], now: number): KaraokeLine[] {
+  if (lyrics === undefined || lyrics.length === 0) return [];
+  const started = lyrics.findLastIndex((line) => line.t <= now);
+  const current = Math.max(0, started);
+  return lyrics.slice(current, current + 2).map((line) => ({
+    key: `${line.track}:${line.line}`,
+    syllables: line.syllables.map((s) => ({ text: s.text, progress: progressOf(s.t, s.end, now) })),
+  }));
+}

@@ -6,7 +6,7 @@ export type { ScoreInput, Note, Track } from "./score-schema.ts";
 export { render, DEFAULT_SAMPLE_RATE, SAMPLE_RATES } from "./render.ts";
 export type { RenderOptions, RenderResult, SampleRate } from "./render.ts";
 export { TimingSchema, TIMING_FORMAT } from "./timing.ts";
-export type { TimingMap, TimingNote } from "./timing.ts";
+export type { TimingMap, TimingNote, TimingLyricLine } from "./timing.ts";
 export type { MasterStats } from "./dsp/master.ts";
 export { toWav } from "./wav.ts";
 export type { WavBits } from "./wav.ts";

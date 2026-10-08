@@ -98,7 +98,9 @@ structure.
 
 ## Non-goals (v1)
 
-- Vocals or lyrics. (Words go over the jingle as speech from a TTS, not inside it.)
+- Sung vocals (synthesised singing). Lyrics are in scope as **text** on the melody, for a
+  karaoke-style display ([Lyrics](#lyrics-karaoke)); spoken words still go over the jingle from a
+  TTS, not inside it.
 - Long-form music, arrangement generation, or "make me a song" from a mood alone — the LLM writes
   the notes; JingleScript plays them.
 - Sampled/realistic orchestral instruments. Sustained acoustic instruments (violin, flute,
@@ -249,8 +251,76 @@ seconds, rounded to 1 ms, computed from the score — never from analysing the a
 - A note placed on a cue (`"hit"`, not `"hit+1"`) carries `"cue"`, so the animation can find the
   notes that belong to a moment.
 - `audibleUntil` is when the rendered audio falls below −40 dBFS for good (measured on the output).
+- `lyrics` (optional) appears only when the score has lyrics; see [Lyrics](#lyrics-karaoke). It
+  was added without changing the version: an added optional field is not a breaking change, so
+  readers of `jinglescript-timing/1` must ignore fields they do not know. Caveat: the 0.1.0
+  library's own timing schema (`src/timing.ts`) is a `strictObject`, so 0.1.0 rejects a timing
+  file that has `lyrics`; 0.2.0 (M9) knows the field, and readers that parse timing files with
+  the library need 0.2.0 or later.
 
 This is what video tools need: where to land, what happens on each cue, where the tail ends.
+
+## Lyrics (karaoke)
+
+A jingle's melody can carry its words, so a view (the GUI plugin's player, or an animation) can
+show them karaoke-style: the current line, the next line, and a wipe across each syllable as it
+is played. Nothing is sung — the melody is still played by an instrument; lyrics are text placed
+on its notes. Because note times are computed from the score, every syllable's time comes for
+free, exactly, with no audio analysis.
+
+In the score, a note takes `lyric` (one syllable):
+
+```json
+{ "instrument": "glockenspiel", "notes": [
+  { "at": 0,   "pitch": "G4", "lyric": "ハ" },
+  { "at": 0.5, "pitch": "C5", "lyric": "テ" },
+  { "at": 1,   "pitch": "E5", "lyric": "ナ", "lineEnd": true },
+  { "at": 2,   "pitch": "D5", "lyric": "hap-" },
+  { "at": 2.5, "pitch": "D5", "lyric": "py" },
+  { "at": 3,   "pitch": "C5", "lyric": "_" },
+  { "at": 3.5, "pitch": "C5", "lyric": "day", "lineEnd": true }
+]}
+```
+
+Rules (schema-enforced, errors written for repair like the rest):
+
+- One syllable per note: a mora or kana for Japanese, a syllable for English. A syllable ending
+  in `-` joins the next one with the hyphen dropped (`hap-` + `py` → `happy`); otherwise words
+  are separated by a space, except between two CJK syllables. The joining is done in the timing
+  module, so every view shows the same text.
+- `"_"` continues the previous syllable over this note (melisma): it adds no text and extends the
+  previous syllable's `end`.
+- `lineEnd: true` ends a display line after this note's syllable. The last syllable of the track
+  ends a line implicitly.
+- A chord may carry a lyric (it belongs to the chord's onset). Lyrics on an unpitched instrument
+  or effect, on a note with `repeat`, an empty lyric, `"_"` with no syllable before it on the
+  track, `lineEnd` on a note without a lyric, and two syllables at the same onset on one track
+  are errors.
+- Several tracks may carry lyrics (a call and response, a second part); each keeps its own lines.
+- A syllable's `end` is its note's sounding end (`len` or the hold default), extended by `"_"`
+  notes, and never later than the next syllable on the same track.
+
+In the timing map (`jinglescript-timing/1`, added field):
+
+```json
+"lyrics": [
+  { "track": 0, "line": 0, "text": "ハテナ", "t": 0, "end": 1.385,
+    "syllables": [ { "text": "ハ", "t": 0, "end": 0.212 }, … ] },
+  { "track": 0, "line": 1, "text": "happy day", "t": 0.923, "end": 1.846,
+    "syllables": [ { "text": "hap", "t": 0.923, "end": 1.135 }, { "text": "py ", … }, … ] }
+]
+```
+
+`text` is the line as displayed. A syllable's `text` is as displayed too: without its joining
+hyphen, and with a trailing space when a new word follows, so a line's syllables joined give its
+`text` and a view never re-implements the joining. Times are computed, rounded to 1 ms, like every
+other time in the map.
+
+`check` reports, without failing, each lyric line with its time range, so an LLM can see whether
+the words landed where it meant. The evaluation has lyrics requests (`eval/requests-lyrics.json`:
+a Japanese channel name on the melody, an English one-line tagline, two Japanese lines), checked
+mechanically on top of the usual checks: every requested word appears in the lyrics, in order,
+and the requested moments (a word on the hit, a line's start) exist as cues.
 
 ## LLM authoring and evaluation
 
@@ -676,6 +746,16 @@ existing jingle can drive an animation the same way. The prototype did this with
 A way for a MulmoScript to use a JingleScript score as an opening/transition audio and expose its
 timing. Design it with the MulmoCast maintainers; out of scope until M1–M4 are done.
 
+### M9 — Lyrics and karaoke view
+`lyric` / `"_"` / `lineEnd` on notes, the joining rules, `lyrics` in the timing map (added to
+`jinglescript-timing/1`), lyric lines in `check`, the authoring guide and schema descriptions,
+the GUI plugin's player showing the current and next line with a per-syllable wipe driven by the
+audio's current time, and an example (`lyrics-hatena.json`). **Done when** every syllable's `t`
+equals its note's onset in the timing map, scores and timing files without lyrics are unchanged
+byte for byte (golden hashes hold), the lyrics requests in the evaluation pass, and the user has
+watched the karaoke view play. **Status:** implemented and evaluated; waiting on the user's
+listening and viewing.
+
 ### M8 — Jingle + animation tool (later)
 Grow JingleScript into a tool that writes the jingle and the animation synced to it from one
 request, on the cue vocabulary ([Toward a jingle + animation tool](#toward-a-jingle--animation-tool)).
@@ -716,6 +796,8 @@ Decided:
 
 - MCP server: in v1, milestone M3, one tool `manageJingleScript` with an `action` parameter,
   wrapping the API for LLMs (2026-10-08).
+- Lyrics: in scope as text on melody notes for a karaoke view, not sung; the timing map gains an
+  optional `lyrics` field and stays `jinglescript-timing/1` (2026-10-08).
 - Text notation (`.jgs`): not in v1 — the primary author is an LLM, and JSON + schema is safer
   for it (2026-10-08).
 
@@ -917,4 +999,27 @@ Decided:
   npmjs.com). Installed from the registry in a clean folder: CLI renders MP3, the plugin's server
   entry renders, its Vue entry loads. MulmoTerminal's branch now depends on `^0.1.0` from npm
   (no local paths); its typecheck, 773 infra tests and build pass.
-
+- 2026-10-08 — User: with lyrics the player view becomes karaoke. Added [Lyrics](#lyrics-karaoke)
+  (`lyric`, `"_"` for melisma, `lineEnd`; joining rules in the timing module) and milestone M9;
+  Non-goals now exclude only sung vocals. User decided the timing map keeps version
+  `jinglescript-timing/1` with `lyrics` as an added optional field. Nothing implemented yet.
+- 2026-10-08 — **M9 implemented** (branch `lyrics`, version 0.2.0 of both packages; not published).
+  `lyric` / `"_"` / `lineEnd` on notes (`src/lyrics.ts` gathers lines and does the joining;
+  syllable `text` carries its trailing space so views never re-join), `lyrics` in the timing map
+  and in `check`, repair-oriented errors (unpitched, `repeat`, empty, nothing to hold, `lineEnd`
+  without a lyric, two syllables at one onset), the authoring guide's Lyrics section, example
+  `lyrics-hatena.json`, and the player's karaoke display (current and next line, per-syllable
+  wipe; verified in a headless browser on the demo page: the wipe advances with playback, no
+  console errors). Scores without lyrics are unchanged: every golden hash holds, and a test
+  renders the example with and without its words to the same PCM and timing (minus `lyrics`).
+  Evaluation (`eval/requests-lyrics.json`, 3 requests; words in order and cue times checked):
+  default model 3/3 and Haiku 3/3 valid on the first try with words and cues right. Their notes
+  led to three guide clarifications (contracted kana are one mora, lyric-less notes may share
+  the track, put a word's stressed syllable on the cue). Not yet: the user listening to
+  `out/lyrics/` and watching the karaoke view.
+- 2026-10-08 — User: lower the Node requirement to ≥ 22.12. `engines` is `>=22.12` (the published
+  package runs compiled JS; vitest and vite need 22.12 too). The full test suite, golden hashes
+  included, passes on Node 22.12.0, and the package smoke test passes with the tarball installed
+  and run on 22.12.0. Running from a clone (`node src/cli.ts`, the scripts) still needs 22.18 for
+  Node's TypeScript support; README says so. CI adds a 22.12.0 test job and runs the package smoke
+  on 22.12.0 and 22 (packed on 22, then installed and run on each; `SMOKE_TARBALL` in smoke.sh).

@@ -5,19 +5,27 @@
 # present, and an MCP server that lists manageJingleScript.
 #
 # Usage: scripts/smoke.sh
+# SMOKE_TARBALL=<path to a packed .tgz> skips packing, so the tarball can be packed with one Node
+# and installed and run with another (CI runs it on the oldest Node the package supports).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-TGZ="$(cd "$REPO" && npm pack --silent --pack-destination "$WORK" | tail -1)"
-echo "packed: $TGZ"
+if [ -n "${SMOKE_TARBALL:-}" ]; then
+  cp "$SMOKE_TARBALL" "$WORK/"
+  TGZ="$(basename "$SMOKE_TARBALL")"
+else
+  TGZ="$(cd "$REPO" && npm pack --silent --pack-destination "$WORK" | tail -1)"
+fi
+echo "packed: $TGZ (running on node $(node -v))"
 cd "$WORK"
 npm init -y >/dev/null
 npm pkg set type=module
 npm install --no-audit --no-fund "$WORK/$TGZ" >/dev/null
 cp "$REPO/examples/hatena-marumo-a.json" score.json
+cp "$REPO/examples/lyrics-hatena.json" lyrics.json
 
 # CLI
 node_modules/.bin/jinglescript check score.json
@@ -38,6 +46,9 @@ await writeFile("out/lib.wav", toWav(audio, sampleRate));
 await writeFile("out/lib.timing.json", JSON.stringify(timing));
 if (!checkScore(score).ok || getSchema().$schema === undefined) throw new Error("API for LLMs is broken");
 console.log("library rendered", timing.duration, "s");
+const lyrics = render(parseScore(JSON.parse(await readFile("lyrics.json", "utf8")))).timing.lyrics;
+if (lyrics?.map((l) => l.text).join("/") !== "ハテナマルモ/はじまるよ！") throw new Error("lyrics missing from the timing map");
+console.log("library lyrics", lyrics.length, "lines");
 JS
 node lib.mjs
 

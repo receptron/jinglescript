@@ -1,0 +1,52 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "ハテナマルモ sing-along",
+  "tempo": 120,
+  "length": { "seconds": 6 },
+  "seed": 1,
+  "cues": {
+    "hit": { "seconds": 3 }
+  },
+  "tracks": [
+    {
+      "instrument": "marimba",
+      "name": "melody",
+      "notes": [
+        { "at": 0, "pitch": "G4", "lyric": "ハ" },
+        { "at": 0.5, "pitch": "A4", "lyric": "テ" },
+        { "at": 1, "pitch": "C5", "lyric": "ナ" },
+        { "at": 1.5, "pitch": "D5", "lyric": "_", "vel": 0.6 },
+        { "at": 2, "pitch": "E5", "lyric": "マ" },
+        { "at": 2.5, "pitch": "D5", "lyric": "ル" },
+        { "at": 3, "pitch": "C5", "lyric": "モ", "lineEnd": true },
+        { "at": 4, "pitch": "E5", "lyric": "は" },
+        { "at": 4.5, "pitch": "G5", "lyric": "じ" },
+        { "at": 5, "pitch": "A5", "lyric": "ま" },
+        { "at": 5.5, "pitch": "G5", "lyric": "る" },
+        { "at": "hit", "pitch": ["C5", "E5", "G5", "C6"], "vel": 1.0, "lyric": "よ！" },
+        { "at": "hit+1", "pitch": "C6", "vel": 0.35, "lyric": "_" }
+      ]
+    },
+    {
+      "instrument": "piano",
+      "name": "chords",
+      "gain": -6,
+      "notes": [
+        { "at": 0, "chord": "C", "vel": 0.6 },
+        { "at": 2, "chord": "F", "vel": 0.6 },
+        { "at": 4, "chord": "G7", "vel": 0.6 }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "bass",
+      "notes": [
+        { "at": 0, "pitch": "C3", "vel": 0.7 },
+        { "at": 2, "pitch": "F3", "vel": 0.7 },
+        { "at": 4, "pitch": "G3", "vel": 0.7 },
+        { "at": "hit", "pitch": ["C3", "G3"], "vel": 0.9 }
+      ]
+    }
+  ]
+}

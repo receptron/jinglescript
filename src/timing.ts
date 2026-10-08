@@ -1,8 +1,10 @@
 // The timing map: the public contract with the animation. Computed from the score, never measured
 // — except `audibleUntil`, which is measured on the final audio. Changing its shape is a breaking
-// change (bump the format).
+// change (bump the format); adding an optional field is not, and readers ignore fields they do not
+// know.
 import { z } from "zod";
 import type { Expanded } from "./events.ts";
+import type { LyricLine } from "./lyrics.ts";
 import { roundMs, secondsPerBeat } from "./time.ts";
 
 export const TIMING_FORMAT = "jinglescript-timing/1";
@@ -23,6 +25,23 @@ export const TimingNoteSchema = z.strictObject({
   cue: z.string().optional().describe("Set when the note is placed exactly on this cue."),
 });
 
+export const TimingLyricSyllableSchema = z.strictObject({
+  text: z
+    .string()
+    .describe("The syllable as displayed: no joining hyphen; a trailing space when a new word follows. A line's syllables joined give its `text`."),
+  t: z.number().describe("When the syllable's note starts, seconds."),
+  end: z.number().describe("When the syllable ends (its note's length, held over `_` notes, never past the next syllable), seconds."),
+});
+
+export const TimingLyricLineSchema = z.strictObject({
+  track: z.int().min(0).describe("Index of the track whose notes carry the line."),
+  line: z.int().min(0).describe("Index of the line within its track."),
+  text: z.string().describe("The whole line as displayed."),
+  t: z.number().describe("When the line's first syllable starts, seconds."),
+  end: z.number().describe("When the line's last syllable ends, seconds."),
+  syllables: z.array(TimingLyricSyllableSchema),
+});
+
 export const TimingSchema = z
   .strictObject({
     format: z.literal(TIMING_FORMAT),
@@ -32,11 +51,27 @@ export const TimingSchema = z
     beats: z.array(z.number()).describe("Every beat (quarter note) from 0 up to the end, in seconds."),
     notes: z.array(TimingNoteSchema).describe("Every note and sound, repetitions expanded, sorted by time."),
     audibleUntil: z.number().describe("When the audio falls below -40 dBFS for good (measured on the output)."),
+    lyrics: z
+      .array(TimingLyricLineSchema)
+      .optional()
+      .describe("Lines of lyrics with every syllable's time, sorted by start, for a karaoke-style display. Present only when the score has lyrics."),
   })
   .describe("When everything in a rendered jingle happens, in seconds rounded to 1 ms. Animation syncs to this.");
 
 export type TimingMap = z.infer<typeof TimingSchema>;
 export type TimingNote = z.infer<typeof TimingNoteSchema>;
+export type TimingLyricLine = z.infer<typeof TimingLyricLineSchema>;
+
+function lyricLine(line: LyricLine): TimingLyricLine {
+  return {
+    track: line.track,
+    line: line.line,
+    text: line.text,
+    t: roundMs(line.seconds),
+    end: roundMs(line.end),
+    syllables: line.syllables.map((s) => ({ text: s.text, t: roundMs(s.seconds), end: roundMs(s.end) })),
+  };
+}
 
 export function buildTiming(expanded: Expanded, audibleUntil: number): TimingMap {
   const beat = secondsPerBeat(expanded.tempo);
@@ -54,5 +89,15 @@ export function buildTiming(expanded: Expanded, audibleUntil: number): TimingMap
     return note;
   });
   const cues = Object.fromEntries(Object.entries(expanded.cues).map(([name, seconds]) => [name, roundMs(seconds)]));
-  return { format: TIMING_FORMAT, tempo: expanded.tempo, duration: roundMs(expanded.duration), cues, beats, notes, audibleUntil: roundMs(audibleUntil) };
+  const timing: TimingMap = {
+    format: TIMING_FORMAT,
+    tempo: expanded.tempo,
+    duration: roundMs(expanded.duration),
+    cues,
+    beats,
+    notes,
+    audibleUntil: roundMs(audibleUntil),
+  };
+  if (expanded.lyrics.length > 0) timing.lyrics = expanded.lyrics.map(lyricLine);
+  return timing;
 }

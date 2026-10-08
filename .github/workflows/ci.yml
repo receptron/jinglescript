@@ -58,6 +58,9 @@ jobs:
         include:
           - os: ubuntu-latest
             node: 24
+          # The oldest Node the package supports (package.json engines).
+          - os: ubuntu-latest
+            node: 22.12.0
     steps:
       - uses: actions/checkout@v6
         with:
@@ -74,10 +77,16 @@ jobs:
   # (prepack builds dist/), installs it into an empty folder and renders through the CLI (WAV and
   # MP3), the library and the MCP server over stdio. Run the same script locally before changing
   # packaging, the CLI or the MCP server.
+  # Packing runs the build scripts, which need Node's TypeScript support (22.18+); the packed
+  # tarball is then installed and run on each Node the package supports, the oldest included.
   package-smoke:
-    name: Package smoke (pack, install, render)
+    name: Package smoke (pack, install, render on node ${{ matrix.node }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22.12.0, 22]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -89,8 +98,13 @@ jobs:
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: npm ci
-      - name: Pack, install, render
-        run: scripts/smoke.sh
+      - name: Pack
+        run: npm pack --pack-destination "$RUNNER_TEMP"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install and render
+        run: SMOKE_TARBALL="$(ls "$RUNNER_TEMP"/jinglescript-*.tgz)" scripts/smoke.sh
 
   # The GUI Chat Protocol plugin (gui-plugin/): its own package, typechecked against the library's
   # source, tested, and built.

@@ -5,8 +5,9 @@ the same single tool as the MCP server, **`manageJingleScript`** (actions `getGu
 `listInstruments`, `getInstrument`, `checkScore`, `renderScore`), and adds a **player view**: a
 successful `renderScore` returns the jingle as `data`, and the view plays it with its waveform,
 beat grid, named cues (click one to jump there) and a lane of notes per track; effects with a
-length (risers, whooshes) show as bars. Every other action answers the LLM in text and shows no
-card.
+length (risers, whooshes) show as bars. When the score has lyrics, the view shows them
+karaoke-style: the line being played and the next, each syllable filling in as its note plays.
+Every other action answers the LLM in text and shows no card.
 
 - **`"@gui-chat-plugin/jinglescript"`** (main entry, Node): `TOOL_DEFINITION`, `pluginCore`
   (`execute` renders on the host's server). The audio is embedded as a data URI — MP3 when ffmpeg

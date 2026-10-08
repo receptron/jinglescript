@@ -65,7 +65,7 @@ Then ask for a jingle in a sentence ("a 5-second ukulele opening that lands on a
 
 ## Hear it in a GUI chat (GUI Chat Protocol)
 
-`gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron) plugin with the same tool,
+`gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,
 `manageJingleScript`, for hosts such as MulmoTerminal and MulmoClaude. A rendered jingle opens in a
 **player view**: waveform, beats, named cues you can click to jump to, and a lane of notes per
 track. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.

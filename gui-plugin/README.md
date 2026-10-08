@@ -1,6 +1,6 @@
 # @gui-chat-plugin/jinglescript
 
-A [GUI Chat Protocol](../../protocol/spec/GUI_CHAT_PROTOCOL.md) plugin for JingleScript. It offers
+A [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol/blob/main/spec/GUI_CHAT_PROTOCOL.md) plugin for JingleScript. It offers
 the same single tool as the MCP server, **`manageJingleScript`** (actions `getGuide`, `getSchema`,
 `listInstruments`, `getInstrument`, `checkScore`, `renderScore`), and adds a **player view**: a
 successful `renderScore` returns the jingle as `data`, and the view plays it with its waveform,

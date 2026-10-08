@@ -699,7 +699,7 @@ could be cues too (`hop1`…`hop3`), with or without notes on them.
 
 Ask the user rather than deciding:
 
-1. Repository name/owner and npm package name (`jinglescript` under receptron?) and when to publish.
+1. npm package names (`jinglescript`, and the GUI plugin's provisional `@gui-chat-plugin/jinglescript`) and when to publish. (Repository: receptron/jinglescript, public — decided 2026-10-08.)
 2. The default sample rate (48 kHz to match video, or 44.1 kHz).
 3. Whether piccolo and trumpet should ship in v1 as "synthetic" or wait for M5.
 4. Whether M5/M6 are wanted at all.
@@ -897,4 +897,7 @@ Decided:
   the server entry loads and renders from its node_modules, `vue-tsc -b` passes, its 108 infra /
   MCP / agents test files (1577 tests) pass, and `vite build` bundles the view. The plugin's
   `jinglescript` dependency became a peer.
+- 2026-10-08 — The user confirmed the player shows in MulmoTerminal (port 34567 serves `dist/`, so
+  it needed a `yarn build` there). Published the repository at the user's request:
+  github.com/receptron/jinglescript, public, MIT. npm publishing still waits.
 

@@ -1,10 +1,6 @@
 // ITU-R BS.1770-4 integrated loudness (K-weighting, 400 ms blocks with 75 % overlap, absolute and
 // relative gating) and true peak (4× oversampling), for stereo at any sample rate.
-
-interface Biquad {
-  b: [number, number, number];
-  a: [number, number, number];
-}
+import { biquadFilter, type Biquad } from "./biquad.ts";
 
 /**
  * K-weighting filter coefficients for a sample rate: the two biquads of BS.1770 re-derived by the
@@ -34,24 +30,6 @@ export function kWeighting(sampleRate: number): { shelf: Biquad; highpass: Biqua
   return { shelf, highpass };
 }
 
-function filter(x: ArrayLike<number>, { b, a }: Biquad): Float64Array {
-  const y = new Float64Array(x.length);
-  let x1 = 0;
-  let x2 = 0;
-  let y1 = 0;
-  let y2 = 0;
-  for (let i = 0; i < x.length; i++) {
-    const x0 = x[i] ?? 0;
-    const y0 = b[0] * x0 + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2;
-    y[i] = y0;
-    x2 = x1;
-    x1 = x0;
-    y2 = y1;
-    y1 = y0;
-  }
-  return y;
-}
-
 const ABSOLUTE_GATE = -70;
 const RELATIVE_GATE = -10;
 
@@ -61,7 +39,7 @@ function blockPowers(channels: readonly Float32Array[], sampleRate: number): num
   const length = channels[0]?.length ?? 0;
   const prefix = new Float64Array(length + 1);
   for (const channel of channels) {
-    const weighted = filter(filter(channel, shelf), highpass);
+    const weighted = biquadFilter(biquadFilter(channel, shelf), highpass);
     let sum = 0;
     for (let i = 0; i < length; i++) {
       sum += (weighted[i] ?? 0) ** 2;

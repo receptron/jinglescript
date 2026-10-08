@@ -2,7 +2,7 @@
 
 exports[`every shipped example > a-glockenspiel.json renders cleanly at the loudness target (or says why not) 1`] = `"0462df0d07bbc5d300753bc8d46363771e47b4587a0b807ca8e0fc12d90324e1"`;
 
-exports[`every shipped example > a-marimba-glocken-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"94309b3d6d2196a4bf25d32ea2557ebee78d048cf28978f38d9924562f2544e3"`;
+exports[`every shipped example > a-marimba-glocken-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"a9df0e0d747d580de22e74de48f9091668b293da97d34ff4ab45cc7b5ca01c96"`;
 
 exports[`every shipped example > a-musicbox.json renders cleanly at the loudness target (or says why not) 1`] = `"0582a87a446cea72f67b98c63bb566785d53711d59791dfdb7951d740420c6e9"`;
 
@@ -14,7 +14,7 @@ exports[`every shipped example > a-piccolo.json renders cleanly at the loudness 
 
 exports[`every shipped example > a-trumpet.json renders cleanly at the loudness target (or says why not) 1`] = `"c5a0817330ebfa9a04da67c6fb2f2198724dc4346419f84ceb7a14c8173acefe"`;
 
-exports[`every shipped example > a-ukulele.json renders cleanly at the loudness target (or says why not) 1`] = `"d2467af74bc84df1e2f94e23e8ac4d5e11afe00be60ec1e36fc80a1d71bf57c5"`;
+exports[`every shipped example > a-ukulele.json renders cleanly at the loudness target (or says why not) 1`] = `"e1bc1a377d53aa77b28776325308bbf59a6a3ad788b654d825e7a374cf8ec9c6"`;
 
 exports[`every shipped example > a-vibraphone.json renders cleanly at the loudness target (or says why not) 1`] = `"f349e76d9a901ae53716fcd8fff4ab7bd81bbd7fbfff753d72357618d7b5af95"`;
 
@@ -26,4 +26,4 @@ exports[`every shipped example > hatena-marumo-b.json renders cleanly at the lou
 
 exports[`every shipped example > hatena-marumo-c.json renders cleanly at the loudness target (or says why not) 1`] = `"71fadecc8d0274c349cb6beedf8941727cc6f60a76ac0d96c95fd9a8411b9dc6"`;
 
-exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"e9c2166202732c06d266f7c4994caa3932a5a75a771aca3afa99b058d3adee4a"`;
+exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"311d3f34c61aff47b5b9207093e7ca6e9a2cb3e797c10b18f0c72d5bbf8ec72a"`;

@@ -1,0 +1,88 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "ハテナマルモ opening (A) on musicbox",
+  "tempo": 130,
+  "length": {
+    "seconds": 4.6
+  },
+  "seed": 1,
+  "master": {
+    "reverb": "room",
+    "loudness": -14,
+    "fadeOut": 0.4
+  },
+  "cues": {
+    "hit": {
+      "seconds": 1.5
+    },
+    "voice": {
+      "seconds": 1.8
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "musicbox",
+      "name": "melody",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "G4",
+          "vel": 0.8,
+          "pan": 0.4
+        },
+        {
+          "at": 0.5,
+          "pitch": "C5",
+          "vel": 0.85,
+          "pan": 0.5
+        },
+        {
+          "at": 1,
+          "pitch": ["E5", "G5"],
+          "vel": 0.9,
+          "pan": 0.6
+        },
+        {
+          "at": {
+            "seconds": 0.863077
+          },
+          "pitch": "D5",
+          "vel": 0.8,
+          "pan": 0.5
+        },
+        {
+          "at": {
+            "seconds": 1.023077
+          },
+          "pitch": "B4",
+          "vel": 0.75,
+          "pan": 0.4
+        },
+        {
+          "at": "hit",
+          "pitch": ["C5", "E5", "G5", "C6"],
+          "vel": 1.0,
+          "pan": 0.5
+        },
+        {
+          "at": "hit+1",
+          "pitch": "C6",
+          "vel": 0.35,
+          "pan": 0.7
+        }
+      ]
+    },
+    {
+      "instrument": "musicbox",
+      "name": "bass",
+      "notes": [
+        {
+          "at": "hit",
+          "pitch": ["C3", "G3"],
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

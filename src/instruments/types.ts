@@ -24,6 +24,8 @@ export interface InstrumentDescriptor {
   /** Lowest and highest pitch that renders cleanly; null for unpitched sounds. */
   range: { low: string; high: string } | null;
   variants: readonly string[];
+  /** Semitones between the written pitch and the sounding one (12 = sounds an octave higher). */
+  transpose: number;
   /** True when the model is known to sound synthetic rather than like the real thing. */
   synthetic: boolean;
 }

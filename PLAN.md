@@ -511,28 +511,31 @@ checkScore(json);                   // { ok, errors: [{ path, message, hint }], 
 ### MCP server (v1)
 
 `jinglescript mcp` starts an MCP server over stdio, so a chat assistant (Claude Desktop, Claude
-Code, any MCP client) can learn the format, write a score, check it and render it directly. It is
-a thin wrapper over the API above — each tool calls one library function, and tool input schemas
-are the same zod schemas (no second definition):
+Code, any MCP client) can learn the format, write a score, check it and render it directly. It
+exposes **one tool, `manageJingleScript`**, whose `action` parameter says what to do — one entry
+point keeps the client's tool list small and the loop obvious. Each action calls one library
+function; the input is a zod discriminated union on `action` (no second definition):
 
-| Tool | Wraps | Returns |
-|---|---|---|
-| `get_schema` (`part?`) | `getSchema` | JSON Schema |
-| `get_authoring_guide` | `getAuthoringGuide` | Markdown |
-| `list_instruments` / `get_instrument` (`name`) | `listInstruments` / `getInstrument` | JSON |
-| `check_score` (`score`) | `checkScore` | errors with paths and hints, resolved cue times |
-| `render_score` (`score`, `name?`, `format?`) | `render` + writers | paths of the audio and timing files, the timing map, measured loudness and `audibleUntil` |
+| `action` | Other parameters | Wraps | Returns |
+|---|---|---|---|
+| `getSchema` | `part?` | `getSchema` | JSON Schema |
+| `getGuide` | — | `getAuthoringGuide` | Markdown |
+| `listInstruments` | — | `listInstruments` | JSON |
+| `getInstrument` | `name` | `getInstrument` | JSON |
+| `checkScore` | `score` | `checkScore` | errors with paths and hints, resolved cue times |
+| `renderScore` | `score`, `name?`, `format?` | `render` + writers | paths of the audio and timing files, the timing map, measured loudness and `audibleUntil` |
 
-- `render_score` writes only inside an output directory fixed when the server starts
+- `renderScore` writes only inside an output directory fixed when the server starts
   (`--out <dir>`, default `./out/jinglescript`); `name` is a file stem, never a path. The score
   itself is passed as JSON, never as a file path, so the server reads no files.
-- The server's instructions tell the client the intended loop: `get_authoring_guide` →
-  `get_schema` → write → `check_score` → repair → `render_score`.
+- The tool description and the server's instructions give the intended loop: `getGuide` →
+  `getSchema` → write → `checkScore` → repair → `renderScore`. An unknown `action` returns the
+  list of actions.
 - Uses the official `@modelcontextprotocol/sdk` — the one runtime dependency besides zod,
   accepted because the protocol is versioned and the SDK tracks it. Loaded only by the `mcp`
   command, so `import "jinglescript"` does not pull it in.
 - Tested in-process with the SDK's in-memory transport (no subprocess, no network): list tools,
-  call each, render a score and check the files.
+  call every action, render a score and check the files.
 
 ## Examples (ship these)
 
@@ -711,7 +714,8 @@ Ask the user rather than deciding:
 
 Decided:
 
-- MCP server: in v1, milestone M3, wrapping the API for LLMs (2026-10-08).
+- MCP server: in v1, milestone M3, one tool `manageJingleScript` with an `action` parameter,
+  wrapping the API for LLMs (2026-10-08).
 - Text notation (`.jgs`): not in v1 — the primary author is an LLM, and JSON + schema is safer
   for it (2026-10-08).
 
@@ -772,3 +776,22 @@ Decided:
     evenly spaced notes in seconds ("every 0.4 s") forced the LLM to choose a tempo to match —
     consider `repeat.every` in seconds; say how `until` treats times just off the grid.
   - Not done in M1 yet: the user's listening check of the port (MP3s in out/listen-m1/).
+- 2026-10-08 — M1 committed. User: the MCP server exposes a single tool `manageJingleScript`
+  with an `action` parameter (plan updated). Starting M2.
+- 2026-10-08 — **M2 implemented; waiting for the user's ears.** xylophone, glockenspiel,
+  vibraphone, music box (v2), piano, organ, ukulele, piccolo, trumpet, clap ported from the
+  prototype; descriptors gained `transpose` (music box and piccolo sound an octave up). Shared
+  blocks in `src/instruments/common.ts` (modes, noise bursts, ADSR, phase accumulation, finish).
+  Examples B, C, `a-<instrument>` ×9, `a-marimba-glocken-claps`, and a new
+  `piano-ukulele-claps` ensemble; golden PCM hashes for all 14. 103 tests pass.
+  - Measured defects of the prototype fixed (no ears needed): ukulele out of tune by up to 13.9
+    cents (integer Karplus–Strong delay → fractional all-pass) and carrying a DC offset (the
+    excitation's mean); glockenspiel/vibraphone/music box/piano/ukulele cut while still ringing
+    (→ ring to −60 dB or a 0.3 s damper fade); music box 0.8 ms onset (→ 1 ms minimum).
+  - Every instrument trimmed so a C5 at full velocity matches the marimba's loudness (±0.5 LU,
+    tested), so ensembles balance. Every instrument passes the checks across its range: finite,
+    onset ramp, ends silent, DC < 0.5 %, energy above sampleRate/2.2 < 1e-5, in tune ±10 cents.
+  - Ukulele's pluck (one period of raw noise) is very peaky: `a-ukulele` reaches only −17.2 LUFS
+    and `piano-ukulele-claps` −15.8 LUFS with the limiter at its 6 dB maximum (reported as
+    `limitedByPeak`). Left as ported pending the user's ears.
+  - MP3s of every example plus the prototype's own renders for comparison: out/listen-m2/.

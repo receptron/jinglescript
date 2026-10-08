@@ -36,6 +36,22 @@ schema with getSchema() / \`jinglescript schema\`; check your score with checkSc
 - Several tracks play together. Put the melody and the bass on separate tracks (even with the same
   instrument), each with its own \`gain\` (dB) and \`pan\` (0 left … 1 right).
 
+## Instruments
+
+Every instrument and its range is listed in the schema (\`tracks[].instrument\`) and by
+listInstruments() / \`jinglescript instruments\`. Rules of thumb:
+
+- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, ukulele,
+  clap) ring out on their own; \`len\` is ignored. **Sustained** (organ, piccolo, trumpet) hold
+  each note until the track's next note unless you give \`len\` in beats.
+- **musicbox** and **piccolo** sound an octave above the written pitch.
+- **piccolo** and **trumpet** sound synthetic; use them for a playful line, not for realism.
+- **clap** takes no pitch. Use \`repeat\` for claps on every beat.
+- A second instrument doubling the melody quietly adds colour: glockenspiel an octave up at
+  \`"gain": -6\` over a marimba melody makes it sparkle.
+- All instruments are balanced to the same loudness at the same velocity; use track \`gain\` to
+  put one behind another.
+
 ## What makes a jingle work
 
 - A **question and an answer**: three rising notes that end open (e.g. G4 C5 E5 on eighths), then

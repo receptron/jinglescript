@@ -1,0 +1,141 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Sunny vlog intro: piano, ukulele and claps",
+  "tempo": 120,
+  "length": {
+    "seconds": 4.5
+  },
+  "seed": 1,
+  "cues": {
+    "logo": {
+      "seconds": 2.0
+    },
+    "voice": {
+      "seconds": 2.5
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "piano",
+      "name": "chords",
+      "gain": -3,
+      "notes": [
+        {
+          "at": 0,
+          "pitch": ["C4", "E4", "G4"],
+          "vel": 0.7
+        },
+        {
+          "at": 1,
+          "pitch": ["A3", "C4", "E4"],
+          "vel": 0.7
+        },
+        {
+          "at": 2,
+          "pitch": ["F3", "A3", "C4"],
+          "vel": 0.7
+        },
+        {
+          "at": 3,
+          "pitch": ["G3", "B3", "D4"],
+          "vel": 0.75
+        },
+        {
+          "at": "logo",
+          "pitch": ["C4", "E4", "G4", "C5"],
+          "vel": 0.95
+        }
+      ]
+    },
+    {
+      "instrument": "piano",
+      "name": "bass",
+      "gain": -4,
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "C2",
+          "vel": 0.7
+        },
+        {
+          "at": 1,
+          "pitch": "A1",
+          "vel": 0.7
+        },
+        {
+          "at": 2,
+          "pitch": "F1",
+          "vel": 0.7
+        },
+        {
+          "at": 3,
+          "pitch": "G1",
+          "vel": 0.7
+        },
+        {
+          "at": "logo",
+          "pitch": "C2",
+          "vel": 0.9
+        }
+      ]
+    },
+    {
+      "instrument": "ukulele",
+      "name": "strum",
+      "pan": 0.65,
+      "notes": [
+        {
+          "at": 0.5,
+          "pitch": ["G4", "C4", "E4", "C5"],
+          "vel": 0.6,
+          "repeat": {
+            "every": 1,
+            "count": 4
+          }
+        },
+        {
+          "at": "logo",
+          "pitch": ["G4", "C4", "E4", "C5"],
+          "vel": 0.85
+        }
+      ]
+    },
+    {
+      "instrument": "clap",
+      "pan": 0.45,
+      "gain": -4,
+      "notes": [
+        {
+          "at": 1,
+          "vel": 0.7,
+          "repeat": {
+            "every": 2,
+            "count": 2
+          }
+        },
+        {
+          "at": "logo",
+          "vel": 0.9
+        }
+      ]
+    },
+    {
+      "instrument": "glockenspiel",
+      "name": "shine",
+      "gain": -8,
+      "notes": [
+        {
+          "at": "logo+0.5",
+          "pitch": "C6",
+          "vel": 0.6
+        },
+        {
+          "at": "logo+1",
+          "pitch": "G6",
+          "vel": 0.5
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`every shipped example > a-glockenspiel.json renders cleanly at the loudness target (or says why not) 1`] = `"0462df0d07bbc5d300753bc8d46363771e47b4587a0b807ca8e0fc12d90324e1"`;
+
+exports[`every shipped example > a-marimba-glocken-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"94309b3d6d2196a4bf25d32ea2557ebee78d048cf28978f38d9924562f2544e3"`;
+
+exports[`every shipped example > a-musicbox.json renders cleanly at the loudness target (or says why not) 1`] = `"0582a87a446cea72f67b98c63bb566785d53711d59791dfdb7951d740420c6e9"`;
+
+exports[`every shipped example > a-organ.json renders cleanly at the loudness target (or says why not) 1`] = `"6a561a27bb444d6e0735a0c438584685aa5801247b933f59c77c6f9444ba62ea"`;
+
+exports[`every shipped example > a-piano.json renders cleanly at the loudness target (or says why not) 1`] = `"a3257fe711beaa0bc1884bbd2df7a13f4b78d2fce6c2a55c8bea305f339110c8"`;
+
+exports[`every shipped example > a-piccolo.json renders cleanly at the loudness target (or says why not) 1`] = `"6704c5692f2d6b4dfef8677fff2dcb99a36c372b83eb61ed16195e170d0912be"`;
+
+exports[`every shipped example > a-trumpet.json renders cleanly at the loudness target (or says why not) 1`] = `"c5a0817330ebfa9a04da67c6fb2f2198724dc4346419f84ceb7a14c8173acefe"`;
+
+exports[`every shipped example > a-ukulele.json renders cleanly at the loudness target (or says why not) 1`] = `"d2467af74bc84df1e2f94e23e8ac4d5e11afe00be60ec1e36fc80a1d71bf57c5"`;
+
+exports[`every shipped example > a-vibraphone.json renders cleanly at the loudness target (or says why not) 1`] = `"f349e76d9a901ae53716fcd8fff4ab7bd81bbd7fbfff753d72357618d7b5af95"`;
+
+exports[`every shipped example > a-xylophone.json renders cleanly at the loudness target (or says why not) 1`] = `"522087686b425900176208865958df180220026916936a44557aff51db5e38c6"`;
+
+exports[`every shipped example > hatena-marumo-a.json renders cleanly at the loudness target (or says why not) 1`] = `"b92380408cd7112b84f0d83d674b5799cc3ef605885f05f83b965ef1d9852ccc"`;
+
+exports[`every shipped example > hatena-marumo-b.json renders cleanly at the loudness target (or says why not) 1`] = `"e60b1798a2d27dd6f0f881bd90302a5a98807d43874803017e46704b89048b3e"`;
+
+exports[`every shipped example > hatena-marumo-c.json renders cleanly at the loudness target (or says why not) 1`] = `"71fadecc8d0274c349cb6beedf8941727cc6f60a76ac0d96c95fd9a8411b9dc6"`;
+
+exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"e9c2166202732c06d266f7c4994caa3932a5a75a771aca3afa99b058d3adee4a"`;

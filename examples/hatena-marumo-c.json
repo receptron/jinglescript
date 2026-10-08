@@ -1,0 +1,90 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "tempo": 130,
+  "length": {
+    "seconds": 4.6
+  },
+  "seed": 1,
+  "master": {
+    "reverb": "room",
+    "loudness": -14,
+    "fadeOut": 0.4
+  },
+  "cues": {
+    "hit": {
+      "seconds": 1.5
+    },
+    "voice": {
+      "seconds": 1.8
+    }
+  },
+  "title": "ハテナマルモ opening (C)",
+  "tracks": [
+    {
+      "instrument": "marimba",
+      "name": "melody",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "E5",
+          "vel": 0.8,
+          "pan": 0.6
+        },
+        {
+          "at": 0.5,
+          "pitch": "G5",
+          "vel": 0.85,
+          "pan": 0.6
+        },
+        {
+          "at": 1,
+          "pitch": "A5",
+          "vel": 0.9,
+          "pan": 0.7
+        },
+        {
+          "at": {
+            "seconds": 0.742308
+          },
+          "pitch": "G5",
+          "vel": 0.5,
+          "pan": 0.7
+        },
+        {
+          "at": {
+            "seconds": 0.92
+          },
+          "pitch": "C5",
+          "vel": 0.8,
+          "pan": 0.4
+        },
+        {
+          "at": {
+            "seconds": 1.150769
+          },
+          "pitch": "D5",
+          "vel": 0.8,
+          "pan": 0.4
+        },
+        {
+          "at": "hit",
+          "pitch": ["C5", "E5", "G5", "C6"],
+          "vel": 1.0,
+          "pan": 0.5
+        }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "bass",
+      "notes": [
+        {
+          "at": "hit",
+          "pitch": ["C3", "G3"],
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

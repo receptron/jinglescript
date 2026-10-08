@@ -5,6 +5,7 @@
 // Differences from the prototype, all at the edges: the note rings until it is ~60 dB down rather
 // than being cut at 2.5 s (which clicked on low notes), it ends in a short fade, and a mode that
 // would come too close to Nyquist is dropped.
+import { MAX_PARTIAL_FRACTION, movingAverage, RING_TIME_CONSTANTS } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
 
 const MODES = [
@@ -19,11 +20,7 @@ const CLICK_LEVEL = 0.25;
 const CLICK_SMOOTH_SECONDS = 12 / 48000;
 const ATTACK_SECONDS = 0.0015;
 const MIN_SECONDS = 2.5;
-/** e^-6.9 ≈ −60 dB. */
-const RING_TIME_CONSTANTS = 6.9;
 const END_FADE_SECONDS = 0.01;
-/** Highest partial kept, as a fraction of the sample rate (a margin below Nyquist). */
-export const MAX_PARTIAL_FRACTION = 1 / 2.2;
 
 /** Lower bars ring longer: 1× at middle C and above, up to 2× two octaves below. */
 function lowFactor(midi: number): number {
@@ -37,16 +34,8 @@ function malletClick(sampleRate: number, input: SynthInput): Float32Array {
     const hann = n > 1 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1)) : 1;
     raw[i] = input.rng.normal() * hann * CLICK_LEVEL;
   }
-  // Centred moving average, as numpy's convolve(..., "same") with an even-length box.
   const taps = Math.max(1, Math.round(sampleRate * CLICK_SMOOTH_SECONDS));
-  const before = Math.floor(taps / 2);
-  const out = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    let sum = 0;
-    for (let k = i - before; k < i - before + taps; k++) if (k >= 0 && k < n) sum += raw[k] ?? 0;
-    out[i] = sum / taps;
-  }
-  return out;
+  return movingAverage(raw, taps);
 }
 
 function synthesize(input: SynthInput): Float32Array {
@@ -92,6 +81,7 @@ export const marimba: Instrument = {
     sustained: false,
     range: { low: "C2", high: "C7" },
     variants: [],
+    transpose: 0,
     synthetic: false,
   },
   synthesize,

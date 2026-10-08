@@ -42,7 +42,7 @@ function mixEvent(event: NoteEvent, mix: [Float32Array, Float32Array], seed: num
     const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
     const samples = instrument.synthesize({
       midi,
-      frequency: midi === undefined ? undefined : midiToFrequency(midi + event.detune / 100),
+      frequency: midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose + event.detune / 100),
       velocity: event.vel,
       hold: event.hold,
       variant: event.variant,

@@ -85,7 +85,8 @@ export function master(dry: [Float32Array, Float32Array], options: MasterOptions
     pass = gainAndLimit(faded, gainDb, options);
   }
   // Final guard on inter-sample peaks the sample-domain limiter cannot see.
-  const excess = truePeak(pass.audio) - TRUE_PEAK_CEILING;
+  // Aim a hair under the ceiling so float rounding cannot land on the wrong side of it.
+  const excess = truePeak(pass.audio) - (TRUE_PEAK_CEILING - 0.01);
   if (excess > 0) {
     scale(pass.audio, dbToGain(-excess));
     gainDb -= excess;

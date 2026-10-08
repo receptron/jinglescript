@@ -1,0 +1,109 @@
+// Building blocks shared by the instruments: damped modes, noise bursts, envelopes, and the
+// finishing every note gets (onset ramp, end fade, velocity, level).
+import type { Rng } from "../rng.ts";
+
+/** Highest partial kept, as a fraction of the sample rate (a margin below Nyquist). */
+export const MAX_PARTIAL_FRACTION = 1 / 2.2;
+/** e^-6.9 ≈ −60 dB: a damped mode has died away after this many time constants. */
+export const RING_TIME_CONSTANTS = 6.9;
+
+export function partialAllowed(frequency: number, sampleRate: number): boolean {
+  return frequency < sampleRate * MAX_PARTIAL_FRACTION;
+}
+
+export interface Mode {
+  ratio: number;
+  level: number;
+  /** Time constant, seconds. */
+  decay: number;
+}
+
+/** Adds damped sine modes at `frequency × ratio`, skipping any that would come near Nyquist. */
+export function addModes(out: Float32Array, frequency: number, modes: readonly Mode[], sampleRate: number): void {
+  for (const mode of modes) {
+    const f = frequency * mode.ratio;
+    if (!partialAllowed(f, sampleRate)) continue;
+    const w = (2 * Math.PI * f) / sampleRate;
+    for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + mode.level * Math.exp(-i / sampleRate / mode.decay) * Math.sin(w * i);
+  }
+}
+
+/** Seconds a set of modes needs to ring down to about −60 dB, within [min, max]. */
+export function ringSeconds(modes: readonly Mode[], min: number, max: number): number {
+  const longest = Math.max(...modes.map((m) => m.decay));
+  return Math.min(max, Math.max(min, RING_TIME_CONSTANTS * longest));
+}
+
+/**
+ * Gaussian noise burst added at the start (mallet clicks, hammer and pluck noise), Hann-windowed
+ * unless `windowed` is false (the prototype's music-box tick and organ key click were raw).
+ */
+export function addNoiseBurst(out: Float32Array, seconds: number, level: number, rng: Rng, sampleRate: number, windowed = true): void {
+  const n = Math.min(out.length, Math.round(seconds * sampleRate));
+  for (let i = 0; i < n; i++) {
+    const hann = windowed && n > 1 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1)) : 1;
+    out[i] = (out[i] ?? 0) + rng.normal() * hann * level;
+  }
+}
+
+/** Centred moving average, as numpy's convolve(x, ones(taps) / taps, "same"). */
+export function movingAverage(x: ArrayLike<number>, taps: number): Float32Array {
+  const before = Math.floor(taps / 2);
+  const out = new Float32Array(x.length);
+  for (let i = 0; i < x.length; i++) {
+    let sum = 0;
+    for (let k = i - before; k < i - before + taps; k++) if (k >= 0 && k < x.length) sum += x[k] ?? 0;
+    out[i] = sum / taps;
+  }
+  return out;
+}
+
+/** Phase of a tone whose frequency varies per sample (vibrato, scoops), accumulated like numpy's cumsum. */
+export function accumulatePhase(length: number, sampleRate: number, frequencyAt: (t: number) => number): Float64Array {
+  const phase = new Float64Array(length);
+  let sum = 0;
+  for (let i = 0; i < length; i++) {
+    sum += frequencyAt(i / sampleRate);
+    phase[i] = (2 * Math.PI * sum) / sampleRate;
+  }
+  return phase;
+}
+
+/** ADSR with a hold: attack, decay to sustain, sustain until `hold`, then exponential release. */
+export function adsr(t: number, a: number, d: number, s: number, r: number, hold: number): number {
+  let e: number;
+  if (t < a) e = t / a;
+  else if (t < a + d) e = 1 - ((1 - s) * (t - a)) / d;
+  else e = s;
+  return t > hold ? e * Math.exp(-(t - hold) / r) : e;
+}
+
+/** At least this much onset ramp on every note: no clicks at note starts. */
+export const MIN_ATTACK_SECONDS = 0.001;
+
+export interface Finish {
+  /** Onset ramp, seconds (at least MIN_ATTACK_SECONDS). */
+  attack: number;
+  /** Fade at the very end, seconds: short when the sound has already died away, longer (a damper) when it is cut. */
+  endFade: number;
+  /** Velocity × the instrument's level trim. */
+  gain: number;
+}
+
+/** Onset ramp, end fade and gain, in place. */
+export function finish(out: Float32Array, { attack, endFade, gain }: Finish, sampleRate: number): Float32Array {
+  const attackSamples = Math.max(MIN_ATTACK_SECONDS, attack) * sampleRate;
+  const fadeSamples = Math.max(1, Math.round(endFade * sampleRate));
+  const fadeStart = out.length - fadeSamples;
+  for (let i = 0; i < out.length; i++) {
+    const onset = Math.min(1, i / attackSamples);
+    // Raised-cosine damper: smooth both where it starts and where it reaches silence.
+    const end = i < fadeStart ? 1 : 0.5 + 0.5 * Math.cos((Math.PI * (i - fadeStart + 1)) / fadeSamples);
+    out[i] = (out[i] ?? 0) * onset * end * gain;
+  }
+  return out;
+}
+
+export function buffer(seconds: number, sampleRate: number): Float32Array {
+  return new Float32Array(Math.max(1, Math.round(seconds * sampleRate)));
+}

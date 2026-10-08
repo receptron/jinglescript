@@ -913,4 +913,8 @@ Decided:
 - 2026-10-08 — Published to npm at the user's request: `jinglescript@0.1.0` and
   `@gui-chat-plugin/jinglescript@0.1.0` (library as a peer, `^0.1.0`). READMEs install from npm;
   MCP setup uses `npx -y jinglescript mcp`.
+- 2026-10-08 — Both packages live on npm at 0.1.0 (staged publishing needed the user's approval on
+  npmjs.com). Installed from the registry in a clean folder: CLI renders MP3, the plugin's server
+  entry renders, its Vue entry loads. MulmoTerminal's branch now depends on `^0.1.0` from npm
+  (no local paths); its typecheck, 773 infra tests and build pass.
 

@@ -4,16 +4,27 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import { parseArgs } from "node:util";
 import { demoScore } from "./demo.ts";
+import { AUDIO_FORMATS, FfmpegMissingError, isAudioFormat } from "./encode.ts";
 import { isInstrumentName } from "./instruments/index.ts";
-import { checkScore, formatProblem, getAuthoringGuide, getInstrument, getSchema, listInstruments, parseScore, SCHEMA_PARTS } from "./index.ts";
+import {
+  checkScore,
+  formatProblem,
+  getAuthoringGuide,
+  getInstrument,
+  getSchema,
+  JingleScriptError,
+  listInstruments,
+  parseScore,
+  SCHEMA_PARTS,
+} from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
 import { WAV_BITS } from "./wav.ts";
 
 const USAGE = `Usage:
-  jinglescript render <score.json> -o <out.wav> [--seed <n>] [--rate 48000|44100] [--bits 24|16]
-                       writes the audio and <out>.timing.json next to it
+  jinglescript render <score.json> -o <out.wav|.mp3|.ogg> [--seed <n>] [--rate 48000|44100] [--bits 24|16]
+                       writes the audio and <out>.timing.json next to it (MP3/OGG need ffmpeg)
   jinglescript check <score.json> [--json]   validate; print errors with hints and the resolved cue times
   jinglescript schema [${SCHEMA_PARTS.join("|")}]   print the JSON Schema (for LLM prompts)
   jinglescript guide                          print the authoring guide for LLMs
@@ -72,11 +83,17 @@ function report(files: Awaited<ReturnType<typeof renderToFiles>>, target: number
 }
 
 async function renderCommand(file: string | undefined): Promise<void> {
-  const out = args.out ?? fail(`render needs -o <out.wav>\n\n${USAGE}`);
-  if (extname(out).toLowerCase() !== ".wav") fail("Only .wav output for now (MP3/OGG come with M4).");
+  const out = args.out ?? fail(`render needs -o <out.wav|.mp3|.ogg>\n\n${USAGE}`);
+  const format = extname(out).slice(1).toLowerCase();
+  if (!isAudioFormat(format)) fail(`-o must end in ${AUDIO_FORMATS.map((f) => "." + f).join(", ")} (MP3 and OGG need ffmpeg).`);
   const bits = WAV_BITS.find((b) => String(b) === (args.bits ?? "24")) ?? fail("--bits must be 16 or 24");
   const score = parseScore(await readJson(file));
-  const files = await renderToFiles(score, dirname(out), basename(out, extname(out)), { sampleRate: sampleRateArg(), seed: intArg(args.seed, "--seed"), bits });
+  const files = await renderToFiles(score, dirname(out), basename(out, extname(out)), {
+    sampleRate: sampleRateArg(),
+    seed: intArg(args.seed, "--seed"),
+    bits,
+    format,
+  });
   report(files, score.master.loudness);
 }
 
@@ -129,27 +146,37 @@ function instrumentsCommand(name: string | undefined): void {
   }
 }
 
-const [command, target] = positionals;
-if (args.help || command === undefined) {
-  console.log(USAGE);
-} else if (command === "render") {
-  await renderCommand(target);
-} else if (command === "check") {
-  await checkCommand(target);
-} else if (command === "schema") {
-  const part = target ?? "score";
-  if (!isSchemaPart(part)) fail(`Unknown schema part "${part}". Parts: ${SCHEMA_PARTS.join(", ")}`);
-  console.log(JSON.stringify(getSchema(part), null, 2));
-} else if (command === "guide") {
-  console.log(getAuthoringGuide());
-} else if (command === "instruments") {
-  instrumentsCommand(target);
-} else if (command === "demo") {
-  await demoCommand(target);
-} else if (command === "mcp") {
-  // Loaded only here, so the library itself does not pull in the MCP SDK.
-  const { runMcpServer } = await import("./mcp.ts");
-  await runMcpServer(args.out);
-} else {
-  fail(`Unknown command "${command}".\n\n${USAGE}`);
+async function main(): Promise<void> {
+  const [command, target] = positionals;
+  if (args.help || command === undefined) {
+    console.log(USAGE);
+  } else if (command === "render") {
+    await renderCommand(target);
+  } else if (command === "check") {
+    await checkCommand(target);
+  } else if (command === "schema") {
+    const part = target ?? "score";
+    if (!isSchemaPart(part)) fail(`Unknown schema part "${part}". Parts: ${SCHEMA_PARTS.join(", ")}`);
+    console.log(JSON.stringify(getSchema(part), null, 2));
+  } else if (command === "guide") {
+    console.log(getAuthoringGuide());
+  } else if (command === "instruments") {
+    instrumentsCommand(target);
+  } else if (command === "demo") {
+    await demoCommand(target);
+  } else if (command === "mcp") {
+    // Loaded only here, so the library itself does not pull in the MCP SDK.
+    const { runMcpServer } = await import("./mcp.ts");
+    await runMcpServer(args.out);
+  } else {
+    fail(`Unknown command "${command}".\n\n${USAGE}`);
+  }
+}
+
+try {
+  await main();
+} catch (error) {
+  // Problems the user can fix are reported as messages, not stack traces.
+  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError) fail(error.message);
+  throw error;
 }

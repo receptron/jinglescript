@@ -7,6 +7,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
+import { AUDIO_FORMATS, FfmpegMissingError } from "./encode.ts";
 import { renderToFiles } from "./output.ts";
 import { checkScore, parseScore } from "./score.ts";
 
@@ -41,7 +42,8 @@ export const ManageInputSchema = z
       .string()
       .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
       .optional()
-      .describe('renderScore: file stem for the outputs (default "jingle"): writes <stem>.wav and <stem>.timing.json in the server\'s output folder.'),
+      .describe('renderScore: file stem for the outputs (default "jingle"): writes <stem>.<format> and <stem>.timing.json in the server\'s output folder.'),
+    format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg on the server).'),
   })
   .superRefine((input, ctx) => {
     for (const field of REQUIRED[input.action]) {
@@ -76,7 +78,14 @@ async function renderAction(input: ManageInput, outDir: string): Promise<ToolRes
   const score = scoreInput(input.score);
   const check = checkScore(score);
   if (!check.ok) return text({ ok: false, errors: check.errors }, true);
-  const { audio, timing, result } = await renderToFiles(parseScore(score), outDir, input.fileName ?? "jingle");
+  let files;
+  try {
+    files = await renderToFiles(parseScore(score), outDir, input.fileName ?? "jingle", { format: input.format ?? "wav" });
+  } catch (error) {
+    if (error instanceof FfmpegMissingError) return text(error.message, true);
+    throw error;
+  }
+  const { audio, timing, result } = files;
   return text({
     ok: true,
     audio,

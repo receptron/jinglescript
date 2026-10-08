@@ -873,4 +873,10 @@ Decided:
     `end`); the guide says every named time becomes a cue, and gives laser/pop default pitches.
   - Not changed: the timing map's `beats` (seconds of each beat) keeps its name — it is the
     public contract.
+- 2026-10-08 — **M4 done** (publishing still waits for the user; package.json stays `private`).
+  MP3 (libmp3lame VBR ~190 kbit/s) and OGG (Vorbis q6) through ffmpeg, found at run time; a clear
+  message when it is missing (CLI prints it, MCP returns it as a tool error). `-o` picks the format
+  by extension; MCP `renderScore` takes `format`. `scripts/smoke.sh` packs the tarball, installs it
+  into an empty folder and renders through the CLI (WAV + MP3), the library and the MCP server over
+  stdio; CI runs it with ffmpeg. Tarball: 113 files, 73 kB (dist, schema, README, LICENSE).
 

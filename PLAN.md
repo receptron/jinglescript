@@ -1024,5 +1024,8 @@ Decided:
   Node's TypeScript support; README says so. CI adds a 22.12.0 test job and runs the package smoke
   on 22.12.0 and 22 (packed on 22, then installed and run on each; `SMOKE_TARBALL` in smoke.sh).
 - 2026-10-08 — **M9 done.** The user listened to the seven renders in `out/lyrics/` ("どれも良い")
-  and watched the karaoke view play on the plugin demo page; merged PR #1. Not yet: 0.2.0 on npm,
-  and MulmoTerminal still depends on 0.1.0.
+  and watched the karaoke view play on the plugin demo page; merged PR #1.
+- 2026-10-08 — Both packages on npm at 0.2.0 (published by the user; `latest` is 0.2.0). Installed
+  from the registry in a clean folder: on Node 24.19 and 22.12.0 the library and the plugin's
+  server entry render the lyrics example with both lines, the plugin's Vue entry loads, and the CLI
+  renders MP3. MulmoTerminal still depends on `^0.1.0`.

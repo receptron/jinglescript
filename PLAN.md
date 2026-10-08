@@ -753,8 +753,8 @@ the GUI plugin's player showing the current and next line with a per-syllable wi
 audio's current time, and an example (`lyrics-hatena.json`). **Done when** every syllable's `t`
 equals its note's onset in the timing map, scores and timing files without lyrics are unchanged
 byte for byte (golden hashes hold), the lyrics requests in the evaluation pass, and the user has
-watched the karaoke view play. **Status:** implemented and evaluated; waiting on the user's
-listening and viewing.
+watched the karaoke view play. **Done** (2026-10-08): the user listened to `out/lyrics/` and
+watched the karaoke view on the plugin demo page.
 
 ### M8 — Jingle + animation tool (later)
 Grow JingleScript into a tool that writes the jingle and the animation synced to it from one
@@ -1023,3 +1023,6 @@ Decided:
   and run on 22.12.0. Running from a clone (`node src/cli.ts`, the scripts) still needs 22.18 for
   Node's TypeScript support; README says so. CI adds a 22.12.0 test job and runs the package smoke
   on 22.12.0 and 22 (packed on 22, then installed and run on each; `SMOKE_TARBALL` in smoke.sh).
+- 2026-10-08 — **M9 done.** The user listened to the seven renders in `out/lyrics/` ("どれも良い")
+  and watched the karaoke view play on the plugin demo page; merged PR #1. Not yet: 0.2.0 on npm,
+  and MulmoTerminal still depends on 0.1.0.

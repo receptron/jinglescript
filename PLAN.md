@@ -737,8 +737,8 @@ built-ins as definitions. Examples: `custom-bell.json`, `custom-zap.json`, `laye
 **Done when** the re-expressed built-ins render identically (or within the M1/M2 tolerances) to
 their code versions, a fuzz test of random valid definitions never produces NaN, clicks, aliasing
 or DC, the evaluation's custom-sound requests pass, and the user has listened to the examples.
-The schema reserves `instruments` from M1 so earlier scores stay valid. **Status:** implemented and
-evaluated; waiting on the user's listening (`out/listen-m2d/`).
+The schema reserves `instruments` from M1 so earlier scores stay valid. **Done** (2026-10-08): the
+user listened to `out/listen-m2d/`.
 
 ### M3 — CLI, docs, LLM-readiness
 CLI commands above, `instruments`/`schema`/`demo`, README with a "how to write a jingle" section
@@ -1077,3 +1077,5 @@ Decided:
     say so.
   - Examples with an impact layer reach −14.5 to −15.3 LUFS with the limiter at its cap
     (reported), like the built-in impact examples.
+- 2026-10-08 — **M2d done.** The user listened to the ten renders in `out/listen-m2d/` (the three
+  examples, the guide's block sounds and the six evaluation scores): "どれも良い感じ".

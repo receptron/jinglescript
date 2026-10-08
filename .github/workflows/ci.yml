@@ -114,6 +114,9 @@ jobs:
             gui-plugin/package-lock.json
       - run: npm ci
         working-directory: .
+      # The plugin's declarations import the library's types from its dist/.
+      - run: npm run build
+        working-directory: .
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

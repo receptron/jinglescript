@@ -13,7 +13,9 @@ import { vibraphone } from "./vibraphone.ts";
 import { xylophone } from "./xylophone.ts";
 import { clock } from "../sounds/clock.ts";
 import { footsteps } from "../sounds/footsteps.ts";
+import { heels } from "../sounds/heels.ts";
 import { impact } from "../sounds/impact.ts";
+import { knock } from "../sounds/knock.ts";
 import { laser } from "../sounds/laser.ts";
 import { pistol } from "../sounds/pistol.ts";
 import { pop } from "../sounds/pop.ts";
@@ -36,6 +38,7 @@ export const INSTRUMENT_NAMES = [
   "clap",
   "clock",
   "footsteps",
+  "heels",
   "tapdance",
   "pistol",
   "laser",
@@ -43,6 +46,7 @@ export const INSTRUMENT_NAMES = [
   "riser",
   "impact",
   "pop",
+  "knock",
 ] as const;
 export type InstrumentName = (typeof INSTRUMENT_NAMES)[number];
 
@@ -60,6 +64,7 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   clap,
   clock,
   footsteps,
+  heels,
   tapdance,
   pistol,
   laser,
@@ -67,6 +72,7 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   riser,
   impact,
   pop,
+  knock,
 };
 
 export function isInstrumentName(name: string): name is InstrumentName {

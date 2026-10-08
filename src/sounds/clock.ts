@@ -30,8 +30,8 @@ const VOICES: Record<Variant, { modes: { ratio: number; level: number; decay: nu
   },
 };
 const LENGTH_SECONDS = 0.08;
-/** Loudness trims per variant, dB: matched to a C5 marimba note at full velocity (mean over seeds). */
-const LEVEL_DB: Record<Variant, number> = { tick: 0.0, tock: 0.8 };
+/** Peak trims per variant, dB: a tick peaks like a C5 marimba note at full velocity (mean over seeds). */
+const LEVEL_DB: Record<Variant, number> = { tick: 0.7, tock: 1.6 };
 
 function synthesize(input: SynthInput): Float32Array {
   const { sampleRate, rng } = input;
@@ -48,6 +48,7 @@ export const clock: Instrument = {
     kind: "sfx",
     description: 'Clock tick-tock (sound effect). Variants "tick" (default) and "tock"; alternate them with "variant": ["tick", "tock"] and `repeat`.',
     pitched: false,
+    transient: true,
     sustained: false,
     range: null,
     variants: VARIANTS,

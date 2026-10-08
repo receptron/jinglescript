@@ -99,6 +99,8 @@ is the start of the sound, so an animation frame on it lines up.
 |---|---|---|
 | clock | tick, tock | \`"variant": ["tick", "tock"]\` with \`repeat\` for a ticking clock |
 | footsteps | left, right | \`"variant": ["left", "right"]\`, \`repeat\` every 0.5–1 beat to walk |
+| heels | left, right | high-heel steps; walk the same way |
+| knock | door, table | "knock-knock": two notes about half a beat apart |
 | tapdance | toe, heel, shuffle | |
 | pistol | shot, cartoon | |
 | laser | — | optional \`pitch\` = where the "pew" starts; \`len\` = sweep length (default 0.25 s) |
@@ -111,7 +113,8 @@ is the start of the sound, so an animation frame on it lines up.
   whoosh that stops exactly on the cut.
 - Close, dry effects (ticks, footsteps, taps) sound better outside the reverb: give their track
   \`"reverb": false\`.
-- Effects are as loud as instruments at the same velocity; put them under the music with track
+- Short impulses (ticks, steps, taps, knocks) peak like an instrument note; other effects are as
+  loud as instruments at the same velocity; put them under the music with track
   \`gain\` (-4 to -8 dB) unless they are the point.
 - Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
   target (the renderer reports it).

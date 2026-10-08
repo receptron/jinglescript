@@ -91,7 +91,8 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
         expect(x.every(Number.isFinite)).toBe(true);
         expect(peak).toBeGreaterThan(0);
         expect(Math.abs(x[0] ?? 1)).toBe(0);
-        expect(Math.abs(x[1] ?? 1)).toBeLessThan(0.05 * peak);
+        // Impulses are loudest in their first milliseconds, so their second sample can be a little higher.
+        expect(Math.abs(x[1] ?? 1)).toBeLessThan((descriptor.transient === true ? 0.1 : 0.05) * peak);
         expect(Math.abs(x[x.length - 1] ?? 1)).toBeLessThan(1e-4 * peak);
         expect(Math.abs(x.reduce((s, v) => s + v, 0) / x.length) / peak).toBeLessThan(0.005);
         // After the attack noise: the partials stay below the limit.
@@ -100,17 +101,31 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
     },
   );
 
-  it.each(variantsOf(name))("is as loud as the marimba for a C5 at full velocity (variant %s, ±0.75 LU), so mixes balance", (variant) => {
-    // Noise-based sounds vary a little with the seed: compare the mean over five seeds.
-    const loudness = (n: InstrumentName, v?: string) => {
-      const values = [1, 2, 3, 4, 5].map((seed) => {
-        const x = note(n, INSTRUMENTS[n].descriptor.pitched ? 72 : undefined, RATE, 1, v, seed);
-        return integratedLoudness([x, x], RATE);
-      });
-      return values.reduce((a, b) => a + b, 0) / values.length;
-    };
-    expect(Math.abs(loudness(name, variant) - loudness("marimba"))).toBeLessThan(0.5);
-  });
+  it.runIf(descriptor.transient === true).each(variantsOf(name))(
+    "peaks like a C5 marimba note at full velocity (variant %s, ±1 dB), so mixes balance",
+    (variant) => {
+      const peak = (n: InstrumentName, v?: string) => {
+        const values = [1, 2, 3, 4, 5].map((seed) => peakOf(note(n, INSTRUMENTS[n].descriptor.pitched ? 72 : undefined, RATE, 1, v, seed)));
+        return 20 * Math.log10(values.reduce((a, b) => a + b, 0) / values.length);
+      };
+      expect(Math.abs(peak(name, variant) - 20 * Math.log10(peakOf(note("marimba", 72))))).toBeLessThan(1);
+    },
+  );
+
+  it.runIf(descriptor.transient !== true).each(variantsOf(name))(
+    "is as loud as the marimba for a C5 at full velocity (variant %s, ±0.5 LU), so mixes balance",
+    (variant) => {
+      // Noise-based sounds vary a little with the seed: compare the mean over five seeds.
+      const loudness = (n: InstrumentName, v?: string) => {
+        const values = [1, 2, 3, 4, 5].map((seed) => {
+          const x = note(n, INSTRUMENTS[n].descriptor.pitched ? 72 : undefined, RATE, 1, v, seed);
+          return integratedLoudness([x, x], RATE);
+        });
+        return values.reduce((a, b) => a + b, 0) / values.length;
+      };
+      expect(Math.abs(loudness(name, variant) - loudness("marimba"))).toBeLessThan(0.5);
+    },
+  );
 
   it.runIf(descriptor.pitched)("plays in tune (±10 cents; vibrato instruments average out)", () => {
     const pitches = rangeOf(name).filter((m) => m !== undefined);

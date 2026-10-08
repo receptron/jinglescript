@@ -839,3 +839,14 @@ Decided:
     no check): Haiku 6/6 and the default model 6/6 valid on the first try with every cue time right.
     Both placed the riser with `end` and alternated variants with lists. The "western" request (two
     pistol shots) comes out at −17 to −18 LUFS with the limiter at its cap.
+- 2026-10-08 — User: tapdance and footsteps "a little strange"; add high heels and a knock.
+  Footsteps rebuilt as noise (heel strike coloured by the floor, toe, scuff) instead of a falling
+  sine; tapdance as a broadband crack, a short dense metallic ring and the floor's knock instead of
+  clean bell-like modes; new `heels` (clack resonances, then the sole) and `knock` (knuckle click
+  and panel resonances; door/table). Found while calibrating: matching an impulse's *loudness* to
+  the marimba put its peak 10–20 dB above the music, so the limiter crushed every mix. Impulses
+  now carry `transient` and are balanced by peak (as loud at their peak as a C5 marimba note);
+  clock moved to the same rule. With that, walk-in and tap-dance reach −14 LUFS with 0–3.6 dB of
+  limiting. Two candidates each for footsteps, tapdance and heels in
+  out/listen-footsteps-heels-tap-knock/; the code defaults to candidate A until the user picks.
+

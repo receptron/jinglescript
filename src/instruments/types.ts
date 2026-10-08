@@ -26,6 +26,12 @@ export interface InstrumentDescriptor {
    * and they may be placed by `end` instead of `at`.
    */
   duration?: { defaultSeconds: number };
+  /**
+   * A very short impulse (a tick, a step, a knock). It is balanced by its peak — as loud at its
+   * peak as a C5 marimba note — rather than by loudness, which for an impulse would push its peak
+   * far above the music.
+   */
+  transient?: boolean;
   /** Sustained sounds hold for `len`; the others ring out on their own. */
   sustained: boolean;
   /** Lowest and highest pitch that renders cleanly; null for unpitched sounds. */

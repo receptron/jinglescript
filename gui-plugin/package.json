@@ -32,15 +32,14 @@
   },
   "peerDependencies": {
     "gui-chat-protocol": "^2.3.0",
-    "vue": "^3.5.43"
-  },
-  "dependencies": {
-    "jinglescript": "file:.."
+    "vue": "^3.5.43",
+    "jinglescript": "*"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
     "@vitejs/plugin-vue": "^6.0.9",
     "gui-chat-protocol": "^2.3.0",
+    "jinglescript": "file:..",
     "typescript": "~6.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.3",

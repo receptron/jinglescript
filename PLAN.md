@@ -890,4 +890,11 @@ Decided:
   and a preview card. Verified in a headless browser on a demo page: no console errors, three
   players render, play advances the time, a cue chip seeks. Not yet registered in MulmoTerminal
   (needs edits in that repo — asked the user first). Package name is provisional.
+- 2026-10-08 — Registered the plugin in MulmoTerminal at the user's request (its working tree on
+  the user's branch, not committed there): `jinglescript` linked and the plugin installed from its
+  packed tarball (no second Vue), added to plugins.json, the Vue registry (no runtime wrapper; the
+  audio is a data URI) and the `media` tool group (not auto-allowed). Verified in MulmoTerminal:
+  the server entry loads and renders from its node_modules, `vue-tsc -b` passes, its 108 infra /
+  MCP / agents test files (1577 tests) pass, and `vite build` bundles the view. The plugin's
+  `jinglescript` dependency became a peer.
 

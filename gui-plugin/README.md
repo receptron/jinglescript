@@ -16,11 +16,16 @@ card.
 
 ## Adding it to MulmoTerminal
 
-1. Install it in MulmoTerminal (`npm install /path/to/jinglescript/gui-plugin` until it is
-   published).
+The library is a peer dependency (the host's server runs the tool), so a host installs both:
+
+1. Build both packages, then in MulmoTerminal:
+   `yarn add link:../jinglescript "file:../jinglescript/gui-plugin/gui-chat-plugin-jinglescript-0.0.0.tgz"`
+   (the plugin from its `npm pack` tarball, so it brings no second copy of Vue; until published).
 2. `plugins/plugins.json`: add `"@gui-chat-plugin/jinglescript"` to `packages`.
-3. `src/plugins-registry.ts`: `import { plugin as jinglePlugin } from "@gui-chat-plugin/jinglescript/vue"`
-   (and its `style.css?inline`) next to the other packages, and register it like them.
+3. `src/plugins-registry.ts`: import `plugin` from `@gui-chat-plugin/jinglescript/vue` and its
+   `style.css?inline`, and add a `PACKAGES` entry (`viewOf(...)`, no runtime wrapper needed).
+4. `common/toolGroups.ts`: put `manageJingleScript` in the `media` group.
+5. Restart MulmoTerminal (the server loads plugins at boot).
 
 ## Development
 

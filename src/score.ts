@@ -89,7 +89,7 @@ function nearCueWarnings(expanded: Expanded): ScoreProblem[] {
   for (const event of expanded.events) {
     if (event.cue !== undefined) continue;
     for (const [cue, seconds] of Object.entries(expanded.cues)) {
-      const gap = Math.abs(event.seconds - seconds);
+      const gap = Math.abs(event.nominal - seconds);
       if (gap > 0 && gap < NEAR_CUE_SECONDS) {
         warnings.push({
           path: formatPath(["tracks", event.track, "notes", event.note, "at"]),

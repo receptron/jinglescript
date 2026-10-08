@@ -816,3 +816,7 @@ Decided:
   looseness in string gaps, onset and velocity; a stroke on a cue starts exactly on it). The
   island-strum example went from 100 notes to 5 lines. Timing map notes gain `chord` and `strum`
   (additive, still jinglescript-timing/1).
+  - Evaluation (Haiku, guide + schema only, 3 strum requests incl. Japanese): 3/3 valid on the
+    first try, patterns used correctly ("-U-U" upbeats, "D-DUD-DU", "D-DU" for 2-beat chords).
+    Found and fixed: the near-cue warning fired on a stroke's looseness; it now judges the written
+    time.

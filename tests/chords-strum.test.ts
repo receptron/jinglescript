@@ -90,6 +90,13 @@ describe("strums", () => {
     expect(events[0]).toMatchObject({ seconds: 2, cue: "hit" });
   });
 
+  it("does not mistake its looseness for a note meant to be on a cue", () => {
+    // Beat 4 at 120 BPM is exactly 2 s, the cue: the stroke is jittered a few ms off it, which is
+    // the strum's looseness, not a misplaced note.
+    const result = checkScore({ ...score([{ at: 4, chord: "C", strum: "down" }]), cues: { logo: { seconds: 2 } } });
+    expect(result).toMatchObject({ ok: true, warnings: [] });
+  });
+
   it("needs a chord", () => {
     expect(checkScore(score([{ at: 0, pitch: "C4", strum: "down" }])).errors[0]?.message).toBe("`strum` needs a chord.");
   });

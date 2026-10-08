@@ -23,8 +23,10 @@ export interface NoteEvent {
   /** 0 for the note itself, 1… for its repetitions. */
   repeat: number;
   instrument: InstrumentName;
-  /** Onset in seconds, humanize applied. */
+  /** Onset in seconds, humanize and strum looseness applied. */
   seconds: number;
+  /** Onset as written, before any looseness: what "is this meant to be on a cue?" is judged on. */
+  nominal: number;
   /** The cue this event sits exactly on, if any. */
   cue: string | undefined;
   /** Pitch names (a chord already voiced); empty for unpitched sounds. */
@@ -196,6 +198,7 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     note: noteIndex,
     repeat: placed.index,
     instrument: track?.instrument ?? "marimba",
+    nominal: placed.seconds,
     // Looseness never moves a note before the start.
     seconds: Math.max(0, placed.seconds + humanize / 1000 + (strum?.shift ?? 0)),
     cue: placed.onCue,

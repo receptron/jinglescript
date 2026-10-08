@@ -849,4 +849,10 @@ Decided:
   clock moved to the same rule. With that, walk-in and tap-dance reach −14 LUFS with 0–3.6 dB of
   limiting. Two candidates each for footsteps, tapdance and heels in
   out/listen-footsteps-heels-tap-knock/; the code defaults to candidate A until the user picks.
+- 2026-10-08 — User picks: footsteps B (leather on wood), heels B (block heel on wood; "room to
+  improve", direction not yet given). Tap dance went through two more rounds: adding weight to the
+  ringing-plate design still sounded like "hitting an empty can" — sparse sustained partials read
+  as a can whatever their level. Rebuilt without any sustained ring; of five candidates the user
+  picked a dry crack plus a dense, heavily damped 40-mode wooden floor at 60 % of the crack's peak.
+  Lesson for future effects: avoid sparse, lightly damped partials unless the thing really rings.
 

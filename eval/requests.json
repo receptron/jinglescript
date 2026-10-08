@@ -1,0 +1,28 @@
+[
+  { "id": "bouncy-opening", "request": "A bouncy 5-second marimba opening that ends on a big hit at 1.5 s.", "cues": [1.5] },
+  {
+    "id": "three-hops-ja",
+    "request": "子ども向けチャンネルのオープニング。マスコットが0.5秒、1.0秒、1.5秒に3回ジャンプして、2.0秒で決めポーズ。全部で5秒、マリンバで。",
+    "cues": [0.5, 1.0, 1.5, 2.0]
+  },
+  { "id": "logo-sting", "request": "A 3-second marimba logo sting; the logo appears at 0.8 s.", "cues": [0.8] },
+  { "id": "tiktok-hook", "request": "A 1-second hook for the start of a TikTok video: a quick marimba flourish landing at 0.6 s.", "cues": [0.6] },
+  { "id": "cooking-outro", "request": "A gentle 6-second marimba outro for a cooking channel, with the final chord at 4 s.", "cues": [4.0] },
+  {
+    "id": "punchline",
+    "request": "A playful three-note marimba 'ta-da' for a comedy punchline. The last note lands exactly at 1.2 s; 3 seconds in total.",
+    "cues": [1.2]
+  },
+  { "id": "news-switch-ja", "request": "ニュースのコーナー切り替え用、3秒。0秒から0.4秒ごとに4回マリンバを鳴らして、4回目（1.2秒）を強く。", "cues": [1.2] },
+  {
+    "id": "tech-intro",
+    "request": "Marimba intro for a tech review, 4 s long: a rising arpeggio whose top note is at 1.0 s, then a chord with a low bass at 1.6 s. The narrator starts talking at 2.0 s.",
+    "cues": [1.0, 1.6, 2.0]
+  },
+  {
+    "id": "progression",
+    "request": "A short marimba chord progression C–F–G–C, one chord per beat at 120 BPM, with the last chord at 1.5 s; 4 seconds in total.",
+    "cues": [1.5]
+  },
+  { "id": "ticking", "request": "Marimba ticking like a clock every 0.5 s from 0 to 2.0 s, then a big chord at 2.5 s; 5 seconds in total.", "cues": [2.5] }
+]

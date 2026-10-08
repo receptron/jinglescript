@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+.cache/
+*.wav
+*.mp3
+*.ogg
+.DS_Store
+*.tgz
+.eslintcache
+__pycache__/
+# local MulmoTerminal agent config (machine-specific paths)
+.agents/

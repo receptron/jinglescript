@@ -1,0 +1,74 @@
+{
+  "name": "jinglescript",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A score language for short jingles and sound effects that an LLM writes, rendered to audio plus a timing map for syncing animation.",
+  "keywords": [
+    "jingle",
+    "audio",
+    "synthesis",
+    "sound-effects",
+    "llm",
+    "animation",
+    "timing"
+  ],
+  "homepage": "https://github.com/receptron/jinglescript#readme",
+  "bugs": {
+    "url": "https://github.com/receptron/jinglescript/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/receptron/jinglescript.git"
+  },
+  "license": "MIT",
+  "author": "receptron",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "jinglescript": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "jinglescript": "node src/cli.ts",
+    "build": "node scripts/build.ts",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --cache --cache-strategy content",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "schema": "node scripts/write-schema.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-security": "^4.2.0",
+    "eslint-plugin-sonarjs": "^4.2.2",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}

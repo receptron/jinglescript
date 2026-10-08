@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "description": "Optional URL or path of this JSON Schema, for editors.",
+      "type": "string"
+    },
+    "format": {
+      "type": "string",
+      "const": "jinglescript/1",
+      "description": "Always \"jinglescript/1\"."
+    },
+    "title": {
+      "type": "string"
+    },
+    "tempo": {
+      "type": "number",
+      "minimum": 20,
+      "maximum": 400,
+      "description": "Beats per minute; one beat is a quarter note. 100–140 suits most jingles."
+    },
+    "length": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "seconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Seconds from the start of the jingle."
+            }
+          },
+          "required": [
+            "seconds"
+          ],
+          "additionalProperties": false,
+          "description": "A time in seconds, for times the animation fixes (\"lands at 1.5 s\")."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "beats": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Beats (quarter notes at `tempo`) from the start."
+            }
+          },
+          "required": [
+            "beats"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "description": "Total length of the audio. Leave room after the last note for it to ring out (and for a voice-over, if any)."
+    },
+    "seed": {
+      "default": 1,
+      "description": "Seed for every random detail (mallet noise, reverb, humanize). Same score + seed = identical audio.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "master": {
+      "default": {
+        "reverb": "room",
+        "loudness": -14,
+        "fadeOut": 0.4,
+        "limiter": true
+      },
+      "type": "object",
+      "properties": {
+        "reverb": {
+          "default": "room",
+          "description": "\"room\" (default, small and natural), \"hall\" (bigger), or \"none\".",
+          "type": "string",
+          "enum": [
+            "none",
+            "room",
+            "hall"
+          ]
+        },
+        "loudness": {
+          "default": -14,
+          "description": "Target integrated loudness in LUFS. -14 matches YouTube; leave the default unless asked.",
+          "type": "number",
+          "minimum": -30,
+          "maximum": -6
+        },
+        "fadeOut": {
+          "default": 0.4,
+          "description": "Seconds of fade at the very end.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "limiter": {
+          "default": true,
+          "description": "Allow a few dB of transparent peak limiting so the jingle reaches the loudness target. Leave it on unless asked.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Mix settings for the whole jingle."
+    },
+    "cues": {
+      "default": {},
+      "description": "Named moments, e.g. { \"hit\": { \"seconds\": 1.5 }, \"voice\": { \"seconds\": 1.8 } }. Notes can be placed on them and the timing map reports them.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z]\\w*$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "seconds": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Seconds from the start of the jingle."
+              }
+            },
+            "required": [
+              "seconds"
+            ],
+            "additionalProperties": false,
+            "description": "A time in seconds, for times the animation fixes (\"lands at 1.5 s\")."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "beats": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Beats (quarter notes at `tempo`) from the start."
+              }
+            },
+            "required": [
+              "beats"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "A named moment the animation syncs to, e.g. { \"seconds\": 1.5 } for a hit. Give it in seconds when the animation fixes the time, so you never convert seconds to beats yourself. A cue needs no note on it (e.g. where a voice-over starts)."
+      }
+    },
+    "tracks": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "instrument": {
+            "type": "string",
+            "enum": [
+              "marimba"
+            ],
+            "description": "Which built-in instrument or sound effect plays this track. marimba: Wooden bar struck with a soft mallet: warm, round, bouncy. The default for friendly openings, question-and-answer melodies and big chord hits with a low bass."
+          },
+          "name": {
+            "description": "Optional label for people, e.g. \"melody\" or \"bass\".",
+            "type": "string"
+          },
+          "gain": {
+            "default": 0,
+            "description": "Track level in dB (0 = as is, -6 = about half as loud).",
+            "type": "number",
+            "minimum": -60,
+            "maximum": 12
+          },
+          "pan": {
+            "default": 0.5,
+            "description": "0 left, 0.5 centre, 1 right.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "notes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "seconds": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Seconds from the start of the jingle."
+                        }
+                      },
+                      "required": [
+                        "seconds"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A time in seconds, for times the animation fixes (\"lands at 1.5 s\")."
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^([a-z]\\w*)(?:([+-])(\\d+(?:\\.\\d+)?))?$"
+                    }
+                  ],
+                  "description": "When the note starts: a number of beats from the start (0, 0.5, 1 …); or { \"seconds\": n }; or a cue name (\"hit\"); or a cue name with an offset in beats (\"hit+1\" = one beat after the cue, \"hit-0.5\" = half a beat before)."
+                },
+                "pitch": {
+                  "description": "A pitch, or a list of pitches for a chord. Required for pitched instruments; leave it out for unpitched ones.",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^([A-G])([#b]?)(-?\\d)$",
+                      "description": "Scientific pitch notation: \"C4\" is middle C, \"A4\" is 440 Hz; sharps \"F#3\", flats \"Bb5\"."
+                    },
+                    {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^([A-G])([#b]?)(-?\\d)$",
+                        "description": "Scientific pitch notation: \"C4\" is middle C, \"A4\" is 440 Hz; sharps \"F#3\", flats \"Bb5\"."
+                      }
+                    }
+                  ]
+                },
+                "vel": {
+                  "default": 0.8,
+                  "description": "Velocity 0–1: how hard the note is played (0.8 normal, 1 the big hit, 0.35 a soft echo).",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "len": {
+                  "description": "Length in beats for sustained instruments. Struck and plucked instruments ring out and ignore it.",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "pan": {
+                  "description": "Overrides the track's pan for this note: 0 left, 0.5 centre, 1 right.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "variant": {
+                  "description": "For sounds with variants (listed per instrument). A list cycles over `repeat`s, e.g. [\"left\", \"right\"].",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "repeat": {
+                  "type": "object",
+                  "properties": {
+                    "every": {
+                      "type": "number",
+                      "exclusiveMinimum": 0,
+                      "description": "Beats between repetitions (1 = every beat, 0.5 = every eighth note)."
+                    },
+                    "count": {
+                      "description": "How many times the note sounds in total, including the first.",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 256
+                    },
+                    "until": {
+                      "description": "Repeat up to and including this time (any `at` form, e.g. a cue). Give `count` or `until`, not both.",
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "seconds": {
+                              "type": "number",
+                              "minimum": 0,
+                              "description": "Seconds from the start of the jingle."
+                            }
+                          },
+                          "required": [
+                            "seconds"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A time in seconds, for times the animation fixes (\"lands at 1.5 s\")."
+                        },
+                        {
+                          "type": "string",
+                          "pattern": "^([a-z]\\w*)(?:([+-])(\\d+(?:\\.\\d+)?))?$"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "every"
+                  ],
+                  "additionalProperties": false,
+                  "description": "Play the same note repeatedly, e.g. a clock ticking or claps on every beat. Each repetition is its own note in the timing map."
+                },
+                "detune": {
+                  "description": "Cents (1/100 semitone) to detune this note by.",
+                  "type": "number",
+                  "minimum": -100,
+                  "maximum": 100
+                },
+                "humanize": {
+                  "description": "Up to this many ms of seeded random timing offset. Never moves a note placed exactly on a cue.",
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 50
+                }
+              },
+              "required": [
+                "at"
+              ],
+              "additionalProperties": false,
+              "description": "One note or chord (or one sound effect hit)."
+            },
+            "description": "The notes, in any order."
+          }
+        },
+        "required": [
+          "instrument",
+          "notes"
+        ],
+        "additionalProperties": false,
+        "description": "One instrument's part. Use several tracks for several instruments, or for melody and bass on the same instrument."
+      }
+    }
+  },
+  "required": [
+    "format",
+    "tempo",
+    "length",
+    "tracks"
+  ],
+  "additionalProperties": false,
+  "description": "A jingle: a short piece of music and sound effects, with named cues an animation can sync to.",
+  "title": "jinglescript/1 score"
+}

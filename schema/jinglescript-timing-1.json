@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "jinglescript-timing/1"
+    },
+    "tempo": {
+      "type": "number"
+    },
+    "duration": {
+      "type": "number",
+      "description": "Length of the audio in seconds."
+    },
+    "cues": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Every cue in the score, in seconds — including cues with no note on them."
+    },
+    "beats": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Every beat (quarter note) from 0 up to the end, in seconds."
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "t": {
+            "type": "number",
+            "description": "Onset in seconds."
+          },
+          "track": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Index of the track in the score."
+          },
+          "instrument": {
+            "type": "string"
+          },
+          "pitch": {
+            "description": "Pitch, or the chord's pitches; absent for unpitched sounds.",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          },
+          "vel": {
+            "type": "number"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "cue": {
+            "description": "Set when the note is placed exactly on this cue.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "t",
+          "track",
+          "instrument",
+          "vel"
+        ],
+        "additionalProperties": false
+      },
+      "description": "Every note and sound, repetitions expanded, sorted by time."
+    },
+    "audibleUntil": {
+      "type": "number",
+      "description": "When the audio falls below -40 dBFS for good (measured on the output)."
+    }
+  },
+  "required": [
+    "format",
+    "tempo",
+    "duration",
+    "cues",
+    "beats",
+    "notes",
+    "audibleUntil"
+  ],
+  "additionalProperties": false,
+  "description": "When everything in a rendered jingle happens, in seconds rounded to 1 ms. Animation syncs to this.",
+  "title": "jinglescript-timing/1"
+}

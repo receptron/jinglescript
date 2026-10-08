@@ -1029,3 +1029,5 @@ Decided:
   from the registry in a clean folder: on Node 24.19 and 22.12.0 the library and the plugin's
   server entry render the lyrics example with both lines, the plugin's Vue entry loads, and the CLI
   renders MP3. MulmoTerminal still depends on `^0.1.0`.
+- 2026-10-08 — User: M1, M2 and M2b are done (their listening checks happened over the rounds
+  above; heels keep "room to improve" as a possible later tweak). Starting M2d.

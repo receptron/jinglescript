@@ -1,6 +1,6 @@
 {
   "name": "@gui-chat-plugin/jinglescript",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "GUI Chat Protocol plugin for JingleScript: the manageJingleScript tool, with a player view for rendered jingles (waveform, cues, beats, notes).",
   "license": "MIT",

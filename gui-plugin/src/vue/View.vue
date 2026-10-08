@@ -116,7 +116,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     </div>
 
     <div class="controls">
-      <button type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="toggle">{{ playing ? "❚❚" : "▶" }}</button>
+      <button type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="toggle">
+        <svg v-if="playing" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" /><rect x="9.5" y="2" width="3.5" height="12" /></svg>
+        <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 L14 8 L4 14 Z" /></svg>
+      </button>
       <span class="time">{{ formatTime(now) }} / {{ formatTime(data.duration) }}</span>
       <a class="download" :href="data.audio" :download="`${data.title}.${extension}`">Download</a>
     </div>
@@ -242,7 +245,14 @@ h2 {
   align-items: center;
   gap: 12px;
 }
+.play svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
 .play {
+  display: grid;
+  place-items: center;
   width: 40px;
   height: 40px;
   border-radius: 50%;

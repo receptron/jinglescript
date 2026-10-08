@@ -14,7 +14,7 @@ const path = computed(() => waveformPath(data.value?.peaks ?? [], 20, 18));
   <div v-if="data" class="preview">
     <svg :viewBox="`0 0 ${WIDTH} 40`" preserveAspectRatio="none" aria-hidden="true"><path :d="path" /></svg>
     <div class="label">
-      ♪ {{ data.title }} <span>{{ formatTime(data.duration) }}</span>
+      {{ data.title }} <span>{{ formatTime(data.duration) }}</span>
     </div>
   </div>
 </template>

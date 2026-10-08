@@ -23,10 +23,11 @@ export interface HeelTone {
   sole: number;
 }
 
-export const HEEL_TONE: HeelTone = { clackHz: 2400, clackQ: 6, bodyHz: 1300, ring: 0.012, floor: 0.3, sole: 0.35 };
+/** "Block heel on wood", the user's pick of two candidates. */
+export const HEEL_TONE: HeelTone = { clackHz: 1600, clackQ: 4, bodyHz: 900, ring: 0.01, floor: 0.6, sole: 0.4 };
 const LENGTH_SECONDS = 0.35;
 /** Peak trims per variant, dB: a step peaks like a C5 marimba note at full velocity (mean over seeds). */
-const LEVEL_DB: Record<Variant, number> = { left: 10.6, right: 10.2 };
+const LEVEL_DB: Record<Variant, number> = { left: 10.6, right: 10.8 };
 
 export function heelStep(input: SynthInput, tone: HeelTone, levelDb: number): Float32Array {
   const { sampleRate, rng } = input;

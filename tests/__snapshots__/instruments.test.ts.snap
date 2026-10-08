@@ -34,10 +34,10 @@ exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the
 
 exports[`every shipped example > riser-reveal.json renders cleanly at the loudness target (or says why not) 1`] = `"885817519d1b465dfc1b7f3c5402db237af3e3a737e43b32c58b3515a6b14c04"`;
 
-exports[`every shipped example > tap-dance.json renders cleanly at the loudness target (or says why not) 1`] = `"dc0fcc39eb8c53166767ffbfc7aff7e1cb4fc6b85f90994241eee5a3784e8447"`;
+exports[`every shipped example > tap-dance.json renders cleanly at the loudness target (or says why not) 1`] = `"dbe59d68eb6397f8db7809c17446004b128075b20e618e7b39895c99b64eebab"`;
 
 exports[`every shipped example > ukulele-island-strum.json renders cleanly at the loudness target (or says why not) 1`] = `"d4bb8bdaeb6356fe24fff955836afe27721b44886c80e85facca2ed75c0c6e53"`;
 
-exports[`every shipped example > walk-in.json renders cleanly at the loudness target (or says why not) 1`] = `"f22bf5a78bcc34f4840a17bddf4f66af247b8b8dd7f0d96d6e59ecb0ad70994f"`;
+exports[`every shipped example > walk-in.json renders cleanly at the loudness target (or says why not) 1`] = `"705bec23f965696ce2770f4c013c417cf1baa44f39222709ee07b56515b7b087"`;
 
 exports[`every shipped example > whoosh-transition.json renders cleanly at the loudness target (or says why not) 1`] = `"45b190aff034f26056100c3bd4eeb3eff856233a704b7c222585428a031b0abd"`;

@@ -25,10 +25,11 @@ export interface FootTone {
   wood: number;
 }
 
-export const FOOT_TONE: FootTone = { floorHz: 160, click: 0.12, toe: 0.5, scuff: 0.1, wood: 0 };
+/** "Leather shoe on wood", the user's pick of two candidates. */
+export const FOOT_TONE: FootTone = { floorHz: 220, click: 0.35, toe: 0.6, scuff: 0.05, wood: 0.3 };
 const LENGTH_SECONDS = 0.3;
 /** Peak trims per variant, dB: a step peaks like a C5 marimba note at full velocity (mean over seeds). */
-const LEVEL_DB: Record<Variant, number> = { left: 21.4, right: 21.2 };
+const LEVEL_DB: Record<Variant, number> = { left: 11.0, right: 11.0 };
 
 interface Strike {
   at: number;

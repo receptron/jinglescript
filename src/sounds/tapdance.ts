@@ -2,7 +2,7 @@
 // strange" — a small bell, not a shoe. A tap is a metal plate hitting a wooden floor: a sharp
 // broadband crack, a very short dense metallic ring, and the floor's knock. "heel" is the bigger,
 // lower plate with more floor; "shuffle" is a quick brush followed by a tap ~40 ms later.
-import { bandpass, highpass } from "../dsp/biquad.ts";
+import { bandpass, biquadFilter, highpass, lowpass } from "../dsp/biquad.ts";
 import { addModes, buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import type { Rng } from "../rng.ts";
@@ -20,13 +20,19 @@ export interface TapTone {
   ringDecay: number;
   /** Level of the wooden floor's knock. */
   floor: number;
+  /** Centre of the floor's knock, Hz. */
+  floorHz: number;
+  /** Level of the low thud of the floorboards (weight). */
+  thud: number;
+  /** Scales the plate's partials (lower = a bigger, heavier plate). */
+  plate: number;
 }
 
-export const TAP_TONE: TapTone = { crack: 1, ring: 0.35, ringDecay: 0.005, floor: 0.4 };
+export const TAP_TONE: TapTone = { crack: 0.8, ring: 0.6, ringDecay: 0.012, floor: 0.25, floorHz: 700, thud: 0, plate: 1 };
 /** Inharmonic plate partials, Hz (dense, so the ring reads as metal rather than a pitch). */
 const PLATE = [2350, 3420, 4890, 6710, 8230];
 /** Peak trims per variant, dB: a tap peaks like a C5 marimba note at full velocity (mean over seeds). */
-const LEVEL_DB: Record<Variant, number> = { toe: 5.9, heel: 7.6, shuffle: -1.2 };
+const LEVEL_DB: Record<Variant, number> = { toe: 3.5, heel: 4.1, shuffle: -1.3 };
 
 interface Tap {
   at: number;
@@ -37,7 +43,7 @@ interface Tap {
 function tap(out: Float32Array, { at, heel, level }: Tap, tone: TapTone, rng: Rng, sampleRate: number): void {
   const start = Math.round(at * sampleRate);
   const one = new Float32Array(out.length - start);
-  const scale = vary(heel ? 0.7 : 1, 0.04, rng);
+  const scale = vary((heel ? 0.7 : 1) * tone.plate, 0.04, rng);
   addNoise(one, { decay: 0.0006, level: tone.crack * (heel ? 0.8 : 1), filters: [highpass(heel ? 900 : 1500, 0.7, sampleRate)] }, rng, sampleRate);
   addModes(
     one,
@@ -45,7 +51,15 @@ function tap(out: Float32Array, { at, heel, level }: Tap, tone: TapTone, rng: Rn
     PLATE.map((hz, k) => ({ ratio: hz, level: tone.ring / (k + 1), decay: tone.ringDecay * (1 - k * 0.12) })),
     sampleRate,
   );
-  addNoise(one, { decay: 0.01, level: tone.floor * (heel ? 1.5 : 1), filters: [bandpass(heel ? 400 : 700, 1.5, sampleRate)] }, rng, sampleRate);
+  addNoise(one, { decay: 0.01, level: tone.floor * (heel ? 1.5 : 1), filters: [bandpass(tone.floorHz * (heel ? 0.6 : 1), 1.5, sampleRate)] }, rng, sampleRate);
+  if (tone.thud > 0) {
+    addNoise(
+      one,
+      { decay: 0.018, level: tone.thud * (heel ? 1.4 : 1), filters: [bandpass(heel ? 160 : 210, 1.2, sampleRate), lowpass(600, 0.7, sampleRate)] },
+      rng,
+      sampleRate,
+    );
+  }
   one.forEach((v, i) => {
     out[start + i] = (out[start + i] ?? 0) + level * v;
   });
@@ -62,7 +76,9 @@ export function tapSound(input: SynthInput, tone: TapTone, levelDb: number): Flo
   } else {
     tap(out, { at: 0, heel: variant === "heel", level: 1 }, tone, rng, sampleRate);
   }
-  return finish(out, { attack: 0.0005, endFade: 0.01, gain: input.velocity * 10 ** (levelDb / 20) }, sampleRate);
+  // The floor thud can leave a little DC; a 40 Hz high-pass takes it out.
+  const centred = Float32Array.from(biquadFilter(out, highpass(40, 0.7, sampleRate)));
+  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: input.velocity * 10 ** (levelDb / 20) }, sampleRate);
 }
 
 export const tapdance: Instrument = {

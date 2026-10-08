@@ -1,0 +1,47 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Tap-dance break with a ta-da",
+  "tempo": 130,
+  "length": {
+    "seconds": 4.5
+  },
+  "cues": {
+    "tada": {
+      "seconds": 2.3
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "tapdance",
+      "reverb": false,
+      "notes": [
+        {
+          "at": 0,
+          "variant": ["shuffle", "toe", "heel", "toe"],
+          "vel": 0.8,
+          "repeat": {
+            "every": 0.5,
+            "until": "tada-0.5"
+          }
+        },
+        {
+          "at": "tada",
+          "variant": "heel",
+          "vel": 1.0
+        }
+      ]
+    },
+    {
+      "instrument": "vibraphone",
+      "gain": -2,
+      "notes": [
+        {
+          "at": "tada",
+          "chord": "C6",
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

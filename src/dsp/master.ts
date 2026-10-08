@@ -66,8 +66,21 @@ function gainAndLimit(
   return { audio, limitingDb: limit(audio, dbToGain(TRUE_PEAK_CEILING - SAMPLE_PEAK_MARGIN_DB), options.sampleRate) };
 }
 
-export function master(dry: [Float32Array, Float32Array], options: MasterOptions): { audio: [Float32Array, Float32Array]; stats: MasterStats } {
-  const faded = applyReverb(dry, options.reverb, options.sampleRate, options.seed);
+/**
+ * `wet` goes through the reverb; `dry` (tracks with `"reverb": false`) joins after it. Both then
+ * share the fade and the loudness stage.
+ */
+export function master(
+  wet: [Float32Array, Float32Array],
+  dry: [Float32Array, Float32Array],
+  options: MasterOptions,
+): { audio: [Float32Array, Float32Array]; stats: MasterStats } {
+  const faded = applyReverb(wet, options.reverb, options.sampleRate, options.seed);
+  for (let c = 0; c < 2; c++) {
+    const target = faded[c];
+    const source = dry[c];
+    if (target && source) for (let i = 0; i < target.length; i++) target[i] = (target[i] ?? 0) + (source[i] ?? 0);
+  }
   fadeOut(faded, options.fadeOut, options.sampleRate);
   const measured = integratedLoudness(faded, options.sampleRate);
   if (!Number.isFinite(measured)) {

@@ -54,7 +54,10 @@ export const RepeatSchema = z
 
 export const NoteSchema = z
   .strictObject({
-    at: AtSchema,
+    at: AtSchema.optional(),
+    end: AtSchema.optional().describe(
+      'For effects with a length (whoosh, riser, laser): when it ends, instead of `at`. A riser into the hit is { "end": "hit", "len": 4 }.',
+    ),
     pitch: z
       .union([PitchSchema, z.array(PitchSchema).min(1)], { error: 'A pitch is "C4", or a list of pitches for a chord: ["C4", "E4", "G4"].' })
       .optional()
@@ -88,7 +91,13 @@ export const NoteSchema = z
         'Strum the chord string by string, slightly loose like a real hand. "down" or "up" for one stroke, or a pattern: one character per eighth note, D = down, U = up, d/u = soft, - = rest. "D-DU-UDU" is one 4-beat bar of the classic island strum; combine with `repeat` ({ "every": 4, "count": 2 }) for more bars. A pitch list is strummed in the order written (string order).',
       ),
     vel: z.number().min(0).max(1).default(0.8).describe("Velocity 0–1: how hard the note is played (0.8 normal, 1 the big hit, 0.35 a soft echo)."),
-    len: z.number().positive().optional().describe("Length in beats for sustained instruments. Struck and plucked instruments ring out and ignore it."),
+    len: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Length in beats: how long sustained instruments hold, and how long effects with a length (whoosh, riser, laser) last. Struck and plucked instruments ring out and ignore it.",
+      ),
     pan: z.number().min(0).max(1).optional().describe("Overrides the track's pan for this note: 0 left, 0.5 centre, 1 right."),
     variant: z
       .union([z.string(), z.array(z.string()).min(1)])
@@ -97,6 +106,9 @@ export const NoteSchema = z
     repeat: RepeatSchema.optional(),
     detune: z.number().min(-100).max(100).optional().describe("Cents (1/100 semitone) to detune this note by."),
     humanize: z.number().min(0).max(50).optional().describe("Up to this many ms of seeded random timing offset. Never moves a note placed exactly on a cue."),
+  })
+  .refine((note) => (note.at === undefined) !== (note.end === undefined), {
+    error: "Give `at` (when it starts) — or, for effects with a length, `end` (when it finishes) — but not both.",
   })
   .describe("One note or chord (or one sound effect hit).");
 
@@ -108,6 +120,7 @@ export const TrackSchema = z
     name: z.string().optional().describe('Optional label for people, e.g. "melody" or "bass".'),
     gain: z.number().min(-60).max(12).default(0).describe("Track level in dB (0 = as is, -6 = about half as loud)."),
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
+    reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
   })
   .describe("One instrument's part. Use several tracks for several instruments, or for melody and bass on the same instrument.");

@@ -1,4 +1,4 @@
-// The built-in instruments and sound effects. Adding a name to INSTRUMENT_NAMES without an entry
+// The built-in instruments and sound effects (src/sounds/). Adding a name to INSTRUMENT_NAMES without an entry
 // in INSTRUMENTS is a type error.
 import { clap } from "./clap.ts";
 import { glockenspiel } from "./glockenspiel.ts";
@@ -11,6 +11,15 @@ import { trumpet } from "./trumpet.ts";
 import { ukulele } from "./ukulele.ts";
 import { vibraphone } from "./vibraphone.ts";
 import { xylophone } from "./xylophone.ts";
+import { clock } from "../sounds/clock.ts";
+import { footsteps } from "../sounds/footsteps.ts";
+import { impact } from "../sounds/impact.ts";
+import { laser } from "../sounds/laser.ts";
+import { pistol } from "../sounds/pistol.ts";
+import { pop } from "../sounds/pop.ts";
+import { riser } from "../sounds/riser.ts";
+import { tapdance } from "../sounds/tapdance.ts";
+import { whoosh } from "../sounds/whoosh.ts";
 import type { Instrument, InstrumentDescriptor } from "./types.ts";
 
 export const INSTRUMENT_NAMES = [
@@ -25,6 +34,15 @@ export const INSTRUMENT_NAMES = [
   "piccolo",
   "trumpet",
   "clap",
+  "clock",
+  "footsteps",
+  "tapdance",
+  "pistol",
+  "laser",
+  "whoosh",
+  "riser",
+  "impact",
+  "pop",
 ] as const;
 export type InstrumentName = (typeof INSTRUMENT_NAMES)[number];
 
@@ -40,6 +58,15 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   piccolo,
   trumpet,
   clap,
+  clock,
+  footsteps,
+  tapdance,
+  pistol,
+  laser,
+  whoosh,
+  riser,
+  impact,
+  pop,
 };
 
 export function isInstrumentName(name: string): name is InstrumentName {

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "clock-chime",
+    "request": "A clock ticks (tick-tock) on every beat for 2 seconds, then a bright chime chord lands at 2.5 s. 5 seconds total.",
+    "cues": [2.5]
+  },
+  {
+    "id": "walk-in",
+    "request": "Footsteps walk in, left-right, and stop; on the last step at 2.0 s a soft impact and a marimba chord land. 4.5 seconds.",
+    "cues": [2.0]
+  },
+  {
+    "id": "laser-three",
+    "request": "Three laser zaps at 0.4 s, 0.9 s and 1.4 s, each starting a bit lower than the last, then a pop at 2.0 s. 3 seconds.",
+    "cues": [0.4, 0.9, 1.4, 2.0]
+  },
+  {
+    "id": "tiktok-cut",
+    "request": "TikTok transition: a fast whoosh that ends exactly on the cut at 0.8 s, with a glockenspiel sparkle on the cut. 2 seconds.",
+    "cues": [0.8]
+  },
+  {
+    "id": "reveal-ja",
+    "request": "商品紹介動画のリビール。2秒かけて盛り上がる音（ライザー）が3.0秒でピタッと止まり、その瞬間にドーンというインパクトとピアノの和音。全部で6秒。",
+    "cues": [3.0]
+  },
+  {
+    "id": "western",
+    "request": "A playful western moment: a cartoon pistol shot at 0.5 s and a real shot at 1.2 s, then tap-dance shuffles every half beat until 2.5 s. 4 seconds, 120 BPM.",
+    "cues": [0.5, 1.2]
+  }
+]

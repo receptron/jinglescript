@@ -1,0 +1,46 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "TikTok-style transition: whoosh into the cut",
+  "tempo": 120,
+  "length": {
+    "seconds": 2.5
+  },
+  "cues": {
+    "cut": {
+      "seconds": 1.0
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "whoosh",
+      "notes": [
+        {
+          "end": "cut",
+          "variant": "fast",
+          "len": 1.5
+        }
+      ]
+    },
+    {
+      "instrument": "pop",
+      "notes": [
+        {
+          "at": "cut",
+          "pitch": "G5"
+        }
+      ]
+    },
+    {
+      "instrument": "glockenspiel",
+      "gain": -4,
+      "notes": [
+        {
+          "at": "cut",
+          "pitch": ["C6", "E6"],
+          "vel": 0.8
+        }
+      ]
+    }
+  ]
+}

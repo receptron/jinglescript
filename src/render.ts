@@ -68,9 +68,10 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
     );
   }
   const length = secondsToSample(expanded.duration, sampleRate);
-  const mix: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
-  for (const event of expanded.events) mixEvent(event, mix, seed, sampleRate);
-  const { audio, stats } = master(mix, {
+  const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
+  const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
+  for (const event of expanded.events) mixEvent(event, score.tracks[event.track]?.reverb === false ? dry : wet, seed, sampleRate);
+  const { audio, stats } = master(wet, dry, {
     sampleRate,
     seed,
     reverb: score.master.reverb,

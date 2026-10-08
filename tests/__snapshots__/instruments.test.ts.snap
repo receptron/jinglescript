@@ -20,12 +20,24 @@ exports[`every shipped example > a-vibraphone.json renders cleanly at the loudne
 
 exports[`every shipped example > a-xylophone.json renders cleanly at the loudness target (or says why not) 1`] = `"522087686b425900176208865958df180220026916936a44557aff51db5e38c6"`;
 
+exports[`every shipped example > clock-to-chime.json renders cleanly at the loudness target (or says why not) 1`] = `"f586fdbee96a7c7ed16d1e5207b3a870d9b2297b611ba61e68683d30355c8e48"`;
+
 exports[`every shipped example > hatena-marumo-a.json renders cleanly at the loudness target (or says why not) 1`] = `"b92380408cd7112b84f0d83d674b5799cc3ef605885f05f83b965ef1d9852ccc"`;
 
 exports[`every shipped example > hatena-marumo-b.json renders cleanly at the loudness target (or says why not) 1`] = `"e60b1798a2d27dd6f0f881bd90302a5a98807d43874803017e46704b89048b3e"`;
 
 exports[`every shipped example > hatena-marumo-c.json renders cleanly at the loudness target (or says why not) 1`] = `"71fadecc8d0274c349cb6beedf8941727cc6f60a76ac0d96c95fd9a8411b9dc6"`;
 
+exports[`every shipped example > laser-zaps.json renders cleanly at the loudness target (or says why not) 1`] = `"571a418a8695139f0650f0099999dd59430042cf2c7ec74df349c46e97882449"`;
+
 exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"b693b13bcead6d0ae1ddc7f6af828d2df53aa0cc02ca08a5177078631602d2f1"`;
 
+exports[`every shipped example > riser-reveal.json renders cleanly at the loudness target (or says why not) 1`] = `"885817519d1b465dfc1b7f3c5402db237af3e3a737e43b32c58b3515a6b14c04"`;
+
+exports[`every shipped example > tap-dance.json renders cleanly at the loudness target (or says why not) 1`] = `"a04a51de994867b0be2b58efda60a0f9eadf6902a4e197f85460d959d64b0f4d"`;
+
 exports[`every shipped example > ukulele-island-strum.json renders cleanly at the loudness target (or says why not) 1`] = `"d4bb8bdaeb6356fe24fff955836afe27721b44886c80e85facca2ed75c0c6e53"`;
+
+exports[`every shipped example > walk-in.json renders cleanly at the loudness target (or says why not) 1`] = `"0c5b039c258acd241a791b46f6114309bf396c0b719af68ba7eb81fe565e484f"`;
+
+exports[`every shipped example > whoosh-transition.json renders cleanly at the loudness target (or says why not) 1`] = `"45b190aff034f26056100c3bd4eeb3eff856233a704b7c222585428a031b0abd"`;

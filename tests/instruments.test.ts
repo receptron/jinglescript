@@ -10,11 +10,15 @@ import { midiToFrequency, pitchToMidi } from "../src/pitch.ts";
 import { createRng } from "../src/rng.ts";
 
 const RATE = 48000;
-const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE, hold = 1, variant?: string) => {
+const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE, hold = 1, variant?: string, seed = 7) => {
   const { descriptor } = INSTRUMENTS[name];
   const frequency = midi === undefined ? undefined : midiToFrequency(midi + descriptor.transpose);
-  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold, variant, sampleRate, rng: createRng(7) });
+  // Effects with a length are tested at their default length.
+  const length = descriptor.duration?.defaultSeconds ?? hold;
+  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold: length, variant, sampleRate, rng: createRng(seed) });
 };
+/** Tonal sounds, whose partials must stay clear of Nyquist. Noise is not "aliasing". */
+const tonal = (name: InstrumentName): boolean => INSTRUMENTS[name].descriptor.pitched || INSTRUMENTS[name].descriptor.pitchOptional === true;
 /** Every variant of an instrument, or just the plain sound when it has none. */
 const variantsOf = (name: InstrumentName): (string | undefined)[] => {
   const variants = INSTRUMENTS[name].descriptor.variants;
@@ -26,11 +30,12 @@ const peakOf = (x: Float32Array) => x.reduce((m, v) => Math.max(m, Math.abs(v)),
 function rangeOf(name: InstrumentName): (number | undefined)[] {
   const range = INSTRUMENTS[name].descriptor.range;
   if (range === null) return [undefined];
+  const optional = INSTRUMENTS[name].descriptor.pitchOptional === true;
   const low = pitchToMidi(range.low) ?? 60;
   const high = pitchToMidi(range.high) ?? 60;
   const pitches: number[] = [];
   for (let m = low; m < high; m += 3) pitches.push(m);
-  return [...pitches, high];
+  return optional ? [undefined, ...pitches, high] : [...pitches, high];
 }
 
 /** Share of the energy above sampleRate × MAX_PARTIAL_FRACTION in an 8192-sample window. */
@@ -90,18 +95,21 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
         expect(Math.abs(x[x.length - 1] ?? 1)).toBeLessThan(1e-4 * peak);
         expect(Math.abs(x.reduce((s, v) => s + v, 0) / x.length) / peak).toBeLessThan(0.005);
         // After the attack noise: the partials stay below the limit.
-        if (x.length > 0.2 * RATE + 8192) expect(energyAboveLimit(x, Math.round(0.2 * RATE), RATE)).toBeLessThan(1e-5);
+        if (tonal(name) && x.length > 0.2 * RATE + 8192) expect(energyAboveLimit(x, Math.round(0.2 * RATE), RATE)).toBeLessThan(1e-5);
       }
     },
   );
 
   it.each(variantsOf(name))("is as loud as the marimba for a C5 at full velocity (variant %s, ±0.75 LU), so mixes balance", (variant) => {
+    // Noise-based sounds vary a little with the seed: compare the mean over five seeds.
     const loudness = (n: InstrumentName, v?: string) => {
-      const x = note(n, INSTRUMENTS[n].descriptor.pitched ? 72 : undefined, RATE, 1, v);
-      return integratedLoudness([x, x], RATE);
+      const values = [1, 2, 3, 4, 5].map((seed) => {
+        const x = note(n, INSTRUMENTS[n].descriptor.pitched ? 72 : undefined, RATE, 1, v, seed);
+        return integratedLoudness([x, x], RATE);
+      });
+      return values.reduce((a, b) => a + b, 0) / values.length;
     };
-    // Noise-based sounds vary a little with the seed; their trims are set on the mean over seeds.
-    expect(Math.abs(loudness(name, variant) - loudness("marimba"))).toBeLessThan(0.75);
+    expect(Math.abs(loudness(name, variant) - loudness("marimba"))).toBeLessThan(0.5);
   });
 
   it.runIf(descriptor.pitched)("plays in tune (±10 cents; vibrato instruments average out)", () => {
@@ -113,6 +121,17 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
       expect(Math.abs(pitchError(x, midiToFrequency(midi + descriptor.transpose), 0.25, 0.5))).toBeLessThanOrEqual(10);
     }
   });
+
+  it.runIf(descriptor.kind === "sfx" && descriptor.duration === undefined)(
+    "starts on its onset: a quarter of its peak within 5 ms (no silent pre-roll)",
+    () => {
+      for (const variant of variantsOf(name)) {
+        const x = note(name, undefined, RATE, 1, variant);
+        const peak = peakOf(x);
+        expect(x.findIndex((v) => Math.abs(v) >= 0.25 * peak)).toBeLessThan(0.005 * RATE);
+      }
+    },
+  );
 
   it("renders at 44.1 kHz too", () => {
     const x = note(name, descriptor.pitched ? 72 : undefined, 44100);

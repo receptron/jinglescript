@@ -58,23 +58,28 @@ describe("example A (ハテナマルモ opening)", () => {
 });
 
 describe("onsets land on the timing map", () => {
-  const scoreAt = (at: unknown) =>
+  const scoreAt = (at: unknown, instrument = "marimba") =>
     parseScore({
       format: "jinglescript/1",
       tempo: 130,
       length: { seconds: 3 },
       master: { reverb: "none", limiter: false },
       cues: { hit: { seconds: 1.5 } },
-      tracks: [{ instrument: "marimba", notes: [{ at, pitch: "C5" }] }],
+      tracks: [{ instrument, notes: [instrument === "marimba" ? { at, pitch: "C5" } : { at }] }],
     });
 
-  for (const at of [0.5, 1.75, { seconds: 0.863 }, "hit", "hit-0.25", "hit+1"]) {
+  const cases = [
+    ...[0.5, 1.75, { seconds: 0.863 }, "hit", "hit-0.25", "hit+1"].map((at) => ({ at, instrument: "marimba" })),
+    // Effects: the timing map's t is the start of the transient.
+    ...["clock", "pistol", "footsteps", "impact", "pop"].map((instrument) => ({ at: "hit", instrument })),
+  ];
+  for (const { at, instrument } of cases) {
     for (const sampleRate of [48000, 44100] as const) {
-      it(`at ${JSON.stringify(at)}, ${sampleRate} Hz: sound starts on the onset's sample; the map is within 0.5 ms`, () => {
-        const score = scoreAt(at);
+      it(`${instrument} at ${JSON.stringify(at)}, ${sampleRate} Hz: sound starts on the onset's sample; the map is within 0.5 ms`, () => {
+        const score = scoreAt(at, instrument);
         const exact = expandScore(score).events[0]?.seconds ?? NaN;
         const { audio, timing } = render(score, { sampleRate });
-        // The marimba's first sample is 0 (the onset ramp), so the first non-zero one follows it.
+        // Every sound's first sample is 0 (the onset ramp), so the first non-zero one follows it.
         const onset = audio[0].findIndex((v) => v !== 0) - 1;
         expect(onset).toBe(Math.round(exact * sampleRate));
         expect(Math.abs((timing.notes[0]?.t ?? NaN) - onset / sampleRate)).toBeLessThanOrEqual(0.0005 + 1 / sampleRate);

@@ -14,10 +14,12 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
 - Cues are named moments (`"hit": { "seconds": 1.5 }`); notes are placed on them, and the timing map
   reports them, so an animation reads `cues.hit` instead of hard-coding a time.
 
-**Status: early development (milestone M2 of [PLAN.md](PLAN.md)).** Eleven instruments: marimba,
-xylophone, glockenspiel, vibraphone, music box, piano, organ, ukulele, piccolo and trumpet (both
-sound synthetic), and clap. Sound effects, custom instruments, MP3 output and an MCP server
-(`manageJingleScript`) are planned. Not published to npm yet.
+**Status: early development (milestone M2b of [PLAN.md](PLAN.md)).** Eleven instruments (marimba,
+xylophone, glockenspiel, vibraphone, music box, piano, organ, ukulele, piccolo and trumpet — both
+synthetic-sounding — and clap) and nine sound effects (clock, footsteps, tapdance, pistol, laser,
+whoosh, riser, impact, pop). Chords by name (`"chord": "G7"`) and tab-style strums
+(`"strum": "D-DU-UDU"`). Custom instruments, MP3 output and an MCP server (`manageJingleScript`) are
+planned. Not published to npm yet.
 
 ## Try it
 

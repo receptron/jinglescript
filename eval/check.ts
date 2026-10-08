@@ -1,6 +1,6 @@
 // Scores the evaluation: for each request in eval/requests.json, reads the score an LLM wrote at
 // out/eval/<run>/<id>.json and checks it mechanically — valid, the requested times exist as cues,
-// renders cleanly at the loudness target. Usage: node eval/check.ts <run>
+// renders cleanly at the loudness target. Usage: node eval/check.ts <run> [requests file, default requests.json]
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -10,7 +10,8 @@ const RequestsSchema = z.array(z.strictObject({ id: z.string(), request: z.strin
 
 const run = process.argv[2] ?? "default";
 const dir = join("out", "eval", run);
-const requests = RequestsSchema.parse(JSON.parse(await readFile(new URL("requests.json", import.meta.url), "utf8")));
+const requestsFile = process.argv[3] ?? "requests.json";
+const requests = RequestsSchema.parse(JSON.parse(await readFile(new URL(requestsFile, import.meta.url), "utf8")));
 
 interface Row {
   id: string;

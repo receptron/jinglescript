@@ -1,0 +1,70 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Clock ticks into a chime",
+  "tempo": 120,
+  "length": {
+    "seconds": 5
+  },
+  "cues": {
+    "hit": {
+      "seconds": 2.5
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "clock",
+      "reverb": false,
+      "notes": [
+        {
+          "at": 0,
+          "variant": ["tick", "tock"],
+          "vel": 0.7,
+          "repeat": {
+            "every": 1,
+            "until": "hit-1"
+          }
+        }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "hit",
+      "notes": [
+        {
+          "at": "hit",
+          "pitch": ["C5", "E5", "G5", "C6"],
+          "vel": 1.0
+        }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "bass",
+      "notes": [
+        {
+          "at": "hit",
+          "pitch": ["C3", "G3"],
+          "vel": 0.9
+        }
+      ]
+    },
+    {
+      "instrument": "glockenspiel",
+      "name": "chime",
+      "gain": -4,
+      "notes": [
+        {
+          "at": "hit",
+          "pitch": ["C6", "G6"],
+          "vel": 0.8
+        },
+        {
+          "at": "hit+1",
+          "pitch": "C7",
+          "vel": 0.4
+        }
+      ]
+    }
+  ]
+}

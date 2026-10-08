@@ -1,0 +1,66 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Three laser zaps and a pop",
+  "tempo": 120,
+  "length": {
+    "seconds": 3.5
+  },
+  "cues": {
+    "zap1": {
+      "seconds": 0.5
+    },
+    "zap2": {
+      "seconds": 1.0
+    },
+    "zap3": {
+      "seconds": 1.5
+    },
+    "done": {
+      "seconds": 2.1
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "laser",
+      "notes": [
+        {
+          "at": "zap1",
+          "pitch": "C8",
+          "vel": 0.8
+        },
+        {
+          "at": "zap2",
+          "pitch": "G7",
+          "vel": 0.8
+        },
+        {
+          "at": "zap3",
+          "pitch": "C7",
+          "vel": 0.9,
+          "len": 1
+        }
+      ]
+    },
+    {
+      "instrument": "pop",
+      "notes": [
+        {
+          "at": "done",
+          "pitch": "C6"
+        }
+      ]
+    },
+    {
+      "instrument": "xylophone",
+      "gain": -3,
+      "notes": [
+        {
+          "at": "done",
+          "pitch": ["C5", "E5", "G5"],
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

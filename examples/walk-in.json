@@ -1,0 +1,63 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Footsteps walk in and land on the hit",
+  "tempo": 110,
+  "length": {
+    "seconds": 5
+  },
+  "cues": {
+    "land": {
+      "seconds": 2.4
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "footsteps",
+      "reverb": false,
+      "notes": [
+        {
+          "at": 0,
+          "variant": ["left", "right"],
+          "vel": 0.8,
+          "repeat": {
+            "every": 0.5,
+            "until": "land-0.5"
+          }
+        }
+      ]
+    },
+    {
+      "instrument": "impact",
+      "gain": -3,
+      "notes": [
+        {
+          "at": "land",
+          "variant": "soft"
+        }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "hit",
+      "notes": [
+        {
+          "at": "land",
+          "pitch": ["C5", "E5", "G5", "C6"],
+          "vel": 1.0
+        }
+      ]
+    },
+    {
+      "instrument": "marimba",
+      "name": "bass",
+      "notes": [
+        {
+          "at": "land",
+          "pitch": ["C3", "G3"],
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

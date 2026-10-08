@@ -77,6 +77,10 @@
               "up"
             ]
           },
+          "end": {
+            "description": "For effects with a length (whoosh, riser, laser): when it ends, seconds.",
+            "type": "number"
+          },
           "variant": {
             "type": "string"
           },

@@ -820,3 +820,22 @@ Decided:
     first try, patterns used correctly ("-U-U" upbeats, "D-DUD-DU", "D-DU" for 2-beat chords).
     Found and fixed: the near-cue warning fired on a stroke's looseness; it now judges the written
     time.
+- 2026-10-08 — **M2b implemented; waiting for the user's ears.** Nine effects in `src/sounds/`:
+  clock (tick/tock), footsteps (left/right), tapdance (toe/heel/shuffle), pistol (shot/cartoon),
+  laser (optional start pitch, `len` sweep), whoosh (soft/fast), riser (noise/tone), impact
+  (soft/hard), pop (optional pitch). Score: `end` places effects with a length by when they finish
+  (`{ "end": "hit", "len": 4 }`); tracks take `"reverb": false` (a dry bus joins after the
+  reverb); descriptors gain `pitchOptional` and `duration`; the first variant is the default;
+  timing-map notes gain `end` for effects with a length. Every effect and variant passes the
+  checks (finite, onset ramp, ends silent, DC < 0.5 %, tonal ones alias-free), is loudness-matched
+  to the marimba (mean over five seeds, ±0.5 LU), and — except whoosh and riser, which swell —
+  reaches a quarter of its peak within 5 ms of its onset; effect onsets land on the sample the
+  timing map gives (tested at 48 and 44.1 kHz). Footsteps needed a 40 Hz high-pass: the thump
+  decays within a cycle and left DC. Examples: clock-to-chime, walk-in, laser-zaps,
+  whoosh-transition, riser-reveal, tap-dance. Examples with impacts or footsteps come out at
+  −15 to −16 LUFS with the limiter at its 6 dB cap (reported, not hidden). MP3s of every effect
+  and example: out/listen-m2b/.
+  - Evaluation, effects (eval/requests-effects.json, 6 requests incl. Japanese; guide + schema only,
+    no check): Haiku 6/6 and the default model 6/6 valid on the first try with every cue time right.
+    Both placed the riser with `end` and alternated variants with lists. The "western" request (two
+    pistol shots) comes out at −17 to −18 LUFS with the limiter at its cap.

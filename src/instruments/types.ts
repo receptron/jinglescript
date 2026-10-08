@@ -19,10 +19,18 @@ export interface InstrumentDescriptor {
   /** One line for people and LLMs: what it sounds like and what it is good for. */
   description: string;
   pitched: boolean;
+  /** For unpitched sounds that may still take a `pitch` (a laser's starting pitch). */
+  pitchOptional?: boolean;
+  /**
+   * Sounds whose length is set by `len` (a whoosh, a riser, a laser sweep): their default length,
+   * and they may be placed by `end` instead of `at`.
+   */
+  duration?: { defaultSeconds: number };
   /** Sustained sounds hold for `len`; the others ring out on their own. */
   sustained: boolean;
   /** Lowest and highest pitch that renders cleanly; null for unpitched sounds. */
   range: { low: string; high: string } | null;
+  /** The first is the default. */
   variants: readonly string[];
   /** Open strings from the first string strummed to the last, for fretted instruments: chord names get real shapes. */
   tuning?: readonly string[];

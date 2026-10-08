@@ -38,8 +38,10 @@ export interface NoteEvent {
   vel: number;
   pan: number;
   gainDb: number;
-  /** Seconds a sustained sound is held. */
+  /** Seconds a sustained sound is held, or an effect with a length lasts. */
   hold: number;
+  /** When an effect with a length ends, seconds (undefined for everything else). */
+  end: number | undefined;
   variant: string | undefined;
   detune: number;
 }
@@ -88,6 +90,7 @@ function pitchIssues(note: Note, instrument: InstrumentName, path: IssuePath): I
   if (note.pitch !== undefined && note.chord !== undefined) {
     return [{ path: [...path, "chord"], message: "Give `pitch` or `chord`, not both.", hint: "Use `chord` for a named chord, `pitch` for exact notes." }];
   }
+  if (!descriptor.pitched && descriptor.pitchOptional && note.chord === undefined) return rangeIssues(note, instrument, path);
   if (!descriptor.pitched) {
     return note.pitch === undefined && note.chord === undefined
       ? []
@@ -98,7 +101,12 @@ function pitchIssues(note: Note, instrument: InstrumentName, path: IssuePath): I
       { path, message: `"${instrument}" is pitched: this note needs a pitch or a chord.`, hint: 'Add "pitch": "C5", a list for a chord, or "chord": "C".' },
     ];
   }
-  const range = descriptor.range;
+  return rangeIssues(note, instrument, path);
+}
+
+function rangeIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+  const given = note.chord === undefined ? "pitch" : "chord";
+  const range = descriptorOf(instrument).range;
   if (range === null) return [];
   const low = pitchToMidi(range.low) ?? 0;
   const high = pitchToMidi(range.high) ?? 127;
@@ -172,12 +180,28 @@ function strokesOf(note: Note, tempo: number): Stroke[] {
   }));
 }
 
+/** How long an effect with a length lasts (its `len`, or its default); undefined for other sounds. */
+function soundLength(note: Note, instrument: InstrumentName, tempo: number): number | undefined {
+  const duration = descriptorOf(instrument).duration;
+  if (duration === undefined) return undefined;
+  return note.len === undefined ? duration.defaultSeconds : note.len * secondsPerBeat(tempo);
+}
+
+/** Where a note starts: its `at`, or its `end` minus its length. Only a start exactly on a cue counts as on it. */
+function startOf(note: Note, length: number, resolve: (at: At) => ResolvedAt): ResolvedAt {
+  if (note.end === undefined) return resolve(note.at ?? 0);
+  const end = resolve(note.end);
+  return end.ok ? { ok: true, seconds: end.seconds - length, cue: undefined } : end;
+}
+
 function strumSpread(note: Note): number {
   return typeof note.strum === "object" ? (note.strum.spread ?? DEFAULT_SPREAD_MS) : DEFAULT_SPREAD_MS;
 }
 
 interface Placed {
   index: number;
+  /** Seconds an effect with a length lasts; undefined for other sounds. */
+  length: number | undefined;
   seconds: number;
   onCue: string | undefined;
   stroke: Stroke;
@@ -211,7 +235,8 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     vel: note.vel * placed.stroke.weight,
     pan: note.pan ?? track?.pan ?? 0.5,
     gainDb: track?.gain ?? 0,
-    hold: note.len === undefined ? Number.NaN : note.len * secondsPerBeat(score.tempo),
+    hold: placed.length ?? (note.len === undefined ? Number.NaN : note.len * secondsPerBeat(score.tempo)),
+    end: placed.length === undefined ? undefined : Math.max(0, placed.seconds) + placed.length,
     variant: variantAt(note, placed.index),
     detune: note.detune ?? 0,
   };
@@ -224,8 +249,15 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
   const path: IssuePath = ["tracks", trackIndex, "notes", noteIndex];
   const issues = [...pitchIssues(note, track.instrument, path), ...variantIssues(note, track.instrument, path), ...strumIssues(note, track.instrument, path)];
   const resolve = (at: At): ResolvedAt => resolveAt(at, score.tempo, cues);
-  const start = resolve(note.at);
-  if (!start.ok) return { events: [], issues: [...issues, unknownCueIssue([...path, "at"], start.unknownCue, cues)] };
+  const length = soundLength(note, track.instrument, score.tempo);
+  if (note.end !== undefined && length === undefined) {
+    return {
+      events: [],
+      issues: [...issues, { path: [...path, "end"], message: `"${track.instrument}" has no length, so it cannot be placed by \`end\`.`, hint: "Use `at`." }],
+    };
+  }
+  const start = startOf(note, length ?? 0, resolve);
+  if (!start.ok) return { events: [], issues: [...issues, unknownCueIssue([...path, note.end === undefined ? "at" : "end"], start.unknownCue, cues)] };
   const { times, until } = repeatTimes(note, start.seconds, score.tempo, resolve);
   if (until !== undefined && !until.ok) issues.push(unknownCueIssue([...path, "repeat", "until"], until.unknownCue, cues));
 
@@ -235,7 +267,7 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
     strokes.map((stroke, k) => {
       const index = repeat * strokes.length + k;
       const onCue = index === 0 ? start.cue : undefined;
-      return noteEvent(note, ctx, pitches, { index, seconds: t + stroke.offset, onCue, stroke });
+      return noteEvent(note, ctx, pitches, { index, seconds: t + stroke.offset, onCue, stroke, length });
     }),
   );
   for (const event of events) issues.push(...timeIssues(event, ctx.duration, path));

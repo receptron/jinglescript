@@ -90,6 +90,32 @@ listInstruments() / \`jinglescript instruments\`. Rules of thumb:
 - All instruments are balanced to the same loudness at the same velocity; use track \`gain\` to
   put one behind another.
 
+## Sound effects
+
+Effects go in tracks like instruments and land on cues exactly like notes; the timing map's \`t\`
+is the start of the sound, so an animation frame on it lines up.
+
+| Effect | Variants (first = default) | Notes |
+|---|---|---|
+| clock | tick, tock | \`"variant": ["tick", "tock"]\` with \`repeat\` for a ticking clock |
+| footsteps | left, right | \`"variant": ["left", "right"]\`, \`repeat\` every 0.5–1 beat to walk |
+| tapdance | toe, heel, shuffle | |
+| pistol | shot, cartoon | |
+| laser | — | optional \`pitch\` = where the "pew" starts; \`len\` = sweep length (default 0.25 s) |
+| whoosh | soft, fast | \`len\` = length (default 0.5 s); place with \`end\` to finish on a cut |
+| riser | noise, tone | builds into a hit: \`{ "end": "hit", "len": 4 }\` (default 2 s) |
+| impact | soft, hard | the boom a reveal lands on |
+| pop | — | optional \`pitch\` = starting pitch; things appearing, text popping in |
+
+- \`end\` (instead of \`at\`) places an effect with a length by when it **finishes** — a riser or
+  whoosh that stops exactly on the cut.
+- Close, dry effects (ticks, footsteps, taps) sound better outside the reverb: give their track
+  \`"reverb": false\`.
+- Effects are as loud as instruments at the same velocity; put them under the music with track
+  \`gain\` (-4 to -8 dB) unless they are the point.
+- Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
+  target (the renderer reports it).
+
 ## What makes a jingle work
 
 - A **question and an answer**: three rising notes that end open (e.g. G4 C5 E5 on eighths), then

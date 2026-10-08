@@ -1,0 +1,50 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Riser into a reveal: impact and piano chord on the hit",
+  "tempo": 120,
+  "length": {
+    "seconds": 6
+  },
+  "cues": {
+    "reveal": {
+      "seconds": 3.0
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "riser",
+      "notes": [
+        {
+          "end": "reveal",
+          "len": 4,
+          "vel": 0.8
+        }
+      ]
+    },
+    {
+      "instrument": "impact",
+      "notes": [
+        {
+          "at": "reveal",
+          "variant": "hard"
+        }
+      ]
+    },
+    {
+      "instrument": "piano",
+      "notes": [
+        {
+          "at": "reveal",
+          "chord": "Cmaj7",
+          "vel": 0.9
+        },
+        {
+          "at": "reveal",
+          "pitch": ["C2", "C3"],
+          "vel": 0.9
+        }
+      ]
+    }
+  ]
+}

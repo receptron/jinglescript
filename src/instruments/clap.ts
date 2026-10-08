@@ -6,6 +6,7 @@ import { bandpass, biquadFilter } from "../dsp/biquad.ts";
 import type { Rng } from "../rng.ts";
 import { buffer, finish } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 export const CLAP_VARIANTS = ["studio", "snappy", "hands", "group"] as const;
 export type ClapVariant = (typeof CLAP_VARIANTS)[number];
@@ -82,7 +83,7 @@ function envelope(t: number, bursts: readonly Burst[]): number {
   let e = 0;
   for (const burst of bursts) {
     const local = t - burst.at;
-    if (local >= 0) e += burst.level * Math.min(1, local / BURST_RISE) * Math.exp(-local / burst.decay);
+    if (local >= 0) e += burst.level * Math.min(1, local / BURST_RISE) * dmath.exp(-local / burst.decay);
   }
   return e;
 }
@@ -121,7 +122,7 @@ function synthesize(input: SynthInput): Float32Array {
   if (variant !== "group") {
     const out = buffer(SHAPES[variant].seconds, sampleRate);
     addClap(out, SHAPES[variant], { scale: 1, offset: 0, gain: 1 }, rng, sampleRate);
-    return finish(out, { attack: 0.0003, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+    return finish(out, { attack: 0.0003, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
   }
   // A few people, slightly apart in time and in hand size; the first lands on the onset.
   const out = buffer(SHAPES.hands.seconds + GROUP_SPREAD_SECONDS, sampleRate);
@@ -131,7 +132,7 @@ function synthesize(input: SynthInput): Float32Array {
     const gain = 0.6 + rng.next() * 0.4;
     addClap(out, SHAPES.hands, { scale, offset, gain }, rng, sampleRate);
   }
-  return finish(out, { attack: 0.0003, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB.group / 20) }, sampleRate);
+  return finish(out, { attack: 0.0003, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB.group) }, sampleRate);
 }
 
 export const clap: Instrument = {

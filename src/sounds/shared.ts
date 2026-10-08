@@ -2,6 +2,7 @@
 // randomness comes from the note's seeded stream.
 import { biquadFilter, type Biquad } from "../dsp/biquad.ts";
 import type { Rng } from "../rng.ts";
+import * as dmath from "../dsp/math.ts";
 
 /** The named variant, or the first (the default). */
 export function pickVariant<T extends string>(variants: readonly [T, ...T[]], name: string | undefined): T {
@@ -28,8 +29,8 @@ export function addGlide(out: Float32Array, g: Glide, sampleRate: number): void 
   let phase = 0;
   for (let i = start; i < out.length; i++) {
     const t = (i - start) / sampleRate;
-    const f = g.to + (g.from - g.to) * Math.exp(-t / g.glide);
-    out[i] = (out[i] ?? 0) + g.level * Math.exp(-t / g.decay) * Math.sin(phase);
+    const f = g.to + (g.from - g.to) * dmath.exp(-t / g.glide);
+    out[i] = (out[i] ?? 0) + g.level * dmath.exp(-t / g.decay) * dmath.sin(phase);
     phase += (2 * Math.PI * f) / sampleRate;
   }
 }
@@ -49,7 +50,7 @@ export function addNoise(out: Float32Array, shape: NoiseShape, rng: Rng, sampleR
   const start = Math.round((shape.at ?? 0) * sampleRate);
   const n = out.length - start;
   if (n <= 0) return;
-  let x: Float64Array = Float64Array.from({ length: n }, (_, i) => rng.normal() * Math.exp(-i / sampleRate / shape.decay));
+  let x: Float64Array = Float64Array.from({ length: n }, (_, i) => rng.normal() * dmath.exp(-i / sampleRate / shape.decay));
   for (const filter of shape.filters) x = biquadFilter(x, filter);
   for (let i = 0; i < n; i++) out[start + i] = (out[start + i] ?? 0) + shape.level * (x[i] ?? 0);
 }

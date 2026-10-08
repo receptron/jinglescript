@@ -1,6 +1,7 @@
 // Xylophone, from the prototype (instruments.py): modes 1×, 3.0×, 6.1×, short decays, a hard click.
 import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VOICE = {
   modes: [
@@ -10,7 +11,7 @@ const VOICE = {
   ],
   click: 0.35,
   // +2.3 dB: loudness of a C5 at full velocity matched to the marimba's.
-  level: 10 ** (2.3 / 20),
+  level: dmath.dbToGain(2.3),
 };
 
 export const xylophone: Instrument = {

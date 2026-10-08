@@ -5,6 +5,7 @@
 import { limit } from "./limiter.ts";
 import { integratedLoudness, truePeak } from "./loudness.ts";
 import { applyReverb, type Reverb } from "./reverb.ts";
+import * as dmath from "./math.ts";
 
 export const TRUE_PEAK_CEILING = -1.5;
 /** The most gain reduction the limiter may apply, dB. */
@@ -12,7 +13,7 @@ export const MAX_LIMITING_DB = 6;
 /** The limiter works on samples; aim this far under the true-peak ceiling for inter-sample peaks. */
 const SAMPLE_PEAK_MARGIN_DB = 0.3;
 /** −40 dBFS: below this for good, the jingle has ended (`audibleUntil`). */
-export const AUDIBLE_THRESHOLD = 10 ** (-40 / 20);
+export const AUDIBLE_THRESHOLD = dmath.dbToGain(-40);
 
 export interface MasterOptions {
   sampleRate: number;
@@ -51,7 +52,7 @@ function scale(channels: [Float32Array, Float32Array], gain: number): void {
   for (const channel of channels) for (let i = 0; i < channel.length; i++) channel[i] = (channel[i] ?? 0) * gain;
 }
 
-const dbToGain = (db: number): number => 10 ** (db / 20);
+const dbToGain = dmath.dbToGain;
 const samplePeak = (channels: readonly Float32Array[]): number => Math.max(...channels.map((c) => c.reduce((m, v) => Math.max(m, Math.abs(v)), 0)));
 
 /** `source` scaled by `gainDb`, then limited if allowed; returns the result and the limiting applied. */
@@ -88,7 +89,7 @@ export function master(
   }
   // Without a limiter the true peak caps the gain. With it, the gain may push the sample peak up to
   // MAX_LIMITING_DB over the ceiling; limiting lowers the loudness a little, so correct once.
-  const peakDb = 20 * Math.log10(samplePeak(faded));
+  const peakDb = 20 * dmath.log10(samplePeak(faded));
   const headroom = TRUE_PEAK_CEILING - SAMPLE_PEAK_MARGIN_DB - peakDb + (options.limiter ? MAX_LIMITING_DB : 0);
   let gainDb = Math.min(options.loudness - measured, headroom);
   let pass = gainAndLimit(faded, gainDb, options);

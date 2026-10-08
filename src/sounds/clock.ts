@@ -5,6 +5,7 @@ import { bandpass } from "../dsp/biquad.ts";
 import { addModes, buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["tick", "tock"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -40,7 +41,7 @@ function synthesize(input: SynthInput): Float32Array {
   const out = buffer(LENGTH_SECONDS, sampleRate);
   addModes(out, vary(1, 0.02, rng), voice.modes, sampleRate);
   addNoise(out, { decay: 0.0015, level: 0.5, filters: [bandpass(voice.noiseHz, 2, sampleRate)] }, rng, sampleRate);
-  return finish(out, { attack: 0.0005, endFade: 0.005, gain: input.velocity * voice.level * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(out, { attack: 0.0005, endFade: 0.005, gain: input.velocity * voice.level * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const clock: Instrument = {

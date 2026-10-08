@@ -15,7 +15,11 @@ same conventions; when in doubt about setup, look at how it does it.
 - **Deterministic or it's a bug.** Every random component (mallet clicks, reverb noise, humanize)
   draws from the score's seeded PRNG. `Math.random`, `Date.now` and anything machine-dependent
   are not used in rendering. The same score and seed must give bit-identical PCM; golden tests
-  hash it.
+  hash it, on Ubuntu and macOS and on Node 22 and 24 in CI.
+- **No engine math in src/.** Math.sin, Math.exp, Math.pow, `**` and friends differ between
+  Node versions and CPUs (found the hard way: Node 22 and 24 disagree on pow). Use
+  `src/dsp/math.ts` (fdlibm-style, only +−×÷ and sqrt); for oscillators prefer
+  `addDampedSine` (rotation and repeated multiplication, no per-sample sin/exp). Lint enforces it.
 - **Beats or seconds in the score, seconds in the output.** Scores say `at` in beats, as
   `{ "seconds": n }`, or as a cue name (optionally `"cue+beats"`); cues are given in seconds or
   beats. The timing map and audio use seconds. Convert in exactly one module that everything

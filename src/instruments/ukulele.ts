@@ -9,6 +9,7 @@
 import { buffer, finish } from "./common.ts";
 import type { Rng } from "../rng.ts";
 import type { Instrument, SynthInput } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 export interface StringTone {
   /** Low-pass on the excitation, Hz: lower is a softer, fleshier pluck. */
@@ -45,7 +46,7 @@ function onePole(x: Float64Array, coefficient: number, passes: number, circular:
 /** One period of string shape: seeded noise, low-passed, comb-filtered at the pluck position, zero-mean, peak 1. */
 function pluckExcitation(line: number, tone: StringTone, rng: Rng, sampleRate: number): Float64Array {
   const noise = Float64Array.from({ length: line }, () => rng.next() * 2 - 1);
-  onePole(noise, Math.exp((-2 * Math.PI * tone.pluckHz) / sampleRate), 2, true);
+  onePole(noise, dmath.exp((-2 * Math.PI * tone.pluckHz) / sampleRate), 2, true);
   const offset = Math.max(1, Math.round(tone.pluckPosition * line));
   const shaped = Float64Array.from({ length: line }, (_, i) => (noise[i] ?? 0) - (noise[(i - offset + line) % line] ?? 0));
   const mean = shaped.reduce((sum, v) => sum + v, 0) / line;
@@ -55,12 +56,12 @@ function pluckExcitation(line: number, tone: StringTone, rng: Rng, sampleRate: n
 
 /** Phase delay, in samples, of the one-pole y = (1−b)x + b·y₋₁ at angular frequency w. */
 function onePoleDelay(b: number, w: number): number {
-  return Math.atan2(b * Math.sin(w), 1 - b * Math.cos(w)) / w;
+  return dmath.atan2(b * dmath.sin(w), 1 - b * dmath.cos(w)) / w;
 }
 
 /** Phase delay of the all-pass (c + z⁻¹)/(1 + c·z⁻¹) at w. */
 function allpassDelay(c: number, w: number): number {
-  const phase = Math.atan2(-Math.sin(w), c + Math.cos(w)) - Math.atan2(-c * Math.sin(w), 1 + c * Math.cos(w));
+  const phase = dmath.atan2(-dmath.sin(w), c + dmath.cos(w)) - dmath.atan2(-c * dmath.sin(w), 1 + c * dmath.cos(w));
   return -phase / w;
 }
 
@@ -88,8 +89,8 @@ export function pluckString(input: SynthInput, tone: StringTone, levelDb: number
   // Loop gain per period for the wanted decay time; the one-pole has unit gain at DC and loses
   // a little at f, so take that out of the budget.
   const ring = tone.ringSeconds * Math.sqrt(261.63 / f);
-  const filterGain = (1 - tone.damping) / Math.hypot(1 - tone.damping * Math.cos(w), tone.damping * Math.sin(w));
-  const loss = Math.min(0.9999, 10 ** (-3 / (ring * f)) / filterGain);
+  const filterGain = (1 - tone.damping) / dmath.hypot(1 - tone.damping * dmath.cos(w), tone.damping * dmath.sin(w));
+  const loss = Math.min(0.9999, dmath.pow(10, -3 / (ring * f)) / filterGain);
 
   const delay = pluckExcitation(line, tone, rng, sampleRate);
   const out = buffer(RING_SECONDS + DAMPER_SECONDS, sampleRate);
@@ -107,8 +108,8 @@ export function pluckString(input: SynthInput, tone: StringTone, levelDb: number
     delay[p] = shifted;
   }
   const body = Float64Array.from(out);
-  onePole(body, Math.exp((-2 * Math.PI * tone.bodyHz) / sampleRate), 1, false);
-  return finish(Float32Array.from(body), { attack: 0.002, endFade: DAMPER_SECONDS, gain: input.velocity * 10 ** (levelDb / 20) }, sampleRate);
+  onePole(body, dmath.exp((-2 * Math.PI * tone.bodyHz) / sampleRate), 1, false);
+  return finish(Float32Array.from(body), { attack: 0.002, endFade: DAMPER_SECONDS, gain: input.velocity * dmath.dbToGain(levelDb) }, sampleRate);
 }
 
 export const ukulele: Instrument = {

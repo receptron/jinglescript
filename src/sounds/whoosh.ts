@@ -5,6 +5,7 @@ import { sweptBandpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { pickVariant } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["soft", "fast"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -18,7 +19,11 @@ const LEVEL_DB: Record<Variant, number> = { soft: -2.0, fast: -3.6 };
 /** 0 → 1 at the peak → 0, smoothly. */
 function riseFall(x: number, peak: number): number {
   if (x <= 0 || x >= 1) return 0;
-  return x < peak ? Math.sin((Math.PI / 2) * (x / peak)) ** 2 : Math.cos((Math.PI / 2) * ((x - peak) / (1 - peak))) ** 1.5;
+  if (x < peak) {
+    const s = dmath.sin((Math.PI / 2) * (x / peak));
+    return s * s;
+  }
+  return dmath.pow(dmath.cos((Math.PI / 2) * ((x - peak) / (1 - peak))), 1.5);
 }
 
 function synthesize(input: SynthInput): Float32Array {
@@ -28,9 +33,9 @@ function synthesize(input: SynthInput): Float32Array {
   const seconds = input.hold;
   const out = buffer(seconds, sampleRate);
   const noise = Float64Array.from({ length: out.length }, () => rng.normal());
-  const filtered = sweptBandpass(noise, (t) => shape.low * (shape.high / shape.low) ** riseFall(t / seconds, shape.peak), shape.q, sampleRate);
+  const filtered = sweptBandpass(noise, (t) => shape.low * dmath.pow(shape.high / shape.low, riseFall(t / seconds, shape.peak)), shape.q, sampleRate);
   for (let i = 0; i < out.length; i++) out[i] = (filtered[i] ?? 0) * riseFall(i / out.length, shape.peak);
-  return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const whoosh: Instrument = {

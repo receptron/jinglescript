@@ -127,5 +127,43 @@ export default [
       "security/detect-non-literal-regexp": "off",
     },
   },
+  {
+    // Rendering must give bit-identical PCM on every machine, and engines compute Math.sin,
+    // Math.exp, Math.pow and `**` differently across versions and CPUs (Node 22 and 24 disagree on
+    // pow). src/ uses the deterministic functions in src/dsp/math.ts instead; Math.sqrt, floor,
+    // round, abs, min and max are exact everywhere and stay allowed.
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        ...[
+          "sin",
+          "cos",
+          "tan",
+          "exp",
+          "expm1",
+          "log",
+          "log10",
+          "log2",
+          "log1p",
+          "pow",
+          "atan",
+          "atan2",
+          "asin",
+          "acos",
+          "sinh",
+          "cosh",
+          "tanh",
+          "cbrt",
+          "hypot",
+        ].map((property) => ({ object: "Math", property, message: "Not deterministic across platforms: use src/dsp/math.ts." })),
+      ],
+      "no-restricted-syntax": [
+        "error",
+        { selector: "BinaryExpression[operator='**']", message: "`**` is not deterministic across platforms: use pow() from src/dsp/math.ts, or x * x." },
+        { selector: "AssignmentExpression[operator='**=']", message: "`**=` is not deterministic across platforms: use pow() from src/dsp/math.ts." },
+      ],
+    },
+  },
   prettierRecommended,
 ];

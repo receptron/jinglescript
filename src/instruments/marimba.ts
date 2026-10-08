@@ -5,8 +5,9 @@
 // Differences from the prototype, all at the edges: the note rings until it is ~60 dB down rather
 // than being cut at 2.5 s (which clicked on low notes), it ends in a short fade, and a mode that
 // would come too close to Nyquist is dropped.
-import { MAX_PARTIAL_FRACTION, movingAverage, RING_TIME_CONSTANTS } from "./common.ts";
+import { addDampedSine, MAX_PARTIAL_FRACTION, movingAverage, RING_TIME_CONSTANTS } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const MODES = [
   { ratio: 1, level: 1, decay: 0.42, lowRingsLonger: true },
@@ -31,7 +32,7 @@ function malletClick(sampleRate: number, input: SynthInput): Float32Array {
   const n = Math.round(sampleRate * CLICK_SECONDS);
   const raw = new Float64Array(n);
   for (let i = 0; i < n; i++) {
-    const hann = n > 1 ? 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (n - 1)) : 1;
+    const hann = n > 1 ? 0.5 - 0.5 * dmath.cos((2 * Math.PI * i) / (n - 1)) : 1;
     raw[i] = input.rng.normal() * hann * CLICK_LEVEL;
   }
   const taps = Math.max(1, Math.round(sampleRate * CLICK_SMOOTH_SECONDS));
@@ -52,10 +53,7 @@ function synthesize(input: SynthInput): Float32Array {
     const f = frequency * mode.ratio;
     if (f >= maxPartial) continue;
     const tau = mode.decay * (mode.lowRingsLonger ? low : 1);
-    const w = (2 * Math.PI * f) / sampleRate;
-    for (let i = 0; i < length; i++) {
-      out[i] = (out[i] ?? 0) + mode.level * Math.exp(-i / sampleRate / tau) * Math.sin(w * i);
-    }
+    addDampedSine(out, (2 * Math.PI * f) / sampleRate, mode.level, tau, sampleRate);
   }
   const click = malletClick(sampleRate, input);
   click.forEach((c, i) => {

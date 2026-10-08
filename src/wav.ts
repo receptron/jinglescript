@@ -26,7 +26,7 @@ export function toWav(audio: readonly Float32Array[], sampleRate: number, bits: 
   view.setUint16(34, bits, true);
   ascii(36, "data");
   view.setUint32(40, dataSize, true);
-  const full = 2 ** (bits - 1) - 1;
+  const full = (1 << (bits - 1)) - 1;
   let offset = 44;
   for (let i = 0; i < frames; i++) {
     for (const channel of audio) {

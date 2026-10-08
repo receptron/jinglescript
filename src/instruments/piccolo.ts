@@ -3,17 +3,18 @@
 // Sounds synthetic — the descriptor says so.
 import { accumulatePhase, adsr, buffer, finish, movingAverage, partialAllowed } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const HARMONICS = [1, 0.18, 0.05];
 const TAIL_SECONDS = 0.3;
 /** The prototype's level (0.7), then -5.1 dB to match a C5 at full velocity to the marimba's loudness. */
-const LEVEL = 0.7 * 10 ** (-5.1 / 20);
+const LEVEL = 0.7 * dmath.dbToGain(-5.1);
 
 function synthesize(input: SynthInput): Float32Array {
   const { sampleRate, hold, rng } = input;
   const f = input.frequency ?? 523.25;
   const out = buffer(hold + TAIL_SECONDS, sampleRate);
-  const phase = accumulatePhase(out.length, sampleRate, (t) => f * (1 + 0.006 * Math.sin(2 * Math.PI * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.12) / 0.2))));
+  const phase = accumulatePhase(out.length, sampleRate, (t) => f * (1 + 0.006 * dmath.sin(2 * Math.PI * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.12) / 0.2))));
   const breath = movingAverage(
     Float64Array.from({ length: out.length }, () => rng.normal()),
     6,
@@ -21,7 +22,7 @@ function synthesize(input: SynthInput): Float32Array {
   for (let i = 0; i < out.length; i++) {
     let s = 0;
     HARMONICS.forEach((level, k) => {
-      if (partialAllowed(f * (k + 1), sampleRate)) s += level * Math.sin((k + 1) * (phase[i] ?? 0));
+      if (partialAllowed(f * (k + 1), sampleRate)) s += level * dmath.sin((k + 1) * (phase[i] ?? 0));
     });
     out[i] = (s + (breath[i] ?? 0) * 0.06) * adsr(i / sampleRate, 0.035, 0.05, 0.85, 0.06, hold);
   }

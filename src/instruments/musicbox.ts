@@ -3,6 +3,7 @@
 // minimum every note gets.
 import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VOICE = {
   modes: [
@@ -14,7 +15,7 @@ const VOICE = {
   clickSeconds: 0.0025,
   clickWindowed: false,
   // -2.2 dB: loudness of a C5 at full velocity matched to the marimba's.
-  level: 10 ** (-2.2 / 20),
+  level: dmath.dbToGain(-2.2),
 };
 
 export const musicbox: Instrument = {

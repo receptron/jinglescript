@@ -1,6 +1,7 @@
 // Glockenspiel, from the prototype (instruments.py): free-bar modes 1×, 2.76×, 5.40×, 8.93×, long decay.
 import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VOICE = {
   modes: [
@@ -11,7 +12,7 @@ const VOICE = {
   ],
   click: 0.08,
   // -2.2 dB: loudness of a C5 at full velocity matched to the marimba's.
-  level: 10 ** (-2.2 / 20),
+  level: dmath.dbToGain(-2.2),
 };
 
 export const glockenspiel: Instrument = {

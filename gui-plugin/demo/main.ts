@@ -1,15 +1,29 @@
-// The demo page: every sample in the player view, and their previews. The sample JSON is checked
-// against the timing-map schema on the way in, as any untyped data is.
+// The demo page: every sample in the player view, and their previews. The samples come from
+// demo/samples.json (npm run demo-data; git-ignored), fetched at run time and checked on the way
+// in, as any untyped data is.
 import type { ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData } from "jinglescript";
+import { createApp, h } from "vue";
+import { z } from "zod";
 // The timing schema module alone: the library's index needs Node (ffmpeg), which a page cannot load.
 import { TimingSchema } from "../../src/timing.ts";
-import { createApp, h } from "vue";
 import Preview from "../src/vue/Preview.vue";
 import View from "../src/vue/View.vue";
-import samples from "./samples.json";
 
-const results: ToolResultComplete<PlayerData>[] = samples.map((s) => ({ ...s, data: { ...s.data, timing: TimingSchema.parse(s.data.timing) } }));
+const PlayerSchema = z.object({
+  title: z.string(),
+  audio: z.string(),
+  mimeType: z.string(),
+  duration: z.number(),
+  peaks: z.array(z.number()),
+  timing: TimingSchema,
+  tracks: z.array(z.string()),
+  loudness: z.number(),
+});
+const SamplesSchema = z.array(z.object({ toolName: z.string(), uuid: z.string(), message: z.string(), title: z.string().optional(), data: PlayerSchema }));
+
+const response = await fetch(new URL("./samples.json", import.meta.url));
+const results: ToolResultComplete<PlayerData>[] = SamplesSchema.parse(await response.json());
 
 createApp({
   render: () => [

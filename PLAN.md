@@ -901,3 +901,13 @@ Decided:
   it needed a `yarn build` there). Published the repository at the user's request:
   github.com/receptron/jinglescript, public, MIT. npm publishing still waits.
 
+
+- 2026-10-08 — First CI run on GitHub caught that golden PCM hashes differed across machines:
+  Node 22 vs 24 compute `**`/Math.pow differently, and x64 vs arm64 may differ too. Rendering now
+  uses `src/dsp/math.ts` — sin, cos, exp, log, pow, atan2 written fdlibm-style with only +−×÷ and
+  sqrt (within ~3e-15 of Math.*) — and oscillators generate sines by rotation and decays by
+  repeated multiplication (also faster). Lint forbids Math.sin & co. and `**` in src/. Verified
+  identical hashes on Node 22.19, 24.18 and 24.19 locally; CI checks Ubuntu x64 and macOS. Golden
+  hashes regenerated (the sound changes by ~1e-12, inaudible). Also: test timeout 30 s for slow
+  runners; the GUI demo fetches its samples instead of importing a git-ignored file.
+

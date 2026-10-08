@@ -1,7 +1,8 @@
 // Organ, from the prototype (instruments2.py): drawbar additive 16′ 8′ 4′ 2⅔′ 2′ 1⅓′, a 6.2 Hz
 // rotary-ish wobble, a raw key click, ADSR held for the note's length.
-import { addNoiseBurst, adsr, buffer, finish, partialAllowed } from "./common.ts";
+import { addDampedSine, addNoiseBurst, adsr, buffer, finish, partialAllowed } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const DRAWBARS = [
   { ratio: 0.5, level: 0.5 },
@@ -15,7 +16,7 @@ const WOBBLE_HZ = 6.2;
 const WOBBLE_DEPTH = 0.08;
 const TAIL_SECONDS = 0.5;
 /** The prototype's level (0.45), then -4.3 dB to match a C5 at full velocity to the marimba's loudness. */
-const LEVEL = 0.45 * 10 ** (-4.3 / 20);
+const LEVEL = 0.45 * dmath.dbToGain(-4.3);
 
 function synthesize(input: SynthInput): Float32Array {
   const { sampleRate, hold } = input;
@@ -23,10 +24,9 @@ function synthesize(input: SynthInput): Float32Array {
   const out = buffer(hold + TAIL_SECONDS, sampleRate);
   for (const bar of DRAWBARS) {
     if (!partialAllowed(f * bar.ratio, sampleRate)) continue;
-    const w = (2 * Math.PI * f * bar.ratio) / sampleRate;
-    for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + bar.level * Math.sin(w * i);
+    addDampedSine(out, (2 * Math.PI * f * bar.ratio) / sampleRate, bar.level, Infinity, sampleRate);
   }
-  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * (1 + WOBBLE_DEPTH * Math.sin((2 * Math.PI * WOBBLE_HZ * i) / sampleRate));
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * (1 + WOBBLE_DEPTH * dmath.sin((2 * Math.PI * WOBBLE_HZ * i) / sampleRate));
   addNoiseBurst(out, 0.003, 0.4, input.rng, sampleRate, false);
   for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * adsr(i / sampleRate, 0.008, 0.05, 0.9, 0.06, hold);
   return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * LEVEL }, sampleRate);

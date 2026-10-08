@@ -10,6 +10,7 @@ import { addModes, buffer, finish, type Mode } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { createRng, type Rng } from "../rng.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["toe", "heel", "shuffle"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -18,8 +19,8 @@ type Variant = (typeof VARIANTS)[number];
 const FLOOR: readonly Mode[] = (() => {
   const rng = createRng(424242);
   return Array.from({ length: 40 }, () => {
-    const hz = 150 * 2 ** (rng.next() * Math.log2(4000 / 150));
-    return { ratio: hz, level: (0.3 + 0.7 * rng.next()) * (300 / hz) ** 0.5, decay: 0.003 + 0.012 * rng.next() * (600 / hz) ** 0.5 };
+    const hz = 150 * dmath.pow(2, rng.next() * dmath.log2(4000 / 150));
+    return { ratio: hz, level: (0.3 + 0.7 * rng.next()) * Math.sqrt(300 / hz), decay: 0.003 + 0.012 * rng.next() * Math.sqrt(600 / hz) };
   });
 })();
 /** The floor's level: its peak at 60 % of the crack's (1/13 brings the raw floor down to the crack's peak). */
@@ -58,7 +59,7 @@ function synthesize(input: SynthInput): Float32Array {
   }
   // The floor's low modes can leave a little DC; a 40 Hz high-pass takes it out.
   const centred = Float32Array.from(biquadFilter(out, highpass(40, 0.7, sampleRate)));
-  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const tapdance: Instrument = {

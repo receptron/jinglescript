@@ -2,6 +2,7 @@
 // plus seeded, exponentially decaying noise.
 import { streamRng } from "../rng.ts";
 import { convolve } from "./fft.ts";
+import * as dmath from "./math.ts";
 
 export const REVERBS = ["none", "room", "hall"] as const;
 export type Reverb = (typeof REVERBS)[number];
@@ -28,7 +29,7 @@ export function impulseResponse(reverb: Exclude<Reverb, "none">, sampleRate: num
   // Keep the tail's energy independent of the sample rate.
   const level = shape.level * Math.sqrt(48000 / sampleRate);
   const ir = new Float64Array(n);
-  for (let i = 0; i < n; i++) ir[i] = rng.normal() * Math.exp(-i / sampleRate / shape.decay) * level;
+  for (let i = 0; i < n; i++) ir[i] = rng.normal() * dmath.exp(-i / sampleRate / shape.decay) * level;
   ir[0] = 1;
   return ir;
 }

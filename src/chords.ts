@@ -89,7 +89,7 @@ function fretted(chord: ChordTones, tuning: readonly string[]): string[] {
   let best: number[] | undefined;
   let bestCost = Infinity;
   const frets = new Array<number>(open.length).fill(0);
-  const total = (MAX_FRET + 1) ** open.length;
+  const total = open.reduce((count) => count * (MAX_FRET + 1), 1);
   for (let n = 0; n < total; n++) {
     let rest = n;
     for (let s = open.length - 1; s >= 0; s--) {

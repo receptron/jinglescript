@@ -1,6 +1,7 @@
 // Look-ahead peak limiter, offline: the gain starts falling `lookahead` before a peak so the peak is
 // never exceeded, and recovers with an exponential release. Stereo-linked (both channels get the
 // same gain, so the image does not shift). Deterministic: plain arithmetic, no state between calls.
+import * as dmath from "./math.ts";
 
 const LOOKAHEAD_SECONDS = 0.002;
 const RELEASE_SECONDS = 0.08;
@@ -38,7 +39,7 @@ export function limit(channels: [Float32Array, Float32Array], ceiling: number, s
   const held = forwardMin(needed, window);
   // Averaging the held curve over the look-ahead ramps the gain down smoothly and still reaches
   // each peak's value by the time the peak arrives (every term in its average is ≤ it).
-  const release = 1 - Math.exp(-1 / (RELEASE_SECONDS * sampleRate));
+  const release = 1 - dmath.exp(-1 / (RELEASE_SECONDS * sampleRate));
   let running = 0;
   let gain = 1;
   let deepest = 1;
@@ -51,5 +52,5 @@ export function limit(channels: [Float32Array, Float32Array], ceiling: number, s
     channels[0][i] = (channels[0][i] ?? 0) * gain;
     channels[1][i] = (channels[1][i] ?? 0) * gain;
   }
-  return -20 * Math.log10(deepest);
+  return -20 * dmath.log10(deepest);
 }

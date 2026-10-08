@@ -1,4 +1,5 @@
 // Pitch names in scientific notation: C4 = middle C = MIDI 60, A4 = 440 Hz.
+import * as dmath from "./dsp/math.ts";
 
 export const PITCH_PATTERN = /^([A-G])([#b]?)(-?\d)$/;
 
@@ -17,5 +18,5 @@ export function pitchToMidi(name: string): number | undefined {
 }
 
 export function midiToFrequency(midi: number): number {
-  return 440 * 2 ** ((midi - 69) / 12);
+  return 440 * dmath.pow(2, (midi - 69) / 12);
 }

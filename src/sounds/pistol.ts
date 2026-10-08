@@ -5,6 +5,7 @@ import { bandpass, highpass, lowpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addGlide, addNoise, pickVariant } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["shot", "cartoon"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -26,7 +27,7 @@ function synthesize(input: SynthInput): Float32Array {
     addNoise(out, { decay: 0.006, level: 0.8, filters: [bandpass(1500, 1, sampleRate)] }, rng, sampleRate);
     addGlide(out, { from: 1000, to: 250, glide: 0.03, decay: 0.05, level: 0.7 }, sampleRate);
   }
-  return finish(out, { attack: 0.0005, endFade: 0.02, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(out, { attack: 0.0005, endFade: 0.02, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const pistol: Instrument = {

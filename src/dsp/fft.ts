@@ -1,5 +1,6 @@
 // Radix-2 FFT and FFT convolution, for the reverb (a direct convolution with a 1 s impulse response
 // would take minutes).
+import * as dmath from "./math.ts";
 
 function nextPowerOfTwo(n: number): number {
   let size = 1;
@@ -23,8 +24,8 @@ function bitReverse(re: Float64Array, im: Float64Array): void {
 /** One butterfly stage over blocks of `size`. */
 function stage(re: Float64Array, im: Float64Array, size: number, inverse: boolean): void {
   const angle = ((inverse ? 2 : -2) * Math.PI) / size;
-  const wRe = Math.cos(angle);
-  const wIm = Math.sin(angle);
+  const wRe = dmath.cos(angle);
+  const wIm = dmath.sin(angle);
   const half = size / 2;
   for (let start = 0; start < re.length; start += size) {
     let curRe = 1;

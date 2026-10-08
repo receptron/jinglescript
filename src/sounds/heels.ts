@@ -5,6 +5,7 @@ import { bandpass, biquadFilter, highpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["left", "right"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -41,7 +42,7 @@ export function heelStep(input: SynthInput, tone: HeelTone, levelDb: number): Fl
   // The sole, a softer and duller click a moment later.
   addNoise(out, { at: vary(0.11, 0.2, rng), decay: 0.008, level: tone.sole, filters: [bandpass(clack * 0.75, 3, sampleRate)] }, rng, sampleRate);
   const centred = Float32Array.from(biquadFilter(out, highpass(60, 0.7, sampleRate)));
-  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.08, rng) * 10 ** (levelDb / 20) }, sampleRate);
+  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.08, rng) * dmath.dbToGain(levelDb) }, sampleRate);
 }
 
 export const heels: Instrument = {

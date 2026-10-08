@@ -45,7 +45,7 @@ describe("example A (ハテナマルモ opening)", () => {
     // Golden hash of the PCM at seed 1. It changes only when the sound is changed on purpose;
     // update it in the same commit, after rendering and listening.
     expect(pcmHash(result.audio)).toBe(pcmHash(render(parseScore(exampleA)).audio));
-    expect(pcmHash(result.audio)).toMatchInlineSnapshot(`"b92380408cd7112b84f0d83d674b5799cc3ef605885f05f83b965ef1d9852ccc"`);
+    expect(pcmHash(result.audio)).toMatchInlineSnapshot(`"c8affcc9071f9b2e70309dc85b39435bd12d20192e077788b090491d88284bcf"`);
     expect(pcmHash(render(parseScore(exampleA), { seed: 2 }).audio)).not.toBe(pcmHash(result.audio));
   });
 

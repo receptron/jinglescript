@@ -8,6 +8,7 @@ import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import type { Rng } from "../rng.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["left", "right"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -53,7 +54,7 @@ export function footstep(input: SynthInput, tone: FootTone, levelDb: number): Fl
   addNoise(out, { at: vary(0.02, 0.3, rng), decay: 0.03, level: tone.scuff, filters: [bandpass(1500, 0.7, sampleRate)] }, rng, sampleRate);
   // Filtered noise bursts can leave a little DC; a 40 Hz high-pass takes it out.
   const centred = Float32Array.from(biquadFilter(out, highpass(40, 0.7, sampleRate)));
-  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.1, rng) * 10 ** (levelDb / 20) }, sampleRate);
+  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.1, rng) * dmath.dbToGain(levelDb) }, sampleRate);
 }
 
 export const footsteps: Instrument = {

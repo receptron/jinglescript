@@ -2,6 +2,7 @@
 // the note's length), with a little fast vibrato, fading as it falls. `pitch` sets where it starts.
 import { buffer, finish, partialAllowed } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const DEFAULT_START_HZ = 2400;
 const FALL = 1 / 10;
@@ -19,14 +20,14 @@ function synthesize(input: SynthInput): Float32Array {
   let phase = 0;
   for (let i = 0; i < out.length; i++) {
     const t = i / sampleRate;
-    const f = start * FALL ** (t / seconds) * (1 + VIBRATO_DEPTH * Math.sin(2 * Math.PI * VIBRATO_HZ * t));
+    const f = start * dmath.pow(FALL, t / seconds) * (1 + VIBRATO_DEPTH * dmath.sin(2 * Math.PI * VIBRATO_HZ * t));
     let s = 0;
     // Band-limited: only the harmonics that stay clear of Nyquist at this instant.
-    for (let k = 1; k <= MAX_HARMONICS && partialAllowed(k * f, sampleRate); k++) s += Math.sin(k * phase) / k;
-    out[i] = s * 0.6 * Math.exp((-3 * t) / seconds);
+    for (let k = 1; k <= MAX_HARMONICS && partialAllowed(k * f, sampleRate); k++) s += dmath.sin(k * phase) / k;
+    out[i] = s * 0.6 * dmath.exp((-3 * t) / seconds);
     phase += (2 * Math.PI * f) / sampleRate;
   }
-  return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB / 20) }, sampleRate);
+  return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB) }, sampleRate);
 }
 
 export const laser: Instrument = {

@@ -1,6 +1,7 @@
 // Vibraphone, from the prototype (instruments.py): modes 1×, 4×, 10×, long decay, 5.5 Hz tremolo.
 import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
+import * as dmath from "../dsp/math.ts";
 
 const TREMOLO_HZ = 5.5;
 const TREMOLO_DEPTH = 0.25;
@@ -13,8 +14,8 @@ const VOICE = {
   ],
   click: 0.05,
   // -0.7 dB: loudness of a C5 at full velocity matched to the marimba's.
-  level: 10 ** (-0.7 / 20),
-  shape: (t: number) => 1 - (TREMOLO_DEPTH * (1 - Math.cos(2 * Math.PI * TREMOLO_HZ * t))) / 2,
+  level: dmath.dbToGain(-0.7),
+  shape: (t: number) => 1 - (TREMOLO_DEPTH * (1 - dmath.cos(2 * Math.PI * TREMOLO_HZ * t))) / 2,
 };
 
 export const vibraphone: Instrument = {

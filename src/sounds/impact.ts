@@ -4,6 +4,7 @@ import { lowpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addGlide, addNoise, pickVariant } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["soft", "hard"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -24,7 +25,7 @@ function synthesize(input: SynthInput): Float32Array {
     addGlide(out, { from: 80, to: 48, glide: 0.12, decay: 0.3, level: 1 }, sampleRate);
     addNoise(out, { decay: 0.03, level: 0.35, filters: [lowpass(1200, 0.7, sampleRate)] }, rng, sampleRate);
   }
-  return finish(out, { attack: 0.001, endFade: 0.05, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(out, { attack: 0.001, endFade: 0.05, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const impact: Instrument = {

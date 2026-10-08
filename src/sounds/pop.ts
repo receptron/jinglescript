@@ -4,6 +4,7 @@ import { highpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addGlide, addNoise } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const DEFAULT_START_HZ = 1300;
 /** Loudness trim, dB: matched to a C5 marimba note at full velocity. */
@@ -15,7 +16,7 @@ function synthesize(input: SynthInput): Float32Array {
   const out = buffer(0.12, sampleRate);
   addGlide(out, { from: start, to: start * 0.32, glide: 0.015, decay: 0.03, level: 1 }, sampleRate);
   addNoise(out, { decay: 0.0005, level: 0.2, filters: [highpass(3000, 0.7, sampleRate)] }, rng, sampleRate);
-  return finish(out, { attack: 0.0005, endFade: 0.01, gain: input.velocity * 10 ** (LEVEL_DB / 20) }, sampleRate);
+  return finish(out, { attack: 0.0005, endFade: 0.01, gain: input.velocity * dmath.dbToGain(LEVEL_DB) }, sampleRate);
 }
 
 export const pop: Instrument = {

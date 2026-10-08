@@ -7,6 +7,7 @@ import { streamRng } from "./rng.ts";
 import { formatPath, JingleScriptError, type Score } from "./score.ts";
 import { secondsToSample } from "./time.ts";
 import { buildTiming, type TimingMap } from "./timing.ts";
+import * as dmath from "./dsp/math.ts";
 
 export const DEFAULT_SAMPLE_RATE = 48000;
 export const SAMPLE_RATES = [44100, 48000] as const;
@@ -29,13 +30,13 @@ export interface RenderResult {
 /** Constant-power pan: equal loudness across the field, −3 dB per side at the centre. */
 function panGains(pan: number): [number, number] {
   const angle = (pan * Math.PI) / 2;
-  return [Math.cos(angle), Math.sin(angle)];
+  return [dmath.cos(angle), dmath.sin(angle)];
 }
 
 function mixEvent(event: NoteEvent, mix: [Float32Array, Float32Array], seed: number, sampleRate: number): void {
   const instrument = INSTRUMENTS[event.instrument];
   const voices: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
-  const gain = 10 ** (event.gainDb / 20);
+  const gain = dmath.dbToGain(event.gainDb);
   const [left, right] = panGains(event.pan).map((g) => g * gain);
   voices.forEach((pitch, voice) => {
     const start = secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate);

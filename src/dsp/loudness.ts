@@ -1,6 +1,7 @@
 // ITU-R BS.1770-4 integrated loudness (K-weighting, 400 ms blocks with 75 % overlap, absolute and
 // relative gating) and true peak (4× oversampling), for stereo at any sample rate.
 import { biquadFilter, type Biquad } from "./biquad.ts";
+import * as dmath from "./math.ts";
 
 /**
  * K-weighting filter coefficients for a sample rate: the two biquads of BS.1770 re-derived by the
@@ -11,9 +12,9 @@ export function kWeighting(sampleRate: number): { shelf: Biquad; highpass: Biqua
   const shelfF0 = 1681.974450955533;
   const shelfGain = 3.999843853973347;
   const shelfQ = 0.7071752369554196;
-  let K = Math.tan((Math.PI * shelfF0) / sampleRate);
-  const Vh = 10 ** (shelfGain / 20);
-  const Vb = Vh ** 0.4996667741545416;
+  let K = dmath.tan((Math.PI * shelfF0) / sampleRate);
+  const Vh = dmath.dbToGain(shelfGain);
+  const Vb = dmath.pow(Vh, 0.4996667741545416);
   const a0 = 1 + K / shelfQ + K * K;
   const shelf: Biquad = {
     b: [(Vh + (Vb * K) / shelfQ + K * K) / a0, (2 * (K * K - Vh)) / a0, (Vh - (Vb * K) / shelfQ + K * K) / a0],
@@ -21,7 +22,7 @@ export function kWeighting(sampleRate: number): { shelf: Biquad; highpass: Biqua
   };
   const hpF0 = 38.13547087602444;
   const hpQ = 0.5003270373238773;
-  K = Math.tan((Math.PI * hpF0) / sampleRate);
+  K = dmath.tan((Math.PI * hpF0) / sampleRate);
   const h0 = 1 + K / hpQ + K * K;
   const highpass: Biquad = {
     b: [1, -2, 1],
@@ -42,7 +43,8 @@ function blockPowers(channels: readonly Float32Array[], sampleRate: number): num
     const weighted = biquadFilter(biquadFilter(channel, shelf), highpass);
     let sum = 0;
     for (let i = 0; i < length; i++) {
-      sum += (weighted[i] ?? 0) ** 2;
+      const v = weighted[i] ?? 0;
+      sum += v * v;
       prefix[i + 1] = (prefix[i + 1] ?? 0) + sum;
     }
   }
@@ -56,7 +58,7 @@ function blockPowers(channels: readonly Float32Array[], sampleRate: number): num
   return powers;
 }
 
-const toLufs = (power: number): number => -0.691 + 10 * Math.log10(power);
+const toLufs = (power: number): number => -0.691 + 10 * dmath.log10(power);
 const mean = (values: readonly number[]): number => values.reduce((s, v) => s + v, 0) / values.length;
 
 /** Integrated loudness in LUFS; -Infinity for silence. */
@@ -78,8 +80,8 @@ function interpolationPhases(): Float64Array[] {
   const phases = Array.from({ length: OVERSAMPLE }, () => new Float64Array(TAPS_PER_PHASE));
   for (let n = 0; n < length; n++) {
     const x = (n - centre) / OVERSAMPLE;
-    const sinc = x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x);
-    const window = 0.5 - 0.5 * Math.cos((2 * Math.PI * (n + 0.5)) / length);
+    const sinc = x === 0 ? 1 : dmath.sin(Math.PI * x) / (Math.PI * x);
+    const window = 0.5 - 0.5 * dmath.cos((2 * Math.PI * (n + 0.5)) / length);
     const phase = phases[n % OVERSAMPLE];
     if (phase) phase[Math.floor(n / OVERSAMPLE)] = sinc * window;
   }
@@ -100,5 +102,5 @@ export function truePeak(channels: readonly Float32Array[]): number {
       }
     }
   }
-  return peak === 0 ? -Infinity : 20 * Math.log10(peak);
+  return peak === 0 ? -Infinity : 20 * dmath.log10(peak);
 }

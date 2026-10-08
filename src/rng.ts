@@ -2,6 +2,7 @@
 // score's seed and a key naming what it is for (a note's position, the reverb), so a stream does
 // not depend on how many other streams were used before it: adding a track leaves every other
 // track's noise unchanged.
+import * as dmath from "./dsp/math.ts";
 
 export interface Rng {
   /** Uniform in [0, 1). */
@@ -39,7 +40,7 @@ export function createRng(seed: number): Rng {
   const normal = (): number => {
     const u = 1 - next(); // (0, 1], so log(u) is finite
     const v = next();
-    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return Math.sqrt(-2 * dmath.log(u)) * dmath.cos(2 * Math.PI * v);
   };
   return { next, normal };
 }

@@ -1,4 +1,5 @@
 // Biquad filters (direct form I), shared by loudness measurement and the instruments.
+import * as dmath from "./math.ts";
 
 export interface Biquad {
   b: [number, number, number];
@@ -27,16 +28,16 @@ export function biquadFilter(x: ArrayLike<number>, { b, a }: Biquad): Float64Arr
 /** Band-pass with 0 dB peak gain at `frequency` (RBJ cookbook). */
 export function bandpass(frequency: number, q: number, sampleRate: number): Biquad {
   const w0 = (2 * Math.PI * frequency) / sampleRate;
-  const alpha = Math.sin(w0) / (2 * q);
+  const alpha = dmath.sin(w0) / (2 * q);
   const a0 = 1 + alpha;
-  return { b: [alpha / a0, 0, -alpha / a0], a: [1, (-2 * Math.cos(w0)) / a0, (1 - alpha) / a0] };
+  return { b: [alpha / a0, 0, -alpha / a0], a: [1, (-2 * dmath.cos(w0)) / a0, (1 - alpha) / a0] };
 }
 
 /** Low-pass (RBJ cookbook). */
 export function lowpass(frequency: number, q: number, sampleRate: number): Biquad {
   const w0 = (2 * Math.PI * frequency) / sampleRate;
-  const alpha = Math.sin(w0) / (2 * q);
-  const cos = Math.cos(w0);
+  const alpha = dmath.sin(w0) / (2 * q);
+  const cos = dmath.cos(w0);
   const a0 = 1 + alpha;
   return { b: [(1 - cos) / 2 / a0, (1 - cos) / a0, (1 - cos) / 2 / a0], a: [1, (-2 * cos) / a0, (1 - alpha) / a0] };
 }
@@ -44,8 +45,8 @@ export function lowpass(frequency: number, q: number, sampleRate: number): Biqua
 /** High-pass (RBJ cookbook). */
 export function highpass(frequency: number, q: number, sampleRate: number): Biquad {
   const w0 = (2 * Math.PI * frequency) / sampleRate;
-  const alpha = Math.sin(w0) / (2 * q);
-  const cos = Math.cos(w0);
+  const alpha = dmath.sin(w0) / (2 * q);
+  const cos = dmath.cos(w0);
   const a0 = 1 + alpha;
   return { b: [(1 + cos) / 2 / a0, -(1 + cos) / a0, (1 + cos) / 2 / a0], a: [1, (-2 * cos) / a0, (1 - alpha) / a0] };
 }

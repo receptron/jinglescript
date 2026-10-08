@@ -6,6 +6,7 @@ import { sweptBandpass } from "../dsp/biquad.ts";
 import { buffer, finish, partialAllowed } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { pickVariant } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["noise", "tone"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -15,27 +16,28 @@ const TONE_FROM_HZ = 110;
 const TONE_OCTAVES = 2;
 const DETUNE = [0.993, 1, 1.007];
 const MAX_HARMONICS = 20;
+const squared = (x: number): number => x * x;
 
 function noiseRiser(out: Float32Array, seconds: number, input: SynthInput, level: number): void {
   const { sampleRate, rng } = input;
   const noise = Float64Array.from({ length: out.length }, () => rng.normal());
-  const filtered = sweptBandpass(noise, (t) => 300 * 20 ** (t / seconds), 1.2, sampleRate);
-  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + level * (filtered[i] ?? 0) * (i / out.length) ** 2;
+  const filtered = sweptBandpass(noise, (t) => 300 * dmath.pow(20, t / seconds), 1.2, sampleRate);
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) + level * (filtered[i] ?? 0) * squared(i / out.length);
 }
 
 function toneRiser(out: Float32Array, seconds: number, sampleRate: number): void {
   const phases = DETUNE.map(() => 0);
   for (let i = 0; i < out.length; i++) {
     const t = i / sampleRate;
-    const base = TONE_FROM_HZ * 2 ** ((TONE_OCTAVES * t) / seconds);
+    const base = TONE_FROM_HZ * dmath.pow(2, (TONE_OCTAVES * t) / seconds);
     let s = 0;
     DETUNE.forEach((d, v) => {
       const f = base * d;
       const phase = phases[v] ?? 0;
-      for (let k = 1; k <= MAX_HARMONICS && partialAllowed(k * f, sampleRate); k++) s += Math.sin(k * phase) / k;
+      for (let k = 1; k <= MAX_HARMONICS && partialAllowed(k * f, sampleRate); k++) s += dmath.sin(k * phase) / k;
       phases[v] = phase + (2 * Math.PI * f) / sampleRate;
     });
-    out[i] = (out[i] ?? 0) + 0.25 * s * (i / out.length) ** 2;
+    out[i] = (out[i] ?? 0) + 0.25 * s * squared(i / out.length);
   }
 }
 
@@ -49,7 +51,7 @@ function synthesize(input: SynthInput): Float32Array {
     toneRiser(out, seconds, sampleRate);
     noiseRiser(out, seconds, input, 0.3);
   }
-  return finish(out, { attack: 0.001, endFade: 0.015, gain: input.velocity * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(out, { attack: 0.001, endFade: 0.015, gain: input.velocity * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const riser: Instrument = {

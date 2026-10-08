@@ -4,6 +4,7 @@ import { bandpass, biquadFilter, highpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
+import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["door", "table"] as const;
 type Variant = (typeof VARIANTS)[number];
@@ -40,7 +41,7 @@ function synthesize(input: SynthInput): Float32Array {
   addNoise(out, { decay: 0.001, level: panel.click, filters: [bandpass(1800 * scale, 1, sampleRate)] }, rng, sampleRate);
   for (const [hz, q, level, decay] of panel.modes) addNoise(out, { decay, level, filters: [bandpass(hz * scale, q, sampleRate)] }, rng, sampleRate);
   const centred = Float32Array.from(biquadFilter(out, highpass(60, 0.7, sampleRate)));
-  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.06, rng) * 10 ** (LEVEL_DB[variant] / 20) }, sampleRate);
+  return finish(centred, { attack: 0.0005, endFade: 0.01, gain: vary(input.velocity, 0.06, rng) * dmath.dbToGain(LEVEL_DB[variant]) }, sampleRate);
 }
 
 export const knock: Instrument = {

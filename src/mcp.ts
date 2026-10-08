@@ -1,57 +1,14 @@
-// The MCP server: one tool, `manageJingleScript`, whose `action` says what to do. Each action calls
-// one library function, so an MCP client gets exactly what the library and the CLI give. Rendering
+// The MCP server: one tool, `manageJingleScript` (src/manage.ts), carried over MCP. Rendering
 // writes only inside the output directory fixed when the server starts.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
-import { AUDIO_FORMATS, FfmpegMissingError } from "./encode.ts";
-import { renderToFiles } from "./output.ts";
-import { checkScore, parseScore } from "./score.ts";
+import { MANAGE_TOOL, ManageInputSchema, manage, type ManageInput } from "./manage.ts";
 
-export const MCP_TOOL = "manageJingleScript";
-export const MCP_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore"] as const;
-export type McpAction = (typeof MCP_ACTIONS)[number];
+export const MCP_TOOL = MANAGE_TOOL;
 export const DEFAULT_MCP_OUT_DIR = "out/jinglescript";
-
-/** A file stem: letters, digits, dot, dash, underscore — never a path. */
-const FILE_STEM = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/;
-
-const REQUIRED: Record<McpAction, readonly ("instrument" | "score")[]> = {
-  getGuide: [],
-  getSchema: [],
-  listInstruments: [],
-  getInstrument: ["instrument"],
-  checkScore: ["score"],
-  renderScore: ["score"],
-};
-
-export const ManageInputSchema = z
-  .object({
-    action: z
-      .enum(MCP_ACTIONS)
-      .describe(
-        "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds.",
-      ),
-    part: z.enum(SCHEMA_PARTS).optional().describe('getSchema: one part only ("score" is the whole format, "timing" the timing map\'s).'),
-    instrument: z.string().optional().describe("getInstrument: the instrument or sound effect's name."),
-    score: z.unknown().optional().describe("checkScore, renderScore: the score as a JSON object (format jinglescript/1). A JSON string is accepted too."),
-    fileName: z
-      .string()
-      .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
-      .optional()
-      .describe('renderScore: file stem for the outputs (default "jingle"): writes <stem>.<format> and <stem>.timing.json in the server\'s output folder.'),
-    format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg on the server).'),
-  })
-  .superRefine((input, ctx) => {
-    for (const field of REQUIRED[input.action]) {
-      if (input[field] === undefined) ctx.addIssue({ code: "custom", path: [field], message: `${input.action} needs \`${field}\`.` });
-    }
-  });
-
-type ManageInput = z.infer<typeof ManageInputSchema>;
 
 interface ToolResult {
   [key: string]: unknown;
@@ -59,70 +16,9 @@ interface ToolResult {
   isError?: boolean;
 }
 
-const text = (value: unknown, isError = false): ToolResult => ({
-  content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
-  ...(isError ? { isError } : {}),
-});
-
-function scoreInput(score: unknown): unknown {
-  if (typeof score !== "string") return score;
-  try {
-    const parsed: unknown = JSON.parse(score);
-    return parsed;
-  } catch {
-    return score;
-  }
-}
-
-async function renderAction(input: ManageInput, outDir: string): Promise<ToolResult> {
-  const score = scoreInput(input.score);
-  const check = checkScore(score);
-  if (!check.ok) return text({ ok: false, errors: check.errors }, true);
-  let files;
-  try {
-    files = await renderToFiles(parseScore(score), outDir, input.fileName ?? "jingle", { format: input.format ?? "wav" });
-  } catch (error) {
-    if (error instanceof FfmpegMissingError) return text(error.message, true);
-    throw error;
-  }
-  const { audio, timing, result } = files;
-  return text({
-    ok: true,
-    audio,
-    timingFile: timing,
-    loudness: Math.round(result.stats.loudness * 10) / 10,
-    truePeak: Math.round(result.stats.truePeak * 10) / 10,
-    limitingDb: Math.round(result.stats.limitingDb * 10) / 10,
-    belowLoudnessTarget: result.stats.limitedByPeak,
-    warnings: check.warnings,
-    timing: result.timing,
-  });
-}
-
 export async function handleManage(input: ManageInput, outDir: string): Promise<ToolResult> {
-  switch (input.action) {
-    case "getGuide":
-      return text(getAuthoringGuide());
-    case "getSchema":
-      return text(getSchema(input.part));
-    case "listInstruments":
-      return text(listInstruments());
-    case "getInstrument": {
-      const info = getInstrument(input.instrument ?? "");
-      return info
-        ? text(info)
-        : text(
-            `Unknown instrument "${input.instrument ?? ""}". Available: ${listInstruments()
-              .map((i) => i.name)
-              .join(", ")}.`,
-            true,
-          );
-    }
-    case "checkScore":
-      return text(checkScore(scoreInput(input.score)));
-    case "renderScore":
-      return renderAction(input, outDir);
-  }
+  const result = await manage(input, { outDir });
+  return { content: [{ type: "text", text: result.text }], ...(result.isError ? { isError: true } : {}) };
 }
 
 const PackageSchema = z.object({ version: z.string() });
@@ -140,7 +36,7 @@ export function createMcpServer(outDir: string): McpServer {
   server.registerTool(
     MCP_TOOL,
     {
-      description: `Write and render jingles: learn the format, list sounds, check a score, render it to WAV + timing map (files go to ${dir}).`,
+      description: `Write and render jingles: learn the format, list sounds, check a score, render it to audio + timing map (files go to ${dir}).`,
       inputSchema: ManageInputSchema,
     },
     (input) => handleManage(input, dir),

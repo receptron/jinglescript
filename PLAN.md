@@ -879,4 +879,15 @@ Decided:
   by extension; MCP `renderScore` takes `format`. `scripts/smoke.sh` packs the tarball, installs it
   into an empty folder and renders through the CLI (WAV + MP3), the library and the MCP server over
   stdio; CI runs it with ffmpeg. Tarball: 113 files, 73 kB (dist, schema, README, LICENSE).
+- 2026-10-08 — User: MCP should also support the GUI Chat Protocol, so a rendered jingle can be
+  heard in a view. Research (receptron protocol + MulmoTerminal/MulmoClaude): hosts do not take GUI
+  data from external MCP servers — a view comes from a gui-chat-protocol plugin package registered
+  in the host, whose core `execute` the host runs server-side and whose `/vue` entry supplies the
+  view. So: `src/manage.ts` now holds manageJingleScript independent of the carrier (MCP wraps it;
+  `renderScore` can also return `PlayerData`: embedded MP3/WAV data URI, waveform peaks, timing),
+  and `gui-plugin/` is the plugin `@gui-chat-plugin/jinglescript` with a player view (waveform,
+  beats, labelled cues that seek, per-track note lanes, bars for effects with a length, download)
+  and a preview card. Verified in a headless browser on a demo page: no console errors, three
+  players render, play advances the time, a cue chip seeks. Not yet registered in MulmoTerminal
+  (needs edits in that repo — asked the user first). Package name is provisional.
 

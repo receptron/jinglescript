@@ -15,3 +15,8 @@ export { getSchema, getAuthoringGuide, listInstruments, getInstrument, SCHEMA_PA
 export type { SchemaPart, InstrumentInfo } from "./llm.ts";
 export { INSTRUMENT_NAMES } from "./instruments/index.ts";
 export type { InstrumentName, InstrumentDescriptor } from "./instruments/index.ts";
+export { manage, ManageInputSchema, manageInputJsonSchema, MANAGE_TOOL, MANAGE_ACTIONS, MANAGE_DESCRIPTION } from "./manage.ts";
+export type { ManageInput, ManageResult, ManageOptions, PlayerData, ManageAction } from "./manage.ts";
+export { AUDIO_FORMATS, FfmpegMissingError } from "./encode.ts";
+export type { AudioFormat } from "./encode.ts";
+export { demoScore } from "./demo.ts";

@@ -1,0 +1,58 @@
+{
+  "type": "function",
+  "name": "manageJingleScript",
+  "description": "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. renderScore shows a player with the waveform, cues and beats.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "getGuide",
+          "getSchema",
+          "listInstruments",
+          "getInstrument",
+          "checkScore",
+          "renderScore"
+        ],
+        "description": "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds."
+      },
+      "part": {
+        "description": "getSchema: one part only (\"score\" is the whole format, \"timing\" the timing map's).",
+        "type": "string",
+        "enum": [
+          "score",
+          "track",
+          "note",
+          "cue",
+          "timing"
+        ]
+      },
+      "instrument": {
+        "description": "getInstrument: the instrument or sound effect's name.",
+        "type": "string"
+      },
+      "score": {
+        "type": "object",
+        "description": "checkScore, renderScore: the score (format jinglescript/1)."
+      },
+      "fileName": {
+        "description": "renderScore: file stem for the outputs (default \"jingle\").",
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$"
+      },
+      "format": {
+        "description": "renderScore: \"wav\" (default), \"mp3\" or \"ogg\" (MP3 and OGG need ffmpeg).",
+        "type": "string",
+        "enum": [
+          "wav",
+          "mp3",
+          "ogg"
+        ]
+      }
+    },
+    "required": [
+      "action"
+    ]
+  }
+}

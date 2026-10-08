@@ -91,3 +91,30 @@ jobs:
       - run: npm ci
       - name: Pack, install, render
         run: scripts/smoke.sh
+
+  # The GUI Chat Protocol plugin (gui-plugin/): its own package, typechecked against the library's
+  # source, tested, and built.
+  gui-plugin:
+    name: GUI plugin (typecheck, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: gui-plugin
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            gui-plugin/package-lock.json
+      - run: npm ci
+        working-directory: .
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

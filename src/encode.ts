@@ -24,15 +24,19 @@ export function isAudioFormat(name: string): name is AudioFormat {
   return AUDIO_FORMATS.some((f) => f === name);
 }
 
-function run(args: string[], input?: Uint8Array): Promise<{ code: number | null; stderr: string; missing: boolean }> {
+function run(args: string[], input?: Uint8Array): Promise<{ code: number | null; stderr: string; stdout: Uint8Array; missing: boolean }> {
   return new Promise((resolve) => {
-    const child = spawn("ffmpeg", args, { stdio: ["pipe", "ignore", "pipe"] });
+    const child = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
     let stderr = "";
+    const chunks: Buffer[] = [];
+    child.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
-    child.on("error", (error: NodeJS.ErrnoException) => resolve({ code: null, stderr: error.message, missing: error.code === "ENOENT" }));
-    child.on("close", (code) => resolve({ code, stderr, missing: false }));
+    child.on("error", (error: NodeJS.ErrnoException) =>
+      resolve({ code: null, stderr: error.message, stdout: new Uint8Array(), missing: error.code === "ENOENT" }),
+    );
+    child.on("close", (code) => resolve({ code, stderr, stdout: new Uint8Array(Buffer.concat(chunks)), missing: false }));
     child.stdin.on("error", () => undefined);
     child.stdin.end(input);
   });
@@ -49,4 +53,18 @@ export async function encodeAudio(audio: readonly Float32Array[], sampleRate: nu
   const result = await run(["-hide_banner", "-loglevel", "error", "-y", "-f", "wav", "-i", "pipe:0", ...CODEC[format], path], toWav(audio, sampleRate, 24));
   if (result.missing) throw new FfmpegMissingError(format);
   if (result.code !== 0) throw new Error(`ffmpeg could not write ${path}: ${result.stderr.trim()}`);
+}
+
+const CONTAINER: Record<Exclude<AudioFormat, "wav">, string> = { mp3: "mp3", ogg: "ogg" };
+export const MIME_TYPES: Record<AudioFormat, string> = { wav: "audio/wav", mp3: "audio/mpeg", ogg: "audio/ogg" };
+
+/** MP3 or OGG bytes in memory (for embedding in a page or a data URI). */
+export async function encodeAudioBytes(audio: readonly Float32Array[], sampleRate: number, format: Exclude<AudioFormat, "wav">): Promise<Uint8Array> {
+  const result = await run(
+    ["-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0", ...CODEC[format], "-f", CONTAINER[format], "pipe:1"],
+    toWav(audio, sampleRate, 24),
+  );
+  if (result.missing) throw new FfmpegMissingError(format);
+  if (result.code !== 0) throw new Error(`ffmpeg could not encode ${format}: ${result.stderr.trim()}`);
+  return result.stdout;
 }

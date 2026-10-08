@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JingleScript player demo</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #e9edf2;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0d1016;
+        }
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 16px;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+      }
+      .previews {
+        display: flex;
+        gap: 12px;
+      }
+      .previews > div {
+        flex: 1;
+        background: #fff;
+        padding: 8px;
+        border-radius: 8px;
+      }
+      @media (prefers-color-scheme: dark) {
+        .previews > div {
+          background: #161a22;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="app"></main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

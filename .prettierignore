@@ -5,3 +5,5 @@ out
 *.md
 reference
 schema
+gui-plugin/demo/samples.json
+gui-plugin/src/definition.json

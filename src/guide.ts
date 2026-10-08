@@ -46,7 +46,8 @@ listInstruments() / \`jinglescript instruments\`. Rules of thumb:
   each note until the track's next note unless you give \`len\` in beats.
 - **musicbox** and **piccolo** sound an octave above the written pitch.
 - **piccolo** and **trumpet** sound synthetic; use them for a playful line, not for realism.
-- **clap** takes no pitch. Use \`repeat\` for claps on every beat.
+- **clap** takes no pitch. Use \`repeat\` for claps on every beat. The default is a drum-machine
+  clap; \`"variant"\` can be "snappy", "hands" (one person) or "group" (a few people).
 - A second instrument doubling the melody quietly adds colour: glockenspiel an octave up at
   \`"gain": -6\` over a marimba melody makes it sparkle.
 - All instruments are balanced to the same loudness at the same velocity; use track \`gain\` to

@@ -315,10 +315,10 @@ table so adding a name without an implementation is a type error.
 | `musicbox` | Octave up; modes 1×, 5.4×, 13.1×; 2.5 ms pluck tick | Good (improved version in `instruments2.py`) |
 | `piano` | Inharmonic partials `k·f·√(1+B·k²)` (B≈0.0004), three detuned strings per note, two-stage decay, hammer noise | Good |
 | `organ` | Drawbar additive (16′ 8′ 4′ 2⅔′ 2′ 1⅓′), 6.2 Hz wobble, key click, ADSR with hold | Good |
-| `ukulele` | Karplus–Strong plucked string (loss 0.996) | Good |
+| `ukulele` | Prototype: Karplus–Strong (loss 0.996), raw-noise pluck; heard as a koto. Rebuilt soft: low-passed, pluck-position-combed excitation, damping in the loop (delay compensated), decay time per note, output low-pass; the user picked the softest of three candidates | Rebuilt |
 | `piccolo` | Octave up, sine + weak 2nd/3rd harmonics, breath noise, delayed 5.5 Hz vibrato, ADSR | **Synthetic-sounding** — label it so |
 | `trumpet` | Harmonics 1…13 with brightness rising with the envelope, lip "scoop" into pitch, delayed vibrato | **Synthetic-sounding** — label it so |
-| `clap` | Four short filtered noise bursts (0, 11, 22, 35 ms), last one longer | Good |
+| `clap` | Prototype: four bursts of near-white noise; the user found it not good. Rebuilt as band-limited noise (~1–2 kHz) with variants `studio` (default, the user's pick), `snappy`, `hands`, `group` | Rebuilt |
 
 Add, with similar small models (not prototyped yet — tune by ear-equivalent checks below), so
 the palette covers the styles creators use, not only the prototype's acoustic one:
@@ -795,3 +795,16 @@ Decided:
     and `piano-ukulele-claps` −15.8 LUFS with the limiter at its 6 dB maximum (reported as
     `limitedByPeak`). Left as ported pending the user's ears.
   - MP3s of every example plus the prototype's own renders for comparison: out/listen-m2/.
+- 2026-10-08 — User listened to M2: ukulele pluck too harsh, clap not good. Clap rebuilt as
+  band-limited noise with variants `studio`, `snappy`, `hands`, `group`; the user picked `studio`
+  ("だいぶ拍手っぽくなった"), the default. Every variant is quality-tested and loudness-matched.
+  Biquad filters shared in `src/dsp/biquad.ts`. Ukulele: low-passing the pluck was not enough —
+  the user hears it as a koto ("全然ダメ。琴みたい。もっとずっと柔らかく"); being reworked.
+- 2026-10-08 — Ukulele rebuilt for a soft nylon sound (string loop with damping, compensated so
+  pitch stays exact; finger-pluck excitation; per-note decay time; body low-pass). Three
+  candidates rendered (C5 spectral centroid 746 / 567 / 525 Hz vs 933 Hz for the koto-like
+  version); the user picked the softest. New example `ukulele-island-strum.json`: an original
+  C–F–G7–C island strum with GCEA voicings and strings 15 ms apart (the user asked for "カメハメハ
+  大王" to hear chords; that song is copyrighted, so an original progression instead).
+  Idea for later: a `strum` option on chords (string order and spacing) instead of writing each
+  string as its own note.

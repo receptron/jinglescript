@@ -7,7 +7,7 @@ import type { SynthInput } from "./types.ts";
 
 const MIN_SECONDS = 2.5;
 const MAX_SECONDS = 6;
-const CLICK_SECONDS = 0.004;
+export const CLICK_SECONDS = 0.004;
 const DAMPER_SECONDS = 0.3;
 const END_FADE_SECONDS = 0.01;
 

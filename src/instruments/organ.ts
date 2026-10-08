@@ -4,7 +4,7 @@ import { addDampedSine, addNoiseBurst, adsr, buffer, finish, partialAllowed } fr
 import type { Instrument, SynthInput } from "./types.ts";
 import * as dmath from "../dsp/math.ts";
 
-const DRAWBARS = [
+export const DRAWBARS = [
   { ratio: 0.5, level: 0.5 },
   { ratio: 1, level: 1 },
   { ratio: 2, level: 0.7 },
@@ -12,8 +12,12 @@ const DRAWBARS = [
   { ratio: 4, level: 0.35 },
   { ratio: 6, level: 0.15 },
 ];
-const WOBBLE_HZ = 6.2;
-const WOBBLE_DEPTH = 0.08;
+export const WOBBLE_HZ = 6.2;
+export const WOBBLE_DEPTH = 0.08;
+/** A raw key click at the start. */
+export const KEY_CLICK = { seconds: 0.003, level: 0.4 };
+/** ADSR: seconds, seconds, level, release time constant in seconds. */
+export const ENVELOPE = { attack: 0.008, decay: 0.05, sustain: 0.9, release: 0.06 };
 const TAIL_SECONDS = 0.5;
 /** The prototype's level (0.45), then -4.3 dB to match a C5 at full velocity to the marimba's loudness. */
 const LEVEL = 0.45 * dmath.dbToGain(-4.3);
@@ -27,8 +31,8 @@ function synthesize(input: SynthInput): Float32Array {
     addDampedSine(out, (2 * Math.PI * f * bar.ratio) / sampleRate, bar.level, Infinity, sampleRate);
   }
   for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * (1 + WOBBLE_DEPTH * dmath.sin((2 * Math.PI * WOBBLE_HZ * i) / sampleRate));
-  addNoiseBurst(out, 0.003, 0.4, input.rng, sampleRate, false);
-  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * adsr(i / sampleRate, 0.008, 0.05, 0.9, 0.06, hold);
+  addNoiseBurst(out, KEY_CLICK.seconds, KEY_CLICK.level, input.rng, sampleRate, false);
+  for (let i = 0; i < out.length; i++) out[i] = (out[i] ?? 0) * adsr(i / sampleRate, ENVELOPE.attack, ENVELOPE.decay, ENVELOPE.sustain, ENVELOPE.release, hold);
   return finish(out, { attack: 0.001, endFade: 0.01, gain: input.velocity * LEVEL }, sampleRate);
 }
 

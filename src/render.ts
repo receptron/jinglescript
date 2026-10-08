@@ -1,7 +1,7 @@
 // Score → stereo audio + timing map.
 import { master, measureAudibleUntil, type MasterStats } from "./dsp/master.ts";
 import { expandScore, type NoteEvent } from "./events.ts";
-import { INSTRUMENTS } from "./instruments/index.ts";
+import type { Instrument } from "./instruments/index.ts";
 import { midiToFrequency, pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
 import { formatPath, JingleScriptError, type Score } from "./score.ts";
@@ -33,8 +33,7 @@ function panGains(pan: number): [number, number] {
   return [dmath.cos(angle), dmath.sin(angle)];
 }
 
-function mixEvent(event: NoteEvent, mix: [Float32Array, Float32Array], seed: number, sampleRate: number): void {
-  const instrument = INSTRUMENTS[event.instrument];
+function mixEvent(instrument: Instrument, event: NoteEvent, mix: [Float32Array, Float32Array], seed: number, sampleRate: number): void {
   const voices: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
   const gain = dmath.dbToGain(event.gainDb);
   const [left, right] = panGains(event.pan).map((g) => g * gain);
@@ -71,7 +70,10 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
   const length = secondsToSample(expanded.duration, sampleRate);
   const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
-  for (const event of expanded.events) mixEvent(event, score.tracks[event.track]?.reverb === false ? dry : wet, seed, sampleRate);
+  for (const event of expanded.events) {
+    const instrument = expanded.instruments.get(event.instrument);
+    if (instrument !== undefined) mixEvent(instrument, event, score.tracks[event.track]?.reverb === false ? dry : wet, seed, sampleRate);
+  }
   const { audio, stats } = master(wet, dry, {
     sampleRate,
     seed,

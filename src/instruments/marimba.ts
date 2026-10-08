@@ -9,14 +9,14 @@ import { addDampedSine, MAX_PARTIAL_FRACTION, movingAverage, RING_TIME_CONSTANTS
 import type { Instrument, SynthInput } from "./types.ts";
 import * as dmath from "../dsp/math.ts";
 
-const MODES = [
+export const MODES = [
   { ratio: 1, level: 1, decay: 0.42, lowRingsLonger: true },
   { ratio: 3.93, level: 0.35, decay: 0.09, lowRingsLonger: true },
   { ratio: 9.2, level: 0.12, decay: 0.035, lowRingsLonger: false },
 ] as const;
 
-const CLICK_SECONDS = 0.006;
-const CLICK_LEVEL = 0.25;
+export const CLICK_SECONDS = 0.006;
+export const CLICK_LEVEL = 0.25;
 /** The prototype smoothed the click with a 12-tap moving average at 48 kHz. */
 const CLICK_SMOOTH_SECONDS = 12 / 48000;
 const ATTACK_SECONDS = 0.0015;

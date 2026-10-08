@@ -77,7 +77,8 @@ function allpassFor(target: number, w: number): number {
   return (low + high) / 2;
 }
 
-export function pluckString(input: SynthInput, tone: StringTone, levelDb: number): Float32Array {
+/** The string's sound for `seconds`, through the body filter, before the onset ramp, fade and level. */
+export function stringVoice(input: SynthInput, tone: StringTone, seconds: number): Float64Array {
   const { sampleRate, rng } = input;
   const f = input.frequency ?? 261.63;
   const w = (2 * Math.PI * f) / sampleRate;
@@ -93,7 +94,7 @@ export function pluckString(input: SynthInput, tone: StringTone, levelDb: number
   const loss = Math.min(0.9999, dmath.pow(10, -3 / (ring * f)) / filterGain);
 
   const delay = pluckExcitation(line, tone, rng, sampleRate);
-  const out = buffer(RING_SECONDS + DAMPER_SECONDS, sampleRate);
+  const out = buffer(seconds, sampleRate);
   let lowpassed = 0;
   let apIn = 0;
   let apOut = 0;
@@ -109,7 +110,12 @@ export function pluckString(input: SynthInput, tone: StringTone, levelDb: number
   }
   const body = Float64Array.from(out);
   onePole(body, dmath.exp((-2 * Math.PI * tone.bodyHz) / sampleRate), 1, false);
-  return finish(Float32Array.from(body), { attack: 0.002, endFade: DAMPER_SECONDS, gain: input.velocity * dmath.dbToGain(levelDb) }, sampleRate);
+  return body;
+}
+
+export function pluckString(input: SynthInput, tone: StringTone, levelDb: number): Float32Array {
+  const body = stringVoice(input, tone, RING_SECONDS + DAMPER_SECONDS);
+  return finish(Float32Array.from(body), { attack: 0.002, endFade: DAMPER_SECONDS, gain: input.velocity * dmath.dbToGain(levelDb) }, input.sampleRate);
 }
 
 export const ukulele: Instrument = {

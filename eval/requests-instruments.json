@@ -1,0 +1,20 @@
+[
+  { "id": "glock-sting", "request": "A 4-second glockenspiel sting that lands on a hit at 1.2 s.", "cues": [1.2] },
+  { "id": "xylophone-fail", "request": "A silly xylophone run tumbling down for a comedy fail, ending on a low thud at 1.0 s. 3 seconds.", "cues": [1.0] },
+  {
+    "id": "vibes-corporate",
+    "request": "A calm 5-second vibraphone logo sting for a tech company with jazzy chords; the logo appears at 2.0 s.",
+    "cues": [2.0]
+  },
+  { "id": "musicbox-lullaby", "request": "A gentle music-box intro for a sleep video, 6 seconds; the title fades in at 3.0 s.", "cues": [3.0] },
+  { "id": "piano-vlog", "request": "A warm piano outro for a vlog over the chords C–Am–F–G; the subscribe button pops at 4.0 s. 6 seconds.", "cues": [4.0] },
+  { "id": "organ-fanfare", "request": "A short church-organ chord that starts at 0.5 s and holds until about 3 s. 4 seconds total.", "cues": [0.5] },
+  { "id": "ukulele-ja", "request": "ウクレレのハワイアン風オープニング、6秒。2.4秒でロゴが出る。", "cues": [2.4] },
+  { "id": "brass-fanfare", "request": "A playful fanfare: a trumpet melody with a piccolo answering, the big final note at 2.5 s. 4 seconds.", "cues": [2.5] },
+  { "id": "clap-along", "request": "Claps on every beat at 100 BPM under a marimba melody, ending with a hit at 3.0 s. 5 seconds.", "cues": [3.0] },
+  {
+    "id": "gaming-intro",
+    "request": "A 5-second gaming intro: a quick xylophone riff with claps, a laser zap at 1.0 s and an impact at 2.0 s.",
+    "cues": [1.0, 2.0]
+  }
+]

@@ -82,6 +82,8 @@ export interface CheckResult {
   cues: Record<string, { seconds: number; beat: number }>;
   duration?: number;
   notes?: number;
+  /** Where every note and sound resolved to, in seconds — to confirm placements without rendering. */
+  timeline?: { path: string; instrument: string; t: number; end?: number; cue?: string }[];
 }
 
 function nearCueWarnings(expanded: Expanded): ScoreProblem[] {
@@ -113,7 +115,14 @@ export function checkScore(input: unknown): CheckResult {
       { seconds: roundMs(seconds), beat: Math.round(secondsToBeats(seconds, expanded.tempo) * 1000) / 1000 },
     ]),
   );
-  return { ok: true, errors: [], warnings: nearCueWarnings(expanded), cues, duration: roundMs(expanded.duration), notes: expanded.events.length };
+  const timeline = expanded.events.map((event) => ({
+    path: formatPath(["tracks", event.track, "notes", event.note]),
+    instrument: event.instrument,
+    t: roundMs(event.nominal),
+    ...(event.end === undefined ? {} : { end: roundMs(event.end) }),
+    ...(event.cue === undefined ? {} : { cue: event.cue }),
+  }));
+  return { ok: true, errors: [], warnings: nearCueWarnings(expanded), cues, duration: roundMs(expanded.duration), notes: expanded.events.length, timeline };
 }
 
 export type { Issue };

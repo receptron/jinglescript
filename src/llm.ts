@@ -6,16 +6,16 @@ import { INSTRUMENT_NAMES, INSTRUMENTS, isInstrumentName, type InstrumentDescrip
 import { CueSchema, NoteSchema, ScoreBaseSchema, TrackSchema } from "./score-schema.ts";
 import { TimingSchema } from "./timing.ts";
 
-const SCHEMA_PARTS_TABLE = {
+export const SCHEMA_PARTS = ["score", "track", "note", "cue", "timing"] as const;
+export type SchemaPart = (typeof SCHEMA_PARTS)[number];
+
+const SCHEMA_PARTS_TABLE: Record<SchemaPart, z.ZodType> = {
   score: ScoreBaseSchema,
   track: TrackSchema,
   note: NoteSchema,
   cue: CueSchema,
   timing: TimingSchema,
-} as const;
-
-export type SchemaPart = keyof typeof SCHEMA_PARTS_TABLE;
-export const SCHEMA_PARTS: readonly SchemaPart[] = ["score", "track", "note", "cue", "timing"];
+};
 
 export function isSchemaPart(name: string): name is SchemaPart {
   return SCHEMA_PARTS.some((part) => part === name);

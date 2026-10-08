@@ -14,7 +14,21 @@ import { CUE_NAME_PATTERN, CUE_REF_PATTERN } from "./time.ts";
 export const FORMAT = "jinglescript/1";
 
 const instrumentList = INSTRUMENT_NAMES.map((name) => `"${name}"`).join(", ");
-const instrumentHelp = INSTRUMENT_NAMES.map((name) => `${name}: ${INSTRUMENTS[name].descriptor.description}`).join(" | ");
+/** One line per sound for the schema: what it is, and the facts needed to write for it. */
+function instrumentLine(name: (typeof INSTRUMENT_NAMES)[number]): string {
+  const d = INSTRUMENTS[name].descriptor;
+  const optional = d.pitched ? "" : " (optional pitch)";
+  const facts = [
+    d.range ? `range ${d.range.low}–${d.range.high}${optional}` : "no pitch",
+    d.transpose === 12 ? "sounds an octave above the written pitch" : "",
+    d.sustained ? "sustained (holds for len)" : "",
+    d.duration ? `len default ${d.duration.defaultSeconds} s` : "",
+    d.variants.length > 0 ? `variants ${d.variants.join("/")}` : "",
+    d.synthetic ? "sounds synthetic" : "",
+  ].filter(Boolean);
+  return `${name}: ${d.description} [${facts.join("; ")}]`;
+}
+const instrumentHelp = INSTRUMENT_NAMES.map(instrumentLine).join(" | ");
 
 export const SecondsSchema = z
   .strictObject({ seconds: z.number().min(0).describe("Seconds from the start of the jingle.") })
@@ -92,11 +106,12 @@ export const NoteSchema = z
       ),
     vel: z.number().min(0).max(1).default(0.8).describe("Velocity 0–1: how hard the note is played (0.8 normal, 1 the big hit, 0.35 a soft echo)."),
     len: z
-      .number()
-      .positive()
+      .union([z.number().positive(), z.strictObject({ seconds: z.number().positive() })], {
+        error: 'len is a number of beats (2) or { "seconds": 1.5 }.',
+      })
       .optional()
       .describe(
-        "Length in beats: how long sustained instruments hold, and how long effects with a length (whoosh, riser, laser) last. Struck and plucked instruments ring out and ignore it.",
+        'How long sustained instruments hold, and how long effects with a length (whoosh, riser, laser) last: a number of beats, or { "seconds": n } when the request gives seconds ("builds for 2 seconds" is { "seconds": 2 }). Struck and plucked instruments ring out and ignore it.',
       ),
     pan: z.number().min(0).max(1).optional().describe("Overrides the track's pan for this note: 0 left, 0.5 centre, 1 right."),
     variant: z

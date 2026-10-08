@@ -20,6 +20,16 @@ describe("effects with a length", () => {
     expect(timing.notes[0]).toMatchObject({ t: 1, end: 3, instrument: "riser" });
   });
 
+  it('take `len` in seconds too: { "end": "hit", "len": { "seconds": 2 } }', () => {
+    const [event] = expandScore(parseScore(score([{ instrument: "riser", notes: [{ end: "hit", len: { seconds: 2 } }] }]))).events;
+    expect(event).toMatchObject({ seconds: 1, end: 3 });
+  });
+
+  it("show where they resolved in checkScore's timeline", () => {
+    const { timeline } = checkScore(score([{ instrument: "riser", notes: [{ end: "hit", len: 4 }] }]));
+    expect(timeline).toEqual([{ path: "tracks[0].notes[0]", instrument: "riser", t: 1, end: 3 }]);
+  });
+
   it("use their default length without `len`", () => {
     const [event] = expandScore(parseScore(score([{ instrument: "whoosh", notes: [{ at: 1 }] }]))).events;
     expect(event).toMatchObject({ seconds: 0.5, hold: 0.5, end: 1 });

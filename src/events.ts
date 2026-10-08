@@ -180,11 +180,15 @@ function strokesOf(note: Note, tempo: number): Stroke[] {
   }));
 }
 
+function lenSeconds(len: number | { seconds: number }, tempo: number): number {
+  return typeof len === "number" ? len * secondsPerBeat(tempo) : len.seconds;
+}
+
 /** How long an effect with a length lasts (its `len`, or its default); undefined for other sounds. */
 function soundLength(note: Note, instrument: InstrumentName, tempo: number): number | undefined {
   const duration = descriptorOf(instrument).duration;
   if (duration === undefined) return undefined;
-  return note.len === undefined ? duration.defaultSeconds : note.len * secondsPerBeat(tempo);
+  return note.len === undefined ? duration.defaultSeconds : lenSeconds(note.len, tempo);
 }
 
 /** Where a note starts: its `at`, or its `end` minus its length. Only a start exactly on a cue counts as on it. */
@@ -235,7 +239,7 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     vel: note.vel * placed.stroke.weight,
     pan: note.pan ?? track?.pan ?? 0.5,
     gainDb: track?.gain ?? 0,
-    hold: placed.length ?? (note.len === undefined ? Number.NaN : note.len * secondsPerBeat(score.tempo)),
+    hold: placed.length ?? (note.len === undefined ? Number.NaN : lenSeconds(note.len, score.tempo)),
     end: placed.length === undefined ? undefined : Math.max(0, placed.seconds) + placed.length,
     variant: variantAt(note, placed.index),
     detune: note.detune ?? 0,

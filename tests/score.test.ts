@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { checkScore, getSchema, JingleScriptError, parseScore, SCHEMA_PARTS } from "../src/index.ts";
 import { expandScore } from "../src/events.ts";
 import { pitchToMidi } from "../src/pitch.ts";
+import { withGuide } from "../src/readme.ts";
 import { SCHEMA_FILES, schemaFileText } from "../src/schema-files.ts";
 import { parseCueRef, resolveAt } from "../src/time.ts";
 
@@ -139,6 +140,11 @@ describe("API for LLMs", () => {
   it("serves the JSON Schema of every part", () => {
     for (const part of SCHEMA_PARTS) expect(getSchema(part)).toMatchObject({ $schema: "https://json-schema.org/draft/2020-12/schema" });
     expect(JSON.stringify(getSchema())).toContain("Wooden bar struck with a soft mallet");
+  });
+
+  it("keeps the README's guide section current (run `npm run readme`)", () => {
+    const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+    expect(readme).toBe(withGuide(readme));
   });
 
   it("keeps the published schema files current (run `npm run schema`)", () => {

@@ -855,4 +855,22 @@ Decided:
   as a can whatever their level. Rebuilt without any sustained ring; of five candidates the user
   picked a dry crack plus a dense, heavily damped 40-mode wooden floor at 60 % of the crack's peak.
   Lesson for future effects: avoid sparse, lightly damped partials unless the thing really rings.
+- 2026-10-08 — **M3 done** (CLI, docs, LLM-readiness, MCP). `jinglescript mcp`: one tool
+  `manageJingleScript`, actions getGuide/getSchema/listInstruments/getInstrument/checkScore/
+  renderScore, input one zod schema (per-action requirements in it), renders only into `--out`,
+  file stems validated; the SDK is imported only by the `mcp` command. Tested in-process (in-memory
+  transport) and over stdio, from src and from dist. `jinglescript demo <sound>`; render and MCP
+  share `renderToFiles`. README: MCP setup for Claude Code / Desktop, and the authoring guide
+  generated into it from src/guide.ts (`npm run readme`, test keeps it current).
+  - Evaluation, all instruments (eval/requests-instruments.json, 10 requests incl. "a 4-second
+    glockenspiel sting that lands on a hit at 1.2 s" and Japanese): default model 10/10, Haiku 9/10
+    first try (the miss placed the note right but made no cue for it). MCP only (a subagent whose
+    only tool was a stdio MCP client bridge; no files): 5/5 rendered, each passing its first
+    checkScore.
+  - Acted on the evaluators' feedback: instrument facts (range, transpose, sustained, len default,
+    variants, synthetic) now in the schema's instrument description; `len` also takes
+    `{ "seconds": n }`; checkScore returns a `timeline` (where each note/effect resolved, with
+    `end`); the guide says every named time becomes a cue, and gives laser/pop default pitches.
+  - Not changed: the timing map's `beats` (seconds of each beat) keeps its name — it is the
+    public contract.
 

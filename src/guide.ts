@@ -5,14 +5,17 @@ export const AUTHORING_GUIDE = `# Writing a JingleScript score
 
 A JingleScript score is JSON (format "jinglescript/1") describing a short jingle — 1 to 15
 seconds of music and sound effects — plus named **cues** an animation syncs to. Get the exact
-schema with getSchema() / \`jinglescript schema\`; check your score with checkScore() /
-\`jinglescript check\` and fix every error it reports before rendering.
+schema with getSchema() / \`jinglescript schema\` / the MCP action \`getSchema\`; check your score
+with checkScore() / \`jinglescript check\` / the MCP action \`checkScore\`, and fix every error it
+reports before rendering.
 
 ## Work in this order
 
 1. **Cues first.** Write down the moments the video needs, in seconds, as cues:
    \`"cues": { "hit": { "seconds": 1.5 }, "voice": { "seconds": 1.8 } }\`. Never convert seconds to
-   beats yourself — give cues in seconds and place notes on them.
+   beats yourself — give cues in seconds and place notes on them. Every time the request
+   mentions (a start, a landing, a logo, a cut) becomes a cue, even when it happens to fall on a
+   beat: the animation reads cues, not notes.
 2. **Tempo and length.** 100–140 BPM suits most jingles. \`length\` is the whole audio; leave
    1–3 s after the last note for it to ring out, more if a voice-over follows.
 3. **Music on the cues.** Place the big moment exactly on its cue (\`"at": "hit"\`), and the lead-in
@@ -103,14 +106,17 @@ is the start of the sound, so an animation frame on it lines up.
 | knock | door, table | "knock-knock": two notes about half a beat apart |
 | tapdance | toe, heel, shuffle | |
 | pistol | shot, cartoon | |
-| laser | — | optional \`pitch\` = where the "pew" starts; \`len\` = sweep length (default 0.25 s) |
+| laser | — | optional \`pitch\` = where the "pew" starts (default about D7); \`len\` = sweep length (default 0.25 s) |
 | whoosh | soft, fast | \`len\` = length (default 0.5 s); place with \`end\` to finish on a cut |
-| riser | noise, tone | builds into a hit: \`{ "end": "hit", "len": 4 }\` (default 2 s) |
+| riser | noise, tone | builds into a hit: \`{ "end": "hit", "len": { "seconds": 2 } }\` (default 2 s) |
 | impact | soft, hard | the boom a reveal lands on |
-| pop | — | optional \`pitch\` = starting pitch; things appearing, text popping in |
+| pop | — | optional \`pitch\` = starting pitch (default about E6); things appearing, text popping in |
 
 - \`end\` (instead of \`at\`) places an effect with a length by when it **finishes** — a riser or
-  whoosh that stops exactly on the cut.
+  whoosh that stops exactly on the cut. \`len\` is beats, or \`{ "seconds": n }\` when the request
+  gives seconds.
+- checkScore lists where every note and effect resolved to (\`timeline\`), so you can confirm an
+  effect placed by \`end\` starts where you meant.
 - Close, dry effects (ticks, footsteps, taps) sound better outside the reverb: give their track
   \`"reverb": false\`.
 - Short impulses (ticks, steps, taps, knocks) peak like an instrument note; other effects are as

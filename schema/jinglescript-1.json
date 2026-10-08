@@ -433,6 +433,15 @@
                   "type": "number",
                   "minimum": 0,
                   "maximum": 50
+                },
+                "lyric": {
+                  "description": "One syllable of the words sung on this note, shown karaoke-style (nothing is sung; the instrument plays the melody). One kana or mora per note in Japanese (\"ハ\", \"テ\", \"ナ\"); one syllable in English, ending in \"-\" when the word continues on the next note (\"hap-\", \"py\"). \"_\" holds the previous syllable over this note.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "lineEnd": {
+                  "description": "true ends a line of lyrics after this note's syllable. The last syllable of a track ends its line anyway.",
+                  "type": "boolean"
                 }
               },
               "additionalProperties": false,

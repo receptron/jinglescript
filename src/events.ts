@@ -3,6 +3,7 @@
 // Rendering and the timing map both read these events, so they cannot disagree.
 import { descriptorOf, type InstrumentName } from "./instruments/index.ts";
 import { voiceChord } from "./chords.ts";
+import { buildLyrics, type LyricLine } from "./lyrics.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
 import type { Note, ScoreData } from "./score-schema.ts";
@@ -44,6 +45,10 @@ export interface NoteEvent {
   end: number | undefined;
   variant: string | undefined;
   detune: number;
+  /** The note's syllable (on its first event only). */
+  lyric: string | undefined;
+  /** A line of lyrics ends after this syllable (first event only). */
+  lineEnd: boolean;
 }
 
 export interface Expanded {
@@ -52,6 +57,8 @@ export interface Expanded {
   cues: Record<string, number>;
   /** Sorted by onset, then track, then note. */
   events: NoteEvent[];
+  /** Lyric lines of every track, sorted by start; empty when the score has no lyrics. */
+  lyrics: LyricLine[];
   issues: Issue[];
 }
 
@@ -123,6 +130,35 @@ function strumIssues(note: Note, instrument: InstrumentName, path: IssuePath): I
   if (note.strum === undefined || notePitches(note, instrument).length >= 2) return [];
   return [{ path: [...path, "strum"], message: "`strum` needs a chord.", hint: 'Give "chord": "C" or a list of pitches, in string order.' }];
 }
+function lyricIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+  if (note.lyric === undefined) {
+    return note.lineEnd === undefined
+      ? []
+      : [
+          {
+            path: [...path, "lineEnd"],
+            message: "`lineEnd` needs a `lyric` on the same note.",
+            hint: "Put `lineEnd` on the note with the line's last syllable.",
+          },
+        ];
+  }
+  if (!descriptorOf(instrument).pitched) {
+    return [
+      { path: [...path, "lyric"], message: `"${instrument}" plays no melody, so it cannot carry lyrics.`, hint: "Put the lyrics on the melody's notes." },
+    ];
+  }
+  if (note.repeat !== undefined) {
+    return [
+      {
+        path: [...path, "lyric"],
+        message: "A note with `repeat` cannot carry a lyric.",
+        hint: 'Write the repeated notes out, one syllable each, or use "_" to hold a syllable.',
+      },
+    ];
+  }
+  return [];
+}
+
 function variantIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
   if (note.variant === undefined) return [];
   const allowed = descriptorOf(instrument).variants;
@@ -243,7 +279,13 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     end: placed.length === undefined ? undefined : Math.max(0, placed.seconds) + placed.length,
     variant: variantAt(note, placed.index),
     detune: note.detune ?? 0,
+    ...lyricOf(note, placed.index),
   };
+}
+
+/** A note's lyric belongs to its first event only. */
+function lyricOf(note: Note, index: number): Pick<NoteEvent, "lyric" | "lineEnd"> {
+  return index === 0 ? { lyric: note.lyric, lineEnd: note.lineEnd === true } : { lyric: undefined, lineEnd: false };
 }
 
 function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues: Issue[] } {
@@ -251,7 +293,12 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
   const track = score.tracks[trackIndex];
   if (track === undefined) return { events: [], issues: [] };
   const path: IssuePath = ["tracks", trackIndex, "notes", noteIndex];
-  const issues = [...pitchIssues(note, track.instrument, path), ...variantIssues(note, track.instrument, path), ...strumIssues(note, track.instrument, path)];
+  const issues = [
+    ...pitchIssues(note, track.instrument, path),
+    ...variantIssues(note, track.instrument, path),
+    ...strumIssues(note, track.instrument, path),
+    ...lyricIssues(note, track.instrument, path),
+  ];
   const resolve = (at: At): ResolvedAt => resolveAt(at, score.tempo, cues);
   const length = soundLength(note, track.instrument, score.tempo);
   if (note.end !== undefined && length === undefined) {
@@ -335,5 +382,7 @@ export function expandScore(score: ScoreData): Expanded {
   });
   assignHolds(events);
   events.sort((a, b) => a.seconds - b.seconds || a.track - b.track || a.note - b.note || a.repeat - b.repeat);
-  return { tempo: score.tempo, duration, cues, events, issues };
+  const lyrics = buildLyrics(events, duration);
+  issues.push(...lyrics.issues);
+  return { tempo: score.tempo, duration, cues, events, lyrics: lyrics.lines, issues };
 }

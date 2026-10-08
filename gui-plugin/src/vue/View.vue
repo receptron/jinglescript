@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// The player: the rendered jingle with its waveform, beats, cues and per-track notes. Click the
-// waveform or a cue to jump there.
+// The player: the rendered jingle with its waveform, beats, cues and per-track notes, and its
+// lyrics karaoke-style when it has any. Click the waveform or a cue to jump there.
 import type { ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData } from "jinglescript";
 import { computed, onBeforeUnmount, ref } from "vue";
-import { formatTime, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
+import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
 
 const props = defineProps<{ selectedResult: ToolResultComplete<PlayerData> }>();
 
@@ -24,6 +24,7 @@ const beats = computed(() => (data.value?.timing.beats ?? []).map((t) => xOf(t, 
 const cues = computed(() => Object.entries(data.value?.timing.cues ?? {}).map(([name, t]) => ({ name, t, x: xOf(t, duration.value) })));
 const audibleX = computed(() => xOf(data.value?.timing.audibleUntil ?? 0, duration.value));
 const playheadX = computed(() => xOf(now.value, duration.value));
+const lyricLines = computed(() => karaoke(data.value?.timing.lyrics, now.value));
 const extension = computed(() => (data.value?.mimeType === "audio/mpeg" ? "mp3" : "wav"));
 
 function tick(): void {
@@ -115,6 +116,12 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
       <span v-for="(lane, l) in trackLanes" :key="`k${l}`" class="lane-name"><i :style="{ background: lane.color }" />{{ lane.name }}</span>
     </div>
 
+    <div v-if="lyricLines.length > 0" class="karaoke" :class="{ two: (data.timing.lyrics?.length ?? 0) > 1 }">
+      <p v-for="(line, i) in lyricLines" :key="line.key" :class="{ next: i > 0 }">
+        <span v-for="(syllable, s) in line.syllables" :key="s" :style="{ '--sung': `${(syllable.progress * 100).toFixed(1)}%` }">{{ syllable.text }}</span>
+      </p>
+    </div>
+
     <div class="controls">
       <button type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="toggle">
         <svg v-if="playing" viewBox="0 0 16 16" aria-hidden="true">
@@ -147,6 +154,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
   --cue: #e8743b;
   --tail: rgba(29, 35, 48, 0.05);
   --chip: #f1f3f7;
+  --sung-color: #e8743b;
   background: var(--bg);
   color: var(--fg);
   font-family: system-ui, sans-serif;
@@ -164,6 +172,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     --cue: #ff9a5c;
     --tail: rgba(230, 233, 239, 0.05);
     --chip: #232937;
+    --sung-color: #ff9a5c;
   }
 }
 header {
@@ -242,6 +251,31 @@ h2 {
   height: 8px;
   border-radius: 50%;
   margin-right: 4px;
+}
+.karaoke {
+  margin: 4px 0 12px;
+  text-align: center;
+}
+/* Room for two lines even while the last one shows alone, so the player does not jump. */
+.karaoke.two {
+  min-height: calc(1.6rem * 1.5 + 1.15rem * 1.5);
+}
+.karaoke p {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.karaoke p.next {
+  font-size: 1.15rem;
+  opacity: 0.6;
+}
+.karaoke span {
+  background: linear-gradient(90deg, var(--sung-color) var(--sung), var(--fg) var(--sung));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .controls {
   display: flex;

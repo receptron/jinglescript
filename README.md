@@ -5,7 +5,7 @@ to audio plus a **timing map** so animation can land exactly on the music.
 
 ```
 request ──► LLM ──► score (JSON) ──► render ──► audio (WAV)
-                                           └──► timing.json (cues, beats, note onsets)
+                                           └──► timing.json (cues, beats, note onsets, lyrics)
 ```
 
 - Everything is synthesized in code: no samples, no network, no third-party audio. What you render
@@ -26,7 +26,8 @@ npm install jinglescript
 
 ## Try it
 
-Requires Node ≥ 22.18. From a clone (or use `npx jinglescript …` with the package):
+The package requires Node ≥ 22.12. Running from a clone, as below, runs the TypeScript sources
+directly and needs Node ≥ 22.18 (or use `npx jinglescript …` with the package):
 
 ```sh
 npm install
@@ -217,6 +218,42 @@ is the start of the sound, so an animation frame on it lines up.
 - Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
   target (the renderer reports it).
 
+### Lyrics
+
+Words can ride on the melody, so a player shows them karaoke-style: the current line, the next
+one, and a wipe across each syllable as its note plays. Nothing is sung — the instrument plays the
+melody; the words are text on its notes, timed exactly by them.
+
+- Put `lyric` on each melody note: one syllable per note. In Japanese one mora (`"ハ"`,
+  `"テ"`, `"ナ"`; a contracted sound such as `"きょ"` is one mora, one note); in English one
+  syllable, ending in `-` when the word continues on the next note (`"hap-"`, `"py"` shows as
+  "happy"). Words are spaced for you, except between Japanese syllables.
+- `"lyric": "_"` holds the previous syllable over this note too (one syllable sung over two
+  notes).
+- Notes without `lyric` may sit among them on the same track (an instrumental fill, an echo
+  after the hit); they show no text.
+- When a word should land on a cue, put its stressed syllable there (`"day"` of "today" on
+  `"hit"`, `"to-"` half a beat before).
+- `"lineEnd": true` on the last syllable of a line starts a new line after it. Keep lines short:
+  one phrase of the melody, 2–4 seconds.
+- Count the syllables first, then write exactly that many melody notes (plus any `"_"`). A chord
+  takes one lyric; percussion and effects take none; a note with `repeat` takes none (write the
+  notes out).
+- checkScore lists each line with its time (`lyrics`), so you can confirm the words land where
+  the request wants them.
+
+```json
+{ "instrument": "marimba", "name": "melody", "notes": [
+  { "at": 0, "pitch": "G4", "lyric": "ハ" },
+  { "at": 0.5, "pitch": "A4", "lyric": "テ" },
+  { "at": 1, "pitch": "C5", "lyric": "ナ" },
+  { "at": 1.5, "pitch": "D5", "lyric": "_" },
+  { "at": 2, "pitch": "E5", "lyric": "good" },
+  { "at": 2.5, "pitch": "D5", "lyric": "mor-" },
+  { "at": 3, "pitch": "C5", "lyric": "ning!", "lineEnd": true }
+] }
+```
+
 ### What makes a jingle work
 
 - A **question and an answer**: three rising notes that end open (e.g. G4 C5 E5 on eighths), then
@@ -254,7 +291,8 @@ is the start of the sound, so an animation frame on it lines up.
 ### Output
 
 Rendering gives audio and a timing map (`jinglescript-timing/1`): every cue, beat and note in
-seconds, and `audibleUntil`. The animation reads cue times from it by name.
+seconds, `audibleUntil`, and — when the score has lyrics — every line and syllable with its
+time (`lyrics`). The animation reads cue times from it by name.
 
 <!-- guide:end -->
 

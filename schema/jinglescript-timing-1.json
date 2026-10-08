@@ -102,6 +102,74 @@
     "audibleUntil": {
       "type": "number",
       "description": "When the audio falls below -40 dBFS for good (measured on the output)."
+    },
+    "lyrics": {
+      "description": "Lines of lyrics with every syllable's time, sorted by start, for a karaoke-style display. Present only when the score has lyrics.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "track": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Index of the track whose notes carry the line."
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991,
+            "description": "Index of the line within its track."
+          },
+          "text": {
+            "type": "string",
+            "description": "The whole line as displayed."
+          },
+          "t": {
+            "type": "number",
+            "description": "When the line's first syllable starts, seconds."
+          },
+          "end": {
+            "type": "number",
+            "description": "When the line's last syllable ends, seconds."
+          },
+          "syllables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "description": "The syllable as displayed: no joining hyphen; a trailing space when a new word follows. A line's syllables joined give its `text`."
+                },
+                "t": {
+                  "type": "number",
+                  "description": "When the syllable's note starts, seconds."
+                },
+                "end": {
+                  "type": "number",
+                  "description": "When the syllable ends (its note's length, held over `_` notes, never past the next syllable), seconds."
+                }
+              },
+              "required": [
+                "text",
+                "t",
+                "end"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "track",
+          "line",
+          "text",
+          "t",
+          "end",
+          "syllables"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [

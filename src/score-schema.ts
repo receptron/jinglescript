@@ -121,6 +121,14 @@ export const NoteSchema = z
     repeat: RepeatSchema.optional(),
     detune: z.number().min(-100).max(100).optional().describe("Cents (1/100 semitone) to detune this note by."),
     humanize: z.number().min(0).max(50).optional().describe("Up to this many ms of seeded random timing offset. Never moves a note placed exactly on a cue."),
+    lyric: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'One syllable of the words sung on this note, shown karaoke-style (nothing is sung; the instrument plays the melody). One kana or mora per note in Japanese ("ハ", "テ", "ナ"); one syllable in English, ending in "-" when the word continues on the next note ("hap-", "py"). "_" holds the previous syllable over this note.',
+      ),
+    lineEnd: z.boolean().optional().describe("true ends a line of lyrics after this note's syllable. The last syllable of a track ends its line anyway."),
   })
   .refine((note) => (note.at === undefined) !== (note.end === undefined), {
     error: "Give `at` (when it starts) — or, for effects with a length, `end` (when it finishes) — but not both.",

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "name-ja",
+    "request": "チャンネル名「ハテナマルモ」をメロディに乗せて、カラオケのように歌詞が出るジングル。全部で5秒、マリンバで。最後の「モ」は2.0秒の決めの音に合わせて。",
+    "cues": [2.0],
+    "words": ["ハテナマルモ"]
+  },
+  {
+    "id": "tagline-en",
+    "request": "A 5-second upbeat jingle that shows our tagline 'Learn something new today' as karaoke lyrics on the melody; the word 'today' lands on a big hit at 3.0 s.",
+    "cues": [3.0],
+    "words": ["Learn", "something", "new", "today"]
+  },
+  {
+    "id": "two-lines-ja",
+    "request": "朝の番組のオープニング、8秒、ピアノとグロッケンで。歌詞は2行で「おはよう みんな」「きょうも げんきに」。1行目は最初から、2行目は4.0秒から始めて。",
+    "cues": [4.0],
+    "words": ["おはようみんな", "きょうもげんきに"]
+  }
+]

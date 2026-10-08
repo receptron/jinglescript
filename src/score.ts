@@ -84,6 +84,8 @@ export interface CheckResult {
   notes?: number;
   /** Where every note and sound resolved to, in seconds — to confirm placements without rendering. */
   timeline?: { path: string; instrument: string; t: number; end?: number; cue?: string }[];
+  /** Each line of lyrics and when it is shown, to confirm the words land where meant (only when the score has lyrics). */
+  lyrics?: { track: number; text: string; t: number; end: number }[];
 }
 
 function nearCueWarnings(expanded: Expanded): ScoreProblem[] {
@@ -122,7 +124,17 @@ export function checkScore(input: unknown): CheckResult {
     ...(event.end === undefined ? {} : { end: roundMs(event.end) }),
     ...(event.cue === undefined ? {} : { cue: event.cue }),
   }));
-  return { ok: true, errors: [], warnings: nearCueWarnings(expanded), cues, duration: roundMs(expanded.duration), notes: expanded.events.length, timeline };
+  const lyrics = expanded.lyrics.map((line) => ({ track: line.track, text: line.text, t: roundMs(line.seconds), end: roundMs(line.end) }));
+  return {
+    ok: true,
+    errors: [],
+    warnings: nearCueWarnings(expanded),
+    cues,
+    duration: roundMs(expanded.duration),
+    notes: expanded.events.length,
+    timeline,
+    ...(lyrics.length > 0 ? { lyrics } : {}),
+  };
 }
 
 export type { Issue };

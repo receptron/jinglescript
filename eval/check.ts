@@ -1,12 +1,20 @@
 // Scores the evaluation: for each request in eval/requests.json, reads the score an LLM wrote at
 // out/eval/<run>/<id>.json and checks it mechanically — valid, the requested times exist as cues,
-// renders cleanly at the loudness target. Usage: node eval/check.ts <run> [requests file, default requests.json]
+// renders cleanly at the loudness target, and — for requests that give `words` — the lyrics contain
+// those words in order. Usage: node eval/check.ts <run> [requests file, default requests.json]
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { checkScore, parseScore, render } from "../src/index.ts";
 
-const RequestsSchema = z.array(z.strictObject({ id: z.string(), request: z.string(), cues: z.array(z.number()) }));
+const RequestsSchema = z.array(
+  z.strictObject({
+    id: z.string(),
+    request: z.string(),
+    cues: z.array(z.number()),
+    words: z.array(z.string()).optional().describe("Words the lyrics must contain, in order (spaces and case ignored)."),
+  }),
+);
 
 const run = process.argv[2] ?? "default";
 const dir = join("out", "eval", run);
@@ -21,7 +29,22 @@ interface Row {
   detail: string;
 }
 
-async function score(id: string, expected: readonly number[]): Promise<Row> {
+const squash = (text: string): string => text.replace(/\s+/g, "").toLowerCase();
+
+/** The requested words missing from the lyrics (all lines in order), in order. */
+function missingWords(lyrics: readonly { text: string }[] | undefined, words: readonly string[]): string[] {
+  const text = squash((lyrics ?? []).map((line) => line.text).join(""));
+  let from = 0;
+  const missing: string[] = [];
+  for (const word of words) {
+    const at = text.indexOf(squash(word), from);
+    if (at < 0) missing.push(word);
+    else from = at + squash(word).length;
+  }
+  return missing;
+}
+
+async function score(id: string, expected: readonly number[], words: readonly string[]): Promise<Row> {
   let input: unknown;
   try {
     input = JSON.parse(await readFile(join(dir, `${id}.json`), "utf8"));
@@ -32,19 +55,21 @@ async function score(id: string, expected: readonly number[]): Promise<Row> {
   if (!check.ok) return { id, valid: false, cues: false, clean: false, detail: check.errors.map((e) => `${e.path}: ${e.message}`).join("; ") };
   const times = Object.values(check.cues).map((c) => c.seconds);
   const missing = expected.filter((t) => !times.some((s) => Math.abs(s - t) < 0.0015));
+  const wordsMissing = missingWords(check.lyrics, words);
   const { audio, stats } = render(parseScore(input));
   const finite = audio.every((channel) => channel.every(Number.isFinite));
   const clean = finite && stats.truePeak <= -1.5 && (Math.abs(stats.loudness - parseScore(input).master.loudness) <= 0.5 || stats.limitedByPeak);
   const detail = [
     missing.length > 0 ? `missing cues at ${missing.join(", ")} s` : "",
+    wordsMissing.length > 0 ? `lyrics lack ${wordsMissing.join(", ")}` : "",
     `${stats.loudness.toFixed(1)} LUFS, limiting ${stats.limitingDb.toFixed(1)} dB`,
   ]
     .filter(Boolean)
     .join("; ");
-  return { id, valid: true, cues: missing.length === 0, clean, detail };
+  return { id, valid: true, cues: missing.length === 0 && wordsMissing.length === 0, clean, detail };
 }
 
-const rows = await Promise.all(requests.map((r) => score(r.id, r.cues)));
+const rows = await Promise.all(requests.map((r) => score(r.id, r.cues, r.words ?? [])));
 const mark = (ok: boolean): string => (ok ? "yes" : "NO");
 const table = [
   `| request | valid | cues | clean | detail |`,

@@ -12,6 +12,8 @@ export interface SynthInput {
   variant: string | undefined;
   sampleRate: number;
   rng: Rng;
+  /** Index of this pitch within its chord (absent or 0 for a single note): a layered instrument plays its unpitched layers once per chord. */
+  chordVoice?: number;
 }
 
 export interface InstrumentDescriptor {

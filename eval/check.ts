@@ -1,7 +1,7 @@
 // Scores the evaluation: for each request in eval/requests.json, reads the score an LLM wrote at
 // out/eval/<run>/<id>.json and checks it mechanically — valid, the requested times exist as cues,
 // renders cleanly at the loudness target, and — for requests that give `words` — the lyrics contain
-// those words in order. Usage: node eval/check.ts <run> [requests file, default requests.json]
+// those words in order; for requests marked `custom`, a track plays an instrument the score defines. Usage: node eval/check.ts <run> [requests file, default requests.json]
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -13,6 +13,7 @@ const RequestsSchema = z.array(
     request: z.string(),
     cues: z.array(z.number()),
     words: z.array(z.string()).optional().describe("Words the lyrics must contain, in order (spaces and case ignored)."),
+    custom: z.boolean().optional().describe("The request needs a custom instrument: a track must play one the score defines."),
   }),
 );
 
@@ -44,7 +45,14 @@ function missingWords(lyrics: readonly { text: string }[] | undefined, words: re
   return missing;
 }
 
-async function score(id: string, expected: readonly number[], words: readonly string[]): Promise<Row> {
+/** True when a track plays an instrument defined under the score's `instruments`. */
+function playsCustom(input: unknown): boolean {
+  const parsed = parseScore(input);
+  const defined = new Set(Object.keys(parsed.instruments ?? {}));
+  return parsed.tracks.some((t) => defined.has(t.instrument));
+}
+
+async function score(id: string, expected: readonly number[], words: readonly string[], custom: boolean): Promise<Row> {
   let input: unknown;
   try {
     input = JSON.parse(await readFile(join(dir, `${id}.json`), "utf8"));
@@ -56,20 +64,22 @@ async function score(id: string, expected: readonly number[], words: readonly st
   const times = Object.values(check.cues).map((c) => c.seconds);
   const missing = expected.filter((t) => !times.some((s) => Math.abs(s - t) < 0.0015));
   const wordsMissing = missingWords(check.lyrics, words);
+  const customMissing = custom && !playsCustom(input);
   const { audio, stats } = render(parseScore(input));
   const finite = audio.every((channel) => channel.every(Number.isFinite));
   const clean = finite && stats.truePeak <= -1.5 && (Math.abs(stats.loudness - parseScore(input).master.loudness) <= 0.5 || stats.limitedByPeak);
   const detail = [
     missing.length > 0 ? `missing cues at ${missing.join(", ")} s` : "",
     wordsMissing.length > 0 ? `lyrics lack ${wordsMissing.join(", ")}` : "",
+    customMissing ? "no track plays a custom instrument" : "",
     `${stats.loudness.toFixed(1)} LUFS, limiting ${stats.limitingDb.toFixed(1)} dB`,
   ]
     .filter(Boolean)
     .join("; ");
-  return { id, valid: true, cues: missing.length === 0 && wordsMissing.length === 0, clean, detail };
+  return { id, valid: true, cues: missing.length === 0 && wordsMissing.length === 0 && !customMissing, clean, detail };
 }
 
-const rows = await Promise.all(requests.map((r) => score(r.id, r.cues, r.words ?? [])));
+const rows = await Promise.all(requests.map((r) => score(r.id, r.cues, r.words ?? [], r.custom === true)));
 const mark = (ok: boolean): string => (ok ? "yes" : "NO");
 const table = [
   `| request | valid | cues | clean | detail |`,

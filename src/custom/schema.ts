@@ -55,7 +55,11 @@ export const TweakDefinitionSchema = z
 
 export const LayeredDefinitionSchema = z
   .strictObject({
-    layers: z.array(LayerSchema).min(2).max(6).describe("2–6 sounds played together on every note."),
+    layers: z
+      .array(LayerSchema)
+      .min(2)
+      .max(6)
+      .describe("2–6 sounds played together on every note. On a chord, pitched layers play every pitch; layers without pitch (an impact, a clap) play once."),
     description: DescriptionField,
   })
   .describe(
@@ -258,7 +262,7 @@ export const BlocksDefinitionSchema = z
       .string()
       .regex(PITCH_PATTERN)
       .optional()
-      .describe('For an "sfx" with pitched blocks: the pitch it plays when a note gives none (e.g. "D7" for a laser).'),
+      .describe('For an "sfx" with pitched blocks: the pitch it plays when a note gives none (e.g. "D7" for a laser). Notes may give any pitch from C1 to C8.'),
     length: seconds(0.02, MAX_NOTE_SECONDS)
       .optional()
       .describe(

@@ -211,17 +211,20 @@ function damp(x: Float32Array, decay: number, sampleRate: number): Float32Array 
   return out;
 }
 
+/** Sounds that follow a note's pitch (always, or when given one). */
+const takesPitch = (d: InstrumentDescriptor): boolean => d.pitched || d.pitchOptional === true;
+
 /** The base's notes with a tweak applied. `ownTranspose`: apply the base's written-to-sounding transpose here (inside layers). */
 function tweaked(base: Instrument, definition: BlocksDefinition | undefined, tweak: Tweak, ownTranspose: boolean): Instrument {
   const decay = tweak.params?.decay ?? 1;
   const viaBlocks = definition !== undefined && decay !== 1 ? blocksInstrument(definition, decay) : undefined;
-  const takesPitch = base.descriptor.pitched || base.descriptor.pitchOptional === true;
+  const pitchable = takesPitch(base.descriptor);
   return {
     descriptor: base.descriptor,
     synthesize(input) {
       const shift = (ownTranspose ? base.descriptor.transpose : 0) + tweak.transpose;
-      const frequency = !takesPitch || input.frequency === undefined ? undefined : input.frequency * dmath.pow(2, (shift * 100 + tweak.detune) / 1200);
-      const midi = !takesPitch || input.midi === undefined ? undefined : input.midi + shift;
+      const frequency = !pitchable || input.frequency === undefined ? undefined : input.frequency * dmath.pow(2, (shift * 100 + tweak.detune) / 1200);
+      const midi = !pitchable || input.midi === undefined ? undefined : input.midi + shift;
       const note: SynthInput = { ...input, frequency, midi, variant: tweak.variant ?? input.variant };
       let x = viaBlocks === undefined ? base.synthesize(note) : viaBlocks.synthesize(note);
       if (viaBlocks === undefined && decay < 1) x = damp(x, decay, input.sampleRate);
@@ -237,10 +240,16 @@ function tweaked(base: Instrument, definition: BlocksDefinition | undefined, twe
 function layered(layers: readonly { instrument: Instrument; delay: number }[]): Instrument["synthesize"] {
   return (input) => {
     const seed = Math.floor(input.rng.next() * 4294967296);
-    const parts = layers.map((layer, k) => ({
-      offset: Math.round(layer.delay * input.sampleRate),
-      x: layer.instrument.synthesize({ ...input, rng: streamRng(seed, "layer", k) }),
-    }));
+    // In a chord, a layer without pitch (an impact, a clap) plays with the first pitch only.
+    const firstOfChord = (input.chordVoice ?? 0) === 0;
+    const parts = layers
+      .map((layer, k) => ({ layer, k }))
+      .filter(({ layer }) => firstOfChord || takesPitch(layer.instrument.descriptor))
+      .map(({ layer, k }) => ({
+        offset: Math.round(layer.delay * input.sampleRate),
+        x: layer.instrument.synthesize({ ...input, rng: streamRng(seed, "layer", k) }),
+      }));
+    if (parts.length === 0) return new Float32Array(1);
     const out = new Float32Array(Math.max(...parts.map((p) => p.offset + p.x.length)));
     for (const { offset, x } of parts) for (let i = 0; i < x.length; i++) out[offset + i] = (out[offset + i] ?? 0) + (x[i] ?? 0);
     capPeak(out);

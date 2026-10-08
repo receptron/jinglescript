@@ -48,6 +48,7 @@ function mixEvent(instrument: Instrument, event: NoteEvent, mix: [Float32Array, 
       variant: event.variant,
       sampleRate,
       rng: streamRng(seed, "note", event.track, event.note, event.repeat, voice),
+      chordVoice: voice,
     });
     const end = Math.min(mix[0].length, start + samples.length);
     for (let i = Math.max(0, start); i < end; i++) {

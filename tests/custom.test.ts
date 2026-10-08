@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { blocksInstrument, builtinDefinition } from "../src/custom/instruments.ts";
 import { BlocksDefinitionSchema, DefinitionSchema, type BlocksDefinition } from "../src/custom/schema.ts";
 import { fft } from "../src/dsp/fft.ts";
@@ -7,6 +8,7 @@ import { integratedLoudness } from "../src/dsp/loudness.ts";
 import { MAX_PARTIAL_FRACTION } from "../src/instruments/common.ts";
 import { INSTRUMENTS, type Instrument, type InstrumentName } from "../src/instruments/index.ts";
 import { expandScore } from "../src/events.ts";
+import { AUTHORING_GUIDE } from "../src/guide.ts";
 import { checkScore, getInstrument, getSchema, parseScore, render } from "../src/index.ts";
 import { midiToFrequency } from "../src/pitch.ts";
 import { createRng, type Rng } from "../src/rng.ts";
@@ -92,6 +94,19 @@ describe("built-ins written as blocks sound like the built-ins", () => {
   });
 });
 
+describe("the authoring guide's custom instruments", () => {
+  it("are all valid", () => {
+    const section = AUTHORING_GUIDE.slice(AUTHORING_GUIDE.indexOf("## Custom instruments"), AUTHORING_GUIDE.indexOf("## Lyrics"));
+    const snippets = [...section.matchAll(/```json\n([\s\S]*?)```/g)].map((m) => (m[1] ?? "").trim());
+    expect(snippets.length).toBeGreaterThanOrEqual(3);
+    for (const snippet of snippets) {
+      const parsed: unknown = JSON.parse(snippet.startsWith('"instruments"') ? `{${snippet}}` : `{"instruments": {${snippet}}}`);
+      const instruments = z.object({ instruments: z.record(z.string(), z.unknown()) }).parse(parsed).instruments;
+      expect(errorsOf(instruments)).toEqual([]);
+    }
+  });
+});
+
 describe("custom instruments in a score", () => {
   const score = withInstruments(
     {
@@ -159,6 +174,26 @@ describe("tweaks and layers", () => {
   it("attack softens the onset", () => {
     const x = play(custom({ base: "marimba", params: { attack: 0.08 } }), 72);
     expect(peakOf(x.subarray(0, Math.round(0.02 * RATE)))).toBeLessThan(0.4 * peakOf(x));
+  });
+
+  it("on a chord, a layer without pitch plays once", () => {
+    const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
+    const voice = (chordVoice: number) =>
+      hit.synthesize({ midi: 60, frequency: midiToFrequency(60), velocity: 1, hold: 1, variant: undefined, sampleRate: RATE, rng: createRng(7), chordVoice });
+    const piano = (chordVoice: number) =>
+      custom({ base: "piano" }).synthesize({
+        midi: 60,
+        frequency: midiToFrequency(60),
+        velocity: 1,
+        hold: 1,
+        variant: undefined,
+        sampleRate: RATE,
+        rng: createRng(7),
+        chordVoice,
+      });
+    // The second pitch of a chord is the piano alone: no second boom.
+    expect(rmsDb(voice(1), 0.3)).toBeLessThan(rmsDb(voice(0), 0.3) - 3);
+    expect(Math.abs(rmsDb(voice(1), 0.3) - rmsDb(piano(1), 0.3))).toBeLessThan(3);
   });
 
   it("layers play together, each with its own delay", () => {

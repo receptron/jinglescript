@@ -294,7 +294,7 @@
                   "additionalProperties": false,
                   "description": "One sound in a stack: a base with its own adjustments."
                 },
-                "description": "2–6 sounds played together on every note."
+                "description": "2–6 sounds played together on every note. On a chord, pitched layers play every pitch; layers without pitch (an impact, a clap) play once."
               },
               "description": {
                 "description": "One line for people: what this sounds like.",
@@ -321,7 +321,7 @@
                 ]
               },
               "pitch": {
-                "description": "For an \"sfx\" with pitched blocks: the pitch it plays when a note gives none (e.g. \"D7\" for a laser).",
+                "description": "For an \"sfx\" with pitched blocks: the pitch it plays when a note gives none (e.g. \"D7\" for a laser). Notes may give any pitch from C1 to C8.",
                 "type": "string",
                 "pattern": "^([A-G])([#b]?)(-?\\d)$"
               },

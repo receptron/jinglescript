@@ -1,0 +1,30 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Custom zap: a deep retro laser built from blocks",
+  "tempo": 120,
+  "length": { "seconds": 3 },
+  "seed": 1,
+  "cues": { "zap1": { "seconds": 0.3 }, "zap2": { "seconds": 0.9 }, "zap3": { "seconds": 1.5 } },
+  "instruments": {
+    "retroZap": {
+      "kind": "sfx",
+      "pitch": "A5",
+      "description": "A deep, buzzy retro zap: a square wave diving three octaves.",
+      "blocks": [
+        { "osc": "square", "level": 0.7 },
+        { "osc": "saw", "ratio": 0.5, "level": 0.4 },
+        { "pitchEnv": { "from": 0, "to": -36, "time": 0.35, "curve": "linear" } },
+        { "filter": "lowpass", "cutoff": 3500, "q": 2 },
+        { "env": { "attack": 0.002, "decay": 0.4 } }
+      ]
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "retroZap",
+      "reverb": false,
+      "notes": [{ "at": "zap1" }, { "at": "zap2", "pitch": "C6" }, { "at": "zap3", "pitch": "E6", "vel": 1 }]
+    }
+  ]
+}

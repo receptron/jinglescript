@@ -125,6 +125,73 @@ is the start of the sound, so an animation frame on it lines up.
 - Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
   target (the renderer reports it).
 
+## Custom instruments
+
+When no built-in sounds right, define your own under top-level \`"instruments"\` and use its name
+in a track like a built-in. Names start with a lowercase letter (\`"softBell"\`) and must not be a
+built-in's. Three forms, from easiest to most flexible — use the first that does the job:
+
+**1. Tweak a built-in** with \`base\` and any of: \`params\` (\`decay\`, \`brightness\`, \`attack\`),
+\`transpose\` (semitones), \`detune\` (cents), \`gain\` (dB), \`variant\`.
+
+\`\`\`json
+"instruments": {
+  "softBell": { "base": "glockenspiel", "params": { "decay": 1.8, "brightness": -0.5, "attack": 0.01 } },
+  "deepBoom": { "base": "impact", "variant": "hard", "params": { "brightness": -0.6 } }
+}
+\`\`\`
+
+- \`decay\` multiplies how long it rings: 0.5 half, 2 twice. Above 1 only for built-ins that have a
+  block definition (marimba, xylophone, glockenspiel, vibraphone, musicbox, ukulele, organ).
+- \`brightness\` -1 (dark, muffled) … 1 (bright, crisp). \`attack\` seconds of fade-in: 0.02–0.08
+  softens the strike, 0.2+ swells in.
+
+**2. Layer** 2–6 sounds that play together on every note; each layer takes the same fields as a
+tweak, plus \`delay\` (seconds after the onset). Give the note a chord as usual: pitched layers
+play every pitch of it, layers without pitch (an impact, a clap) play once.
+
+\`\`\`json
+"bigHit": { "layers": [
+  { "base": "piano" },
+  { "base": "impact", "variant": "soft", "gain": -8 },
+  { "base": "glockenspiel", "transpose": 12, "gain": -12 }
+] }
+\`\`\`
+
+**3. Build from blocks.** Sources are mixed: \`osc\` (sine, triangle, saw, square, pulse at a
+\`ratio\` of the note), \`modes\` (struck partials: bars, bells), \`noise\` (clicks, breath, hiss),
+\`string\` (a plucked string). Shapers act on the whole sound: \`env\`, \`filter\`, \`pitchEnv\` (a
+pitch glide), \`lfo\` (vibrato or tremolo). Every time is in seconds; \`decay\` means "seconds until
+silent".
+
+\`\`\`json
+"zap": { "kind": "sfx", "pitch": "C7", "blocks": [
+  { "osc": "square", "level": 0.6 },
+  { "pitchEnv": { "from": 0, "to": -36, "time": 0.25, "curve": "linear" } },
+  { "filter": "lowpass", "cutoff": 5000 },
+  { "env": { "attack": 0.002, "decay": 0.3 } }
+] },
+"warmPad": { "blocks": [
+  { "osc": "saw", "detune": -7 }, { "osc": "saw", "detune": 7 },
+  { "filter": "lowpass", "cutoff": 1800 },
+  { "env": { "attack": 0.15, "decay": 0.5, "sustain": 0.7, "release": 0.6 } },
+  { "lfo": "vibrato", "rate": 5, "depth": 8, "delay": 0.3 }
+] },
+"bell": { "blocks": [
+  { "modes": [ { "ratio": 1, "level": 1, "decay": 4 }, { "ratio": 2.76, "level": 0.4, "decay": 1.5 }, { "ratio": 5.4, "level": 0.2, "decay": 0.6 } ] },
+  { "noise": "white", "burst": 0.003, "level": 0.1 }
+] }
+\`\`\`
+
+- \`env\` with \`sustain\` 0 is struck (rings out over \`decay\`); \`sustain\` above 0 holds for the
+  note's \`len\` like the organ. A source with its own \`env\` ignores the whole sound's.
+- \`"kind": "sfx"\` makes a sound effect: \`pitch\` is the default when a note gives none; \`length\`
+  makes it last \`len\` (default \`length\` seconds) and lets notes be placed by \`end\`.
+- getInstrument("marimba") (and the other block built-ins) shows the built-in as blocks: copy it
+  and change ratios, decays or the click to make a relative of it.
+- You do not set levels: every custom sound is balanced against the marimba, and the engine keeps
+  it clean (no aliasing, clicks, DC or runaway levels). Use track \`gain\` or layer \`gain\` to mix.
+
 ## Lyrics
 
 Words can ride on the melody, so a player shows them karaoke-style: the current line, the next

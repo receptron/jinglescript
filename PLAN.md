@@ -699,7 +699,7 @@ could be cues too (`hop1`…`hop3`), with or without notes on them.
 
 Ask the user rather than deciding:
 
-1. npm package names (`jinglescript`, and the GUI plugin's provisional `@gui-chat-plugin/jinglescript`) and when to publish. (Repository: receptron/jinglescript, public — decided 2026-10-08.)
+1. (Decided 2026-10-08: repository receptron/jinglescript, public; npm `jinglescript` and `@gui-chat-plugin/jinglescript`, first published as 0.1.0.)
 2. The default sample rate (48 kHz to match video, or 44.1 kHz).
 3. Whether piccolo and trumpet should ship in v1 as "synthetic" or wait for M5.
 4. Whether M5/M6 are wanted at all.
@@ -910,4 +910,7 @@ Decided:
   identical hashes on Node 22.19, 24.18 and 24.19 locally; CI checks Ubuntu x64 and macOS. Golden
   hashes regenerated (the sound changes by ~1e-12, inaudible). Also: test timeout 30 s for slow
   runners; the GUI demo fetches its samples instead of importing a git-ignored file.
+- 2026-10-08 — Published to npm at the user's request: `jinglescript@0.1.0` and
+  `@gui-chat-plugin/jinglescript@0.1.0` (library as a peer, `^0.1.0`). READMEs install from npm;
+  MCP setup uses `npx -y jinglescript mcp`.
 

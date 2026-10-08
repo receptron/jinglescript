@@ -14,16 +14,19 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
 - Cues are named moments (`"hit": { "seconds": 1.5 }`); notes are placed on them, and the timing map
   reports them, so an animation reads `cues.hit` instead of hard-coding a time.
 
-**Status: early development (milestone M2b of [PLAN.md](PLAN.md)).** Eleven instruments (marimba,
-xylophone, glockenspiel, vibraphone, music box, piano, organ, ukulele, piccolo and trumpet — both
-synthetic-sounding — and clap) and nine sound effects (clock, footsteps, tapdance, pistol, laser,
-whoosh, riser, impact, pop). Chords by name (`"chord": "G7"`) and tab-style strums
-(`"strum": "D-DU-UDU"`). Custom instruments, MP3 output and an MCP server (`manageJingleScript`) are
-planned. Not published to npm yet.
+**Status: early (0.x).** Eleven instruments (marimba, xylophone, glockenspiel, vibraphone, music
+box, piano, organ, ukulele, piccolo and trumpet — both synthetic-sounding — and clap) and eleven
+sound effects (clock, footsteps, heels, tapdance, knock, pistol, laser, whoosh, riser, impact, pop).
+Chords by name (`"chord": "G7"`) and tab-style strums (`"strum": "D-DU-UDU"`). An MCP server and a
+GUI Chat Protocol plugin with a player view. Custom instruments are planned.
+
+```sh
+npm install jinglescript
+```
 
 ## Try it
 
-Requires Node ≥ 22.18.
+Requires Node ≥ 22.18. From a clone (or use `npx jinglescript …` with the package):
 
 ```sh
 npm install
@@ -45,7 +48,7 @@ says what to do: `getGuide`, `getSchema`, `listInstruments`, `getInstrument`, `c
 Claude Code:
 
 ```sh
-claude mcp add jinglescript -- node /path/to/jinglescript/src/cli.ts mcp --out /path/to/renders
+claude mcp add jinglescript -- npx -y jinglescript mcp --out /path/to/renders
 ```
 
 Claude Desktop (`claude_desktop_config.json`):
@@ -54,8 +57,8 @@ Claude Desktop (`claude_desktop_config.json`):
 {
   "mcpServers": {
     "jinglescript": {
-      "command": "node",
-      "args": ["/path/to/jinglescript/src/cli.ts", "mcp", "--out", "/path/to/renders"]
+      "command": "npx",
+      "args": ["-y", "jinglescript", "mcp", "--out", "/path/to/renders"]
     }
   }
 }

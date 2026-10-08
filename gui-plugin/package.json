@@ -1,8 +1,25 @@
 {
   "name": "@gui-chat-plugin/jinglescript",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "description": "GUI Chat Protocol plugin for JingleScript: the manageJingleScript tool, with a player view for rendered jingles (waveform, cues, beats, notes).",
+  "keywords": [
+    "gui-chat-protocol",
+    "jinglescript",
+    "jingle",
+    "audio",
+    "player",
+    "mcp",
+    "vue"
+  ],
+  "homepage": "https://github.com/receptron/jinglescript/tree/main/gui-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/receptron/jinglescript/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/receptron/jinglescript.git",
+    "directory": "gui-plugin"
+  },
   "license": "MIT",
   "author": "receptron",
   "type": "module",
@@ -20,7 +37,9 @@
     "./style.css": "./dist/style.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "definition": "node scripts/write-definition.ts",
@@ -28,11 +47,12 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "demo": "vite demo --config vitest.config.ts",
-    "demo-data": "node scripts/write-demo-data.ts"
+    "demo-data": "node scripts/write-demo-data.ts",
+    "prepack": "npm run build"
   },
   "peerDependencies": {
     "gui-chat-protocol": "^2.3.0",
-    "jinglescript": "*",
+    "jinglescript": "^0.1.0",
     "vue": "^3.5.43"
   },
   "devDependencies": {

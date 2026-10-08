@@ -6,7 +6,9 @@
 import { z } from "zod";
 import { REVERBS } from "./dsp/reverb.ts";
 import { INSTRUMENT_NAMES, INSTRUMENTS } from "./instruments/index.ts";
+import { CHORD_PATTERN, CHORD_QUALITIES } from "./chords.ts";
 import { PITCH_PATTERN } from "./pitch.ts";
+import { STRUM_PATTERN } from "./strum.ts";
 import { CUE_NAME_PATTERN, CUE_REF_PATTERN } from "./time.ts";
 
 export const FORMAT = "jinglescript/1";
@@ -57,6 +59,34 @@ export const NoteSchema = z
       .union([PitchSchema, z.array(PitchSchema).min(1)], { error: 'A pitch is "C4", or a list of pitches for a chord: ["C4", "E4", "G4"].' })
       .optional()
       .describe("A pitch, or a list of pitches for a chord. Required for pitched instruments; leave it out for unpitched ones."),
+    chord: z
+      .string()
+      .regex(CHORD_PATTERN, {
+        error: `A chord is a root and a quality: "C", "Am", "G7", "Fmaj7", "Bb", "F#m7". Qualities: ${CHORD_QUALITIES.map((q) => (q === "" ? "(major)" : q)).join(", ")}.`,
+      })
+      .optional()
+      .describe(
+        'A chord by name instead of `pitch`: "C", "Am", "G7", "Fmaj7", "Bb", "F#m7", "Dsus4". The instrument voices it: a ukulele plays a real chord shape, other instruments stack it from octave 4. Use `pitch` instead for exact notes.',
+      ),
+    strum: z
+      .union(
+        [
+          z.string().regex(STRUM_PATTERN),
+          z.strictObject({
+            pattern: z.string().regex(STRUM_PATTERN).describe('"down", "up", or a pattern such as "D-DU-UDU".'),
+            grid: z.number().positive().optional().describe("Beats per pattern character (default 0.5: eighth notes; 0.25 for sixteenths)."),
+            spread: z.number().min(1).max(80).optional().describe("Milliseconds between strings (default 15)."),
+          }),
+        ],
+        {
+          error:
+            'strum is "down", "up", a pattern like "D-DU-UDU" (D down, U up, d/u soft, - rest; one character per eighth note), or { "pattern": …, "grid": …, "spread": … }.',
+        },
+      )
+      .optional()
+      .describe(
+        'Strum the chord string by string, slightly loose like a real hand. "down" or "up" for one stroke, or a pattern: one character per eighth note, D = down, U = up, d/u = soft, - = rest. "D-DU-UDU" is one 4-beat bar of the classic island strum; combine with `repeat` ({ "every": 4, "count": 2 }) for more bars. A pitch list is strummed in the order written (string order).',
+      ),
     vel: z.number().min(0).max(1).default(0.8).describe("Velocity 0–1: how hard the note is played (0.8 normal, 1 the big hit, 0.35 a soft echo)."),
     len: z.number().positive().optional().describe("Length in beats for sustained instruments. Struck and plucked instruments ring out and ignore it."),
     pan: z.number().min(0).max(1).optional().describe("Overrides the track's pan for this note: 0 left, 0.5 centre, 1 right."),

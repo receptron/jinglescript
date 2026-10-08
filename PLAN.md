@@ -808,3 +808,11 @@ Decided:
   大王" to hear chords; that song is copyrighted, so an original progression instead).
   Idea for later: a `strum` option on chords (string order and spacing) instead of writing each
   string as its own note.
+- 2026-10-08 — User liked the strum, "especially that it is a little off", and asked for a language
+  that makes this easy for an LLM. Added `chord` (symbols such as "G7", "Fmaj7", "F#m7"; voiced by
+  the instrument — fretted instruments declare a `tuning` and get a real shape from a fret search,
+  e.g. ukulele C = 0003, G7 = 0212; others stack from octave 4) and `strum` ("down", "up", or a
+  tab-style pattern "D-DU-UDU", one character per eighth note; strings ~15 ms apart with seeded
+  looseness in string gaps, onset and velocity; a stroke on a cue starts exactly on it). The
+  island-strum example went from 100 notes to 5 lines. Timing map notes gain `chord` and `strum`
+  (additive, still jinglescript-timing/1).

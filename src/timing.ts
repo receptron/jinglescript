@@ -16,6 +16,8 @@ export const TimingNoteSchema = z.strictObject({
     .optional()
     .describe("Pitch, or the chord's pitches; absent for unpitched sounds."),
   vel: z.number(),
+  chord: z.string().optional().describe("The chord symbol, when written as one."),
+  strum: z.enum(["down", "up"]).optional().describe("A strummed stroke: `t` is its first string."),
   variant: z.string().optional(),
   cue: z.string().optional().describe("Set when the note is placed exactly on this cue."),
 });
@@ -40,9 +42,11 @@ export function buildTiming(expanded: Expanded, audibleUntil: number): TimingMap
   const beats: number[] = [];
   for (let k = 0; k * beat < expanded.duration - 1e-9; k++) beats.push(roundMs(k * beat));
   const notes = expanded.events.map((event): TimingNote => {
-    const note: TimingNote = { t: roundMs(event.seconds), track: event.track, instrument: event.instrument, vel: event.vel };
+    const note: TimingNote = { t: roundMs(event.seconds), track: event.track, instrument: event.instrument, vel: Math.round(event.vel * 1000) / 1000 };
     if (event.pitches.length === 1) note.pitch = event.pitches[0];
     else if (event.pitches.length > 1) note.pitch = event.pitches;
+    if (event.chord !== undefined) note.chord = event.chord;
+    if (event.strum !== undefined) note.strum = event.strum.direction;
     if (event.variant !== undefined) note.variant = event.variant;
     if (event.cue !== undefined) note.cue = event.cue;
     return note;

@@ -240,6 +240,45 @@
                     }
                   ]
                 },
+                "chord": {
+                  "description": "A chord by name instead of `pitch`: \"C\", \"Am\", \"G7\", \"Fmaj7\", \"Bb\", \"F#m7\", \"Dsus4\". The instrument voices it: a ukulele plays a real chord shape, other instruments stack it from octave 4. Use `pitch` instead for exact notes.",
+                  "type": "string",
+                  "pattern": "^([A-G][#b]?)(add9|dim7|maj7|sus2|sus4|aug|dim|m6|m7|6|7|m|)$"
+                },
+                "strum": {
+                  "description": "Strum the chord string by string, slightly loose like a real hand. \"down\" or \"up\" for one stroke, or a pattern: one character per eighth note, D = down, U = up, d/u = soft, - = rest. \"D-DU-UDU\" is one 4-beat bar of the classic island strum; combine with `repeat` ({ \"every\": 4, \"count\": 2 }) for more bars. A pitch list is strummed in the order written (string order).",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^(down|up|[DUdu-]+)$"
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "pattern": {
+                          "type": "string",
+                          "pattern": "^(down|up|[DUdu-]+)$",
+                          "description": "\"down\", \"up\", or a pattern such as \"D-DU-UDU\"."
+                        },
+                        "grid": {
+                          "description": "Beats per pattern character (default 0.5: eighth notes; 0.25 for sixteenths).",
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "spread": {
+                          "description": "Milliseconds between strings (default 15).",
+                          "type": "number",
+                          "minimum": 1,
+                          "maximum": 80
+                        }
+                      },
+                      "required": [
+                        "pattern"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                },
                 "vel": {
                   "default": 0.8,
                   "description": "Velocity 0–1: how hard the note is played (0.8 normal, 1 the big hit, 0.35 a soft echo).",

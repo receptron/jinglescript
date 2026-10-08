@@ -65,6 +65,18 @@
           "vel": {
             "type": "number"
           },
+          "chord": {
+            "description": "The chord symbol, when written as one.",
+            "type": "string"
+          },
+          "strum": {
+            "description": "A strummed stroke: `t` is its first string.",
+            "type": "string",
+            "enum": [
+              "down",
+              "up"
+            ]
+          },
           "variant": {
             "type": "string"
           },

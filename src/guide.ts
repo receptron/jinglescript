@@ -36,6 +36,43 @@ schema with getSchema() / \`jinglescript schema\`; check your score with checkSc
 - Several tracks play together. Put the melody and the bass on separate tracks (even with the same
   instrument), each with its own \`gain\` (dB) and \`pan\` (0 left … 1 right).
 
+## Chords and strums
+
+- Write a chord by name with \`chord\` instead of \`pitch\`: "C", "Am", "G7", "Fmaj7", "Bb", "F#m7",
+  "Dsus4". The instrument voices it — on the **ukulele** you get the real chord shape (C = 0003,
+  F = 2010, G7 = 0212), on other instruments the chord stacked from octave 4. Use \`pitch\` lists
+  when you want exact notes.
+- \`strum\` plays a chord string by string, ~15 ms apart, slightly loose like a real hand (seeded,
+  so the same score always sounds the same). \`"down"\` or \`"up"\` for one stroke, or a pattern
+  with one character per eighth note: D down, U up, d/u soft, - rest.
+  - \`"D-DU-UDU"\` — the classic island strum, one 4-beat bar.
+  - \`"D-D-D-D-"\` — plain downstrokes on every beat.
+  - \`"D-DUD-DU"\` — a busier pop strum.
+  Write one note per bar with its chord and pattern; add \`"repeat": { "every": 4, "count": 2 }\`
+  to keep the same chord for two bars.
+- End on a single stroke: \`{ "at": "end", "chord": "C", "strum": { "pattern": "down", "spread": 25 } }\`
+  (a slower, wider final strum). A stroke placed on a cue starts exactly on it.
+
+### Example: island strum on ukulele
+
+\`\`\`json
+{
+  "format": "jinglescript/1",
+  "tempo": 100,
+  "length": { "seconds": 12 },
+  "cues": { "end": { "beats": 16 } },
+  "tracks": [
+    { "instrument": "ukulele", "notes": [
+      { "at": 0, "chord": "C", "strum": "D-DU-UDU", "vel": 0.75 },
+      { "at": 4, "chord": "F", "strum": "D-DU-UDU", "vel": 0.75 },
+      { "at": 8, "chord": "G7", "strum": "D-DU-UDU", "vel": 0.75 },
+      { "at": 12, "chord": "C", "strum": "D-DU-UDU", "vel": 0.75 },
+      { "at": "end", "chord": "C", "strum": { "pattern": "down", "spread": 25 }, "vel": 0.9 }
+    ] }
+  ]
+}
+\`\`\`
+
 ## Instruments
 
 Every instrument and its range is listed in the schema (\`tracks[].instrument\`) and by

@@ -28,4 +28,4 @@ exports[`every shipped example > hatena-marumo-c.json renders cleanly at the lou
 
 exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"b693b13bcead6d0ae1ddc7f6af828d2df53aa0cc02ca08a5177078631602d2f1"`;
 
-exports[`every shipped example > ukulele-island-strum.json renders cleanly at the loudness target (or says why not) 1`] = `"d705a2080e2008792c2bff5ec7b507ee9e01ed21ad180766b6827a55828f80c9"`;
+exports[`every shipped example > ukulele-island-strum.json renders cleanly at the loudness target (or says why not) 1`] = `"d4bb8bdaeb6356fe24fff955836afe27721b44886c80e85facca2ed75c0c6e53"`;

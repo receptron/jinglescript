@@ -2,9 +2,11 @@
 // whole score is known (a cue that does not exist, a pitch out of range, a note after the end).
 // Rendering and the timing map both read these events, so they cannot disagree.
 import { descriptorOf, type InstrumentName } from "./instruments/index.ts";
+import { voiceChord } from "./chords.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
 import type { Note, ScoreData } from "./score-schema.ts";
+import { DEFAULT_SPREAD_MS, normalizeStrum, strumSlots, voiceStrum, type StrumDirection } from "./strum.ts";
 import { resolveAt, secondsPerBeat, timeToSeconds, type At, type ResolvedAt } from "./time.ts";
 
 export type IssuePath = (string | number)[];
@@ -25,8 +27,12 @@ export interface NoteEvent {
   seconds: number;
   /** The cue this event sits exactly on, if any. */
   cue: string | undefined;
-  /** Pitch names; empty for unpitched sounds. */
+  /** Pitch names (a chord already voiced); empty for unpitched sounds. */
   pitches: string[];
+  /** The chord symbol, when the note was written as one. */
+  chord: string | undefined;
+  /** Per-pitch timing and velocity of a strummed stroke. */
+  strum: { direction: StrumDirection; offsets: number[]; weights: number[] } | undefined;
   vel: number;
   pan: number;
   gainDb: number;
@@ -68,31 +74,45 @@ function unknownCueIssue(path: IssuePath, cue: string, cues: Record<string, numb
   };
 }
 
+/** The pitches a note plays: its `pitch`, or its `chord` voiced for the instrument. */
+function notePitches(note: Note, instrument: InstrumentName): string[] {
+  if (note.chord !== undefined) return voiceChord(note.chord, descriptorOf(instrument).tuning) ?? [];
+  return pitchList(note.pitch);
+}
+
 function pitchIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
   const descriptor = descriptorOf(instrument);
-  if (!descriptor.pitched) {
-    return note.pitch === undefined ? [] : [{ path: [...path, "pitch"], message: `"${instrument}" is unpitched and takes no pitch.`, hint: "Remove `pitch`." }];
+  const given = note.chord === undefined ? "pitch" : "chord";
+  if (note.pitch !== undefined && note.chord !== undefined) {
+    return [{ path: [...path, "chord"], message: "Give `pitch` or `chord`, not both.", hint: "Use `chord` for a named chord, `pitch` for exact notes." }];
   }
-  if (note.pitch === undefined) {
-    return [{ path, message: `"${instrument}" is pitched: this note needs a pitch.`, hint: 'Add "pitch": "C5" (or a list for a chord).' }];
+  if (!descriptor.pitched) {
+    return note.pitch === undefined && note.chord === undefined
+      ? []
+      : [{ path: [...path, given], message: `"${instrument}" is unpitched and takes no ${given}.`, hint: `Remove \`${given}\`.` }];
+  }
+  if (note.pitch === undefined && note.chord === undefined) {
+    return [
+      { path, message: `"${instrument}" is pitched: this note needs a pitch or a chord.`, hint: 'Add "pitch": "C5", a list for a chord, or "chord": "C".' },
+    ];
   }
   const range = descriptor.range;
   if (range === null) return [];
   const low = pitchToMidi(range.low) ?? 0;
   const high = pitchToMidi(range.high) ?? 127;
-  return pitchList(note.pitch).flatMap((pitch, i): Issue[] => {
+  return notePitches(note, instrument).flatMap((pitch, i): Issue[] => {
     const midi = pitchToMidi(pitch);
     if (midi === undefined || (midi >= low && midi <= high)) return [];
-    return [
-      {
-        path: Array.isArray(note.pitch) ? [...path, "pitch", i] : [...path, "pitch"],
-        message: `${pitch} is outside ${instrument}'s range.`,
-        hint: `Use ${range.low}–${range.high}; move it by an octave.`,
-      },
-    ];
+    const pitchPath = Array.isArray(note.pitch) ? [...path, "pitch", i] : [...path, "pitch"];
+    const where = given === "chord" ? [...path, "chord"] : pitchPath;
+    return [{ path: where, message: `${pitch} is outside ${instrument}'s range.`, hint: `Use ${range.low}–${range.high}; move it by an octave.` }];
   });
 }
 
+function strumIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+  if (note.strum === undefined || notePitches(note, instrument).length >= 2) return [];
+  return [{ path: [...path, "strum"], message: "`strum` needs a chord.", hint: 'Give "chord": "C" or a list of pitches, in string order.' }];
+}
 function variantIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
   if (note.variant === undefined) return [];
   const allowed = descriptorOf(instrument).variants;
@@ -133,45 +153,91 @@ interface NoteContext {
   noteIndex: number;
 }
 
+interface Stroke {
+  /** Seconds after the repetition's start. */
+  offset: number;
+  direction: StrumDirection | undefined;
+  weight: number;
+}
+
+/** The strokes one repetition of a note plays: itself, or each stroke of its strum pattern. */
+function strokesOf(note: Note, tempo: number): Stroke[] {
+  if (note.strum === undefined) return [{ offset: 0, direction: undefined, weight: 1 }];
+  return strumSlots(normalizeStrum(note.strum)).slots.map((slot) => ({
+    offset: slot.offset * secondsPerBeat(tempo),
+    direction: slot.direction,
+    weight: slot.weight,
+  }));
+}
+
+function strumSpread(note: Note): number {
+  return typeof note.strum === "object" ? (note.strum.spread ?? DEFAULT_SPREAD_MS) : DEFAULT_SPREAD_MS;
+}
+
+interface Placed {
+  index: number;
+  seconds: number;
+  onCue: string | undefined;
+  stroke: Stroke;
+}
+
+function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Placed): NoteEvent {
+  const { score, trackIndex, noteIndex } = ctx;
+  const track = score.tracks[trackIndex];
+  const pinned = placed.onCue !== undefined;
+  const humanize =
+    note.humanize !== undefined && !pinned ? (streamRng(score.seed, "humanize", trackIndex, noteIndex, placed.index).next() * 2 - 1) * note.humanize : 0;
+  const strum =
+    placed.stroke.direction === undefined
+      ? undefined
+      : voiceStrum(pitches.length, placed.stroke.direction, strumSpread(note), pinned, streamRng(score.seed, "strum", trackIndex, noteIndex, placed.index));
+  return {
+    track: trackIndex,
+    note: noteIndex,
+    repeat: placed.index,
+    instrument: track?.instrument ?? "marimba",
+    // Looseness never moves a note before the start.
+    seconds: Math.max(0, placed.seconds + humanize / 1000 + (strum?.shift ?? 0)),
+    cue: placed.onCue,
+    pitches,
+    chord: note.chord,
+    strum:
+      strum === undefined || placed.stroke.direction === undefined
+        ? undefined
+        : { direction: placed.stroke.direction, offsets: strum.offsets, weights: strum.weights },
+    vel: note.vel * placed.stroke.weight,
+    pan: note.pan ?? track?.pan ?? 0.5,
+    gainDb: track?.gain ?? 0,
+    hold: note.len === undefined ? Number.NaN : note.len * secondsPerBeat(score.tempo),
+    variant: variantAt(note, placed.index),
+    detune: note.detune ?? 0,
+  };
+}
+
 function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues: Issue[] } {
   const { score, cues, trackIndex, noteIndex } = ctx;
   const track = score.tracks[trackIndex];
   if (track === undefined) return { events: [], issues: [] };
   const path: IssuePath = ["tracks", trackIndex, "notes", noteIndex];
-  const issues = [...pitchIssues(note, track.instrument, path), ...variantIssues(note, track.instrument, path)];
+  const issues = [...pitchIssues(note, track.instrument, path), ...variantIssues(note, track.instrument, path), ...strumIssues(note, track.instrument, path)];
   const resolve = (at: At): ResolvedAt => resolveAt(at, score.tempo, cues);
   const start = resolve(note.at);
   if (!start.ok) return { events: [], issues: [...issues, unknownCueIssue([...path, "at"], start.unknownCue, cues)] };
   const { times, until } = repeatTimes(note, start.seconds, score.tempo, resolve);
   if (until !== undefined && !until.ok) issues.push(unknownCueIssue([...path, "repeat", "until"], until.unknownCue, cues));
 
-  const pitches = pitchList(note.pitch);
-  const events = times.map((t, repeat): NoteEvent => {
-    const onCue = repeat === 0 ? start.cue : undefined;
-    const jitter =
-      note.humanize !== undefined && onCue === undefined
-        ? (streamRng(score.seed, "humanize", trackIndex, noteIndex, repeat).next() * 2 - 1) * note.humanize
-        : 0;
-    return {
-      track: trackIndex,
-      note: noteIndex,
-      repeat,
-      instrument: track.instrument,
-      seconds: t + jitter / 1000,
-      cue: onCue,
-      pitches,
-      vel: note.vel,
-      pan: note.pan ?? track.pan,
-      gainDb: track.gain,
-      hold: note.len === undefined ? Number.NaN : note.len * secondsPerBeat(score.tempo),
-      variant: variantAt(note, repeat),
-      detune: note.detune ?? 0,
-    };
-  });
+  const pitches = notePitches(note, track.instrument);
+  const strokes = strokesOf(note, score.tempo);
+  const events = times.flatMap((t, repeat) =>
+    strokes.map((stroke, k) => {
+      const index = repeat * strokes.length + k;
+      const onCue = index === 0 ? start.cue : undefined;
+      return noteEvent(note, ctx, pitches, { index, seconds: t + stroke.offset, onCue, stroke });
+    }),
+  );
   for (const event of events) issues.push(...timeIssues(event, ctx.duration, path));
   return { events, issues };
 }
-
 function timeIssues(event: NoteEvent, duration: number, path: IssuePath): Issue[] {
   const where = event.repeat === 0 ? "This note" : `Repetition ${event.repeat + 1} of this note`;
   if (event.seconds < -EPSILON) {

@@ -119,6 +119,8 @@ export const ukulele: Instrument = {
     sustained: false,
     range: { low: "C3", high: "C6" },
     variants: [],
+    // Re-entrant GCEA, high G: a down-strum goes G4, C4, E4, A4.
+    tuning: ["G4", "C4", "E4", "A4"],
     transpose: 0,
     synthetic: false,
   },

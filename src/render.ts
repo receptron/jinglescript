@@ -37,13 +37,13 @@ function mixEvent(event: NoteEvent, mix: [Float32Array, Float32Array], seed: num
   const voices: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
   const gain = 10 ** (event.gainDb / 20);
   const [left, right] = panGains(event.pan).map((g) => g * gain);
-  const start = secondsToSample(event.seconds, sampleRate);
   voices.forEach((pitch, voice) => {
+    const start = secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate);
     const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
     const samples = instrument.synthesize({
       midi,
       frequency: midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose + event.detune / 100),
-      velocity: event.vel,
+      velocity: event.vel * (event.strum?.weights[voice] ?? 1),
       hold: event.hold,
       variant: event.variant,
       sampleRate,

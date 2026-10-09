@@ -1,6 +1,8 @@
 // The MCP server: one tool, `manageJingleScript` (src/manage.ts), carried over MCP. Rendering
-// writes only inside the output directory fixed when the server starts.
+// writes only inside the output directory fixed when the server starts. A score `path` is read
+// relative to the directory the server runs in (the client's project), or as given when absolute.
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -17,7 +19,7 @@ interface ToolResult {
 }
 
 export async function handleManage(input: ManageInput, outDir: string): Promise<ToolResult> {
-  const result = await manage(input, { outDir });
+  const result = await manage(input, { outDir, readScoreFile: (path) => readFile(resolve(path), "utf8") });
   return { content: [{ type: "text", text: result.text }], ...(result.isError ? { isError: true } : {}) };
 }
 

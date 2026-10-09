@@ -10,6 +10,11 @@ karaoke-style: the line being played and the next, each syllable filling in as i
 The audio and the music as MIDI (the library's `scoreToMidi`) can be downloaded from the view;
 the data also carries the score that was rendered. Every other action answers the LLM in text and shows no card.
 
+A score can also be passed as a file (`path` instead of `score`). The plugin reads it through the
+host's `files.byPath` capability — the one presentDocument uses — so the host decides what a path
+may reach and what a relative path is relative to. A host that does not provide `files.byPath` to
+`manageJingleScript` gets an error asking for the score inline.
+
 - **`"@gui-chat-plugin/jinglescript"`** (main entry, Node): `TOOL_DEFINITION`, `pluginCore`
   (`execute` renders on the host's server). The audio is embedded as a data URI — MP3 when ffmpeg
   is on the server, otherwise 16-bit WAV — so no file serving is needed.

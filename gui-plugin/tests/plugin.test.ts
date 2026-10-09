@@ -33,6 +33,27 @@ describe("the GUI Chat Protocol plugin", () => {
     expect(JSON.parse(result.message)).toMatchObject({ ok: true });
   });
 
+  it("reads a score `path` through the host's files.byPath, and refuses it without one", async () => {
+    const reads: string[] = [];
+    const unused = (): Promise<never> => Promise.reject(new Error("unused"));
+    const byPath = {
+      read: (path: string): Promise<string> => {
+        reads.push(path);
+        return Promise.resolve(JSON.stringify(score));
+      },
+      readBytes: unused,
+      write: unused,
+      readDir: unused,
+      stat: unused,
+      exists: () => Promise.resolve(true),
+      unlink: unused,
+    };
+    const result = await executeManage({ files: { byPath } }, { action: "renderScore", path: "/work/plugin-test.json" });
+    expect(reads).toEqual(["/work/plugin-test.json"]);
+    expect(result.data?.title).toBe("Plugin test");
+    expect((await executeManage({}, { action: "renderScore", path: "/work/plugin-test.json" })).message).toContain("cannot read files");
+  });
+
   it("other actions answer in text and show no card", async () => {
     const result = await executeManage({}, { action: "getGuide" });
     expect(result.data).toBeUndefined();

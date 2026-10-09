@@ -49,6 +49,9 @@ node src/cli.ts schema                 # the JSON Schema (also in schema/jingles
 `jinglescript mcp` is an MCP server with a single tool, **`manageJingleScript`**. Its `action`
 says what to do: `getGuide`, `getSchema`, `listInstruments`, `getInstrument`, `checkScore`,
 `renderScore`. Rendered files go to the folder given by `--out` (default `out/jinglescript`).
+`checkScore` and `renderScore` take the score inline (`score`) or as a file (`path`: a `.json`
+file, relative to the directory the server runs in or absolute), so a long score need not travel
+in the tool call; renders are then named after the file.
 `renderScore` answers with a summary of the timing map (tempo, duration, cues, `audibleUntil`,
 notes per track) and the path of the full `timing.json`; pass `includeTiming: true` to get every
 beat, note and lyric in the answer too.
@@ -120,7 +123,8 @@ A JingleScript score is JSON (format "jinglescript/1") describing a jingle — m
 effects — plus named **cues** an animation syncs to. Get the exact schema with getSchema() /
 `jinglescript schema` / the MCP action `getSchema`; check your score
 with checkScore() / `jinglescript check` / the MCP action `checkScore`, and fix every error it
-reports before rendering.
+reports before rendering. A long score is easier to keep in a `.json` file: write it there and
+pass `path` to `checkScore` / `renderScore` instead of the score itself.
 
 ### Work in this order
 

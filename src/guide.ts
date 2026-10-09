@@ -7,7 +7,8 @@ A JingleScript score is JSON (format "jinglescript/1") describing a jingle — m
 effects — plus named **cues** an animation syncs to. Get the exact schema with getSchema() /
 \`jinglescript schema\` / the MCP action \`getSchema\`; check your score
 with checkScore() / \`jinglescript check\` / the MCP action \`checkScore\`, and fix every error it
-reports before rendering.
+reports before rendering. A long score is easier to keep in a \`.json\` file: write it there and
+pass \`path\` to \`checkScore\` / \`renderScore\` instead of the score itself.
 
 ## Work in this order
 

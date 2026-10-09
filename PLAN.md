@@ -616,8 +616,8 @@ function; the input is a zod discriminated union on `action` (no second definiti
 | `getGuide` | — | `getAuthoringGuide` | Markdown |
 | `listInstruments` | — | `listInstruments` | JSON |
 | `getInstrument` | `name` | `getInstrument` | JSON |
-| `checkScore` | `score` | `checkScore` | errors with paths and hints, resolved cue times |
-| `renderScore` | `score`, `name?`, `format?`, `includeTiming?` | `render` + writers | paths of the audio and timing files, a summary of the timing map (tempo, duration, cues, `audibleUntil`, notes per track; the whole map with `includeTiming: true`), measured loudness |
+| `checkScore` | `score` or `path` | `checkScore` | errors with paths and hints, resolved cue times |
+| `renderScore` | `score` or `path`, `name?`, `format?`, `includeTiming?` | `render` + writers | paths of the audio and timing files, a summary of the timing map (tempo, duration, cues, `audibleUntil`, notes per track; the whole map with `includeTiming: true`), measured loudness |
 
 - `renderScore` writes only inside an output directory fixed when the server starts
   (`--out <dir>`, default `./out/jinglescript`); `name` is a file stem, never a path. The score
@@ -1144,3 +1144,9 @@ Decided:
   notes a tick apart end together); effect markers a delay pushes past the end were kept. The
   seventh round found nothing, and after a lint fix (sort a copy) the eighth found the markers;
   the ninth found nothing.
+- 2026-10-09 — User: large scores must be passable as a file, as MulmoClaude's presentDocument
+  does. `checkScore` / `renderScore` take `path` (a `.json` file) instead of `score`, exactly one;
+  the path is checked lexically (`.json`, no `.` / `..` / empty segment) and read by the carrier:
+  the MCP server with fs, relative to its working directory; the GUI plugin through the host's
+  `files.byPath` (refused, with a hint to pass `score`, when the host gives none). Renders are
+  named after the file. MulmoTerminal does not yet hand `files.byPath` to manageJingleScript.

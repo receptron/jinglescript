@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ffmpegAvailable } from "../src/encode.ts";
-import { manage, manageInputJsonSchema } from "../src/manage.ts";
+import { isScorePath, manage, ManageInputSchema, manageInputJsonSchema } from "../src/manage.ts";
 
 const hasFfmpeg = await ffmpegAvailable();
 const score = {
@@ -51,6 +51,31 @@ describe("manageJingleScript, carried by any protocol", () => {
     const full = JSON.parse((await manage({ action: "renderScore", score, includeTiming: true })).text) as { timing: { notes: unknown[]; beats: unknown[] } };
     expect(full.timing.notes).toHaveLength(2);
     expect(full.timing.beats.length).toBeGreaterThan(0);
+  });
+
+  it("reads a score file named by `path` through the carrier's reader", async () => {
+    const files: Record<string, string> = { "scores/opening.json": JSON.stringify(score), "scores/broken.json": "{ nope" };
+    const readScoreFile = (path: string): Promise<string> => {
+      const text = files[path];
+      return text === undefined ? Promise.reject(new Error("ENOENT: no such file")) : Promise.resolve(text);
+    };
+    const checked = await manage({ action: "checkScore", path: "scores/opening.json" }, { readScoreFile });
+    expect(JSON.parse(checked.text)).toMatchObject({ ok: true });
+    const rendered = await manage({ action: "renderScore", path: "scores/opening.json" }, { readScoreFile, player: true });
+    expect(rendered.player?.score.title).toBe("Test sting");
+    const missing = await manage({ action: "renderScore", path: "scores/gone.json" }, { readScoreFile });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toContain("Cannot read scores/gone.json: ENOENT");
+    expect(await manage({ action: "checkScore", path: "scores/broken.json" }, { readScoreFile })).toMatchObject({ isError: true });
+    expect((await manage({ action: "checkScore", path: "../secret.json" }, { readScoreFile })).text).toContain("must name a .json file");
+    expect((await manage({ action: "checkScore", path: "scores/opening.json" })).text).toContain("cannot read files");
+  });
+
+  it("takes `score` or `path`, exactly one, and checks a path's shape", () => {
+    expect(ManageInputSchema.safeParse({ action: "renderScore", score, path: "a.json" }).error?.issues[0]?.message).toBe("Give `score` or `path`, not both.");
+    expect(ManageInputSchema.safeParse({ action: "checkScore" }).error?.issues[0]?.message).toContain("needs `score` (the score itself) or `path`");
+    expect(["opening.json", "scores/a.json", "/abs/a.json", "C:\\proj\\a.json"].map(isScorePath)).toEqual([true, true, true, true]);
+    expect(["a.md", "../a.json", "scores/./a.json", "scores//a.json", "a\0.json"].map(isScorePath)).toEqual([false, false, false, false, false]);
   });
 
   it("describes its input as an object JSON Schema for function-calling hosts", () => {

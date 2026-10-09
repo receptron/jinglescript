@@ -16,6 +16,22 @@ export const MANAGE_TOOL = "manageJingleScript";
 export const MANAGE_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore"] as const;
 export type ManageAction = (typeof MANAGE_ACTIONS)[number];
 
+/** A score file the tool call names: a `.json` path, relative or absolute, with no `.` / `..` / empty segment. */
+export function isScorePath(value: string): boolean {
+  if (!value.toLowerCase().endsWith(".json") || value.includes("\0")) return false;
+  const segments = value.replace(/^[A-Za-z]:/, "").split(/[\\/]/);
+  return segments.every((segment, i) => (segment === "" ? i === 0 : segment !== "." && segment !== ".."));
+}
+
+/** The file stem of a score path ("scores/opening.json" → "opening"), when it is a valid one. */
+function stemOf(path: string): string | undefined {
+  const stem = path
+    .split(/[\\/]/)
+    .at(-1)
+    ?.replace(/\.json$/i, "");
+  return stem !== undefined && FILE_STEM.test(stem) ? stem : undefined;
+}
+
 /** A file stem: letters, digits, dot, dash, underscore — never a path. */
 const FILE_STEM = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/;
 
@@ -29,7 +45,7 @@ const REQUIRED: Record<ManageAction, readonly ("instrument" | "score")[]> = {
 };
 
 export const MANAGE_DESCRIPTION =
-  "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore.";
+  "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`.";
 
 export const ManageInputSchema = z
   .object({
@@ -43,12 +59,23 @@ export const ManageInputSchema = z
       .optional()
       .describe('getSchema: one part only ("score" is the whole format, "instrument" a custom instrument\'s, "timing" the timing map\'s).'),
     instrument: z.string().optional().describe("getInstrument: the instrument or sound effect's name."),
-    score: z.unknown().optional().describe("checkScore, renderScore: the score as a JSON object (format jinglescript/1). A JSON string is accepted too."),
+    score: z
+      .unknown()
+      .optional()
+      .describe(
+        "checkScore, renderScore: the score as a JSON object (format jinglescript/1). A JSON string is accepted too. Give `score` or `path`, not both.",
+      ),
+    path: z
+      .string()
+      .optional()
+      .describe(
+        "checkScore, renderScore: path of a score file (.json) to read instead of passing `score` — better for long scores. Relative to the project directory, or absolute. Give `score` or `path`, not both.",
+      ),
     fileName: z
       .string()
       .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
       .optional()
-      .describe('renderScore: file stem for the outputs (default "jingle").'),
+      .describe('renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle").'),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
     includeTiming: z
       .boolean()
@@ -59,7 +86,15 @@ export const ManageInputSchema = z
   })
   .superRefine((input, ctx) => {
     for (const field of REQUIRED[input.action]) {
-      if (input[field] === undefined) ctx.addIssue({ code: "custom", path: [field], message: `${input.action} needs \`${field}\`.` });
+      if (field === "score") {
+        if (input.score === undefined && input.path === undefined) {
+          ctx.addIssue({ code: "custom", path: ["score"], message: `${input.action} needs \`score\` (the score itself) or \`path\` (a score file).` });
+        } else if (input.score !== undefined && input.path !== undefined) {
+          ctx.addIssue({ code: "custom", path: ["path"], message: "Give `score` or `path`, not both." });
+        }
+      } else if (input[field] === undefined) {
+        ctx.addIssue({ code: "custom", path: [field], message: `${input.action} needs \`${field}\`.` });
+      }
     }
   });
 
@@ -93,6 +128,11 @@ export interface ManageResult {
 }
 
 export interface ManageOptions {
+  /**
+   * Reads a score file named by `path` (already checked to be a `.json` path). The carrier decides
+   * what a path may reach and what a relative one is relative to. Without it, `path` is refused.
+   */
+  readScoreFile?: (path: string) => Promise<string>;
   /** Write renders here (MCP). Without it, renderScore writes no files. */
   outDir?: string;
   /** Build PlayerData for a view (GUI Chat Protocol). */
@@ -138,6 +178,27 @@ function parseMaybeJson(score: unknown): unknown {
 }
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
+
+/** The score the call gave: inline, or read from `path`; or the answer to send back when that fails. */
+async function scoreOf(input: ManageInput, options: ManageOptions): Promise<{ ok: true; score: unknown } | { ok: false; result: ManageResult }> {
+  const path = input.path;
+  if (path === undefined) return { ok: true, score: parseMaybeJson(input.score) };
+  const failed = (text: string): { ok: false; result: ManageResult } => ({ ok: false, result: { text, isError: true } });
+  if (!isScorePath(path)) return failed(`\`path\` must name a .json file, without \`.\` or \`..\` segments: ${JSON.stringify(path)}.`);
+  if (options.readScoreFile === undefined) return failed("This host cannot read files: pass the score itself as `score` instead of `path`.");
+  let text: string;
+  try {
+    text = await options.readScoreFile(path);
+  } catch (error) {
+    return failed(`Cannot read ${path}: ${error instanceof Error ? error.message : String(error)}. Check the path, or pass the score itself as \`score\`.`);
+  }
+  try {
+    const parsed: unknown = JSON.parse(text);
+    return { ok: true, score: parsed };
+  } catch (error) {
+    return failed(`${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}.`);
+  }
+}
 const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** The timing map without its per-beat, per-note and per-syllable lists, which are long and rarely needed by the LLM. */
@@ -157,11 +218,13 @@ function timingSummary(timing: TimingMap, trackCount: number, fullTimingAt: stri
 }
 
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
-  const raw = parseMaybeJson(input.score);
+  const source = await scoreOf(input, options);
+  if (!source.ok) return source.result;
+  const raw = source.score;
   const check = checkScore(raw);
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
   const score = parseScore(raw);
-  const stem = input.fileName ?? "jingle";
+  const stem = input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
   let files: { audio: string; timing: string } | undefined;
   let result: RenderResult;
   try {
@@ -215,8 +278,10 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
         isError: true,
       };
     }
-    case "checkScore":
-      return { text: json(checkScore(parseMaybeJson(input.score))), isError: false };
+    case "checkScore": {
+      const source = await scoreOf(input, options);
+      return source.ok ? { text: json(checkScore(source.score)), isError: false } : source.result;
+    }
     case "renderScore":
       return renderAction(input, options);
   }

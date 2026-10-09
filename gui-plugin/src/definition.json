@@ -1,7 +1,7 @@
 {
   "type": "function",
   "name": "manageJingleScript",
-  "description": "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. renderScore shows a player with the waveform, cues and beats.",
+  "description": "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. renderScore shows a player with the waveform, cues and beats.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -37,8 +37,12 @@
         "type": "object",
         "description": "checkScore, renderScore: the score (format jinglescript/1)."
       },
+      "path": {
+        "description": "checkScore, renderScore: path of a score file (.json) to read instead of passing `score` — better for long scores. Relative to the project directory, or absolute. Give `score` or `path`, not both.",
+        "type": "string"
+      },
       "fileName": {
-        "description": "renderScore: file stem for the outputs (default \"jingle\").",
+        "description": "renderScore: file stem for the outputs (default: the score file's name with `path`, otherwise \"jingle\").",
         "type": "string",
         "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$"
       },

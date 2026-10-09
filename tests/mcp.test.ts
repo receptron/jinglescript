@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -83,6 +83,20 @@ describe("MCP server", () => {
     expect(result.timing.omitted).toContain("in timingFile");
     const escape = await call({ action: "renderScore", score, fileName: "../evil" });
     expect(escape.isError).toBe(true);
+  });
+
+  it("renders a score file named by an absolute or a relative path, named after the file", async () => {
+    const scoreDir = mkdtempSync(join(tmpdir(), "jinglescript-score-"));
+    const file = join(scoreDir, "from-file.json");
+    writeFileSync(file, JSON.stringify(score));
+    const absolute = JSON.parse((await call({ action: "renderScore", path: file })).text) as { audio: string };
+    expect(absolute.audio).toBe(join(outDir, "from-file.wav"));
+    mkdirSync("out", { recursive: true });
+    const nearby = mkdtempSync(join("out", "score-"));
+    writeFileSync(join(nearby, "near.json"), JSON.stringify(score));
+    expect(JSON.parse((await call({ action: "checkScore", path: join(nearby, "near.json") })).text)).toMatchObject({ ok: true });
+    expect((await call({ action: "checkScore", path: relative(process.cwd(), file) })).text).toContain("without `.` or `..` segments");
+    expect(await call({ action: "checkScore", path: join(scoreDir, "missing.json") })).toMatchObject({ isError: true });
   });
 
   it("returns errors instead of rendering an invalid score", async () => {

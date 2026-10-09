@@ -70,16 +70,17 @@ describe("MCP server", () => {
     expect(missing.text).toContain("checkScore needs `score`");
   });
 
-  it("renders into its output folder only, and returns the timing map", async () => {
+  it("renders into its output folder only, and returns the timing map's summary", async () => {
     const result = JSON.parse((await call({ action: "renderScore", score: JSON.stringify(score), fileName: "opening" })).text) as {
       audio: string;
       timingFile: string;
-      timing: { cues: Record<string, number> };
+      timing: { cues: Record<string, number>; omitted: string };
     };
     expect(result.audio).toBe(join(outDir, "opening.wav"));
     expect(readFileSync(result.audio).subarray(0, 4).toString()).toBe("RIFF");
     expect(JSON.parse(readFileSync(result.timingFile, "utf8"))).toMatchObject({ cues: { hit: 1 } });
     expect(result.timing.cues).toEqual({ hit: 1 });
+    expect(result.timing.omitted).toContain("in timingFile");
     const escape = await call({ action: "renderScore", score, fileName: "../evil" });
     expect(escape.isError).toBe(true);
   });

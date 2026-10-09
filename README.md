@@ -49,6 +49,9 @@ node src/cli.ts schema                 # the JSON Schema (also in schema/jingles
 `jinglescript mcp` is an MCP server with a single tool, **`manageJingleScript`**. Its `action`
 says what to do: `getGuide`, `getSchema`, `listInstruments`, `getInstrument`, `checkScore`,
 `renderScore`. Rendered files go to the folder given by `--out` (default `out/jinglescript`).
+`renderScore` answers with a summary of the timing map (tempo, duration, cues, `audibleUntil`,
+notes per track) and the path of the full `timing.json`; pass `includeTiming: true` to get every
+beat, note and lyric in the answer too.
 
 Claude Code:
 

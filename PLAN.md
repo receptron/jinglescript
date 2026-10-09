@@ -617,7 +617,7 @@ function; the input is a zod discriminated union on `action` (no second definiti
 | `listInstruments` | — | `listInstruments` | JSON |
 | `getInstrument` | `name` | `getInstrument` | JSON |
 | `checkScore` | `score` | `checkScore` | errors with paths and hints, resolved cue times |
-| `renderScore` | `score`, `name?`, `format?` | `render` + writers | paths of the audio and timing files, the timing map, measured loudness and `audibleUntil` |
+| `renderScore` | `score`, `name?`, `format?`, `includeTiming?` | `render` + writers | paths of the audio and timing files, a summary of the timing map (tempo, duration, cues, `audibleUntil`, notes per track; the whole map with `includeTiming: true`), measured loudness |
 
 - `renderScore` writes only inside an output directory fixed when the server starts
   (`--out <dir>`, default `./out/jinglescript`); `name` is a file stem, never a path. The score
@@ -1117,3 +1117,8 @@ Decided:
   loads of the same uncached sample shared a temporary file (ENOENT on rename), and
   `samplesNeeded` synthesized every note of every score — now only notes of `sampled`
   instruments (layered custom instruments carry the mark). The second round found nothing.
+- 2026-10-09 — User: the `renderScore` answer is too long (a 45 s grandpiano piece: ~30 000
+  characters, nearly all `beats` and `notes`). It now carries a summary of the timing map
+  (tempo, duration, cues, `audibleUntil`, notes per track, lyric line count) plus where the rest
+  is; `includeTiming: true` returns the whole map. The timing map, `timing.json` and the
+  player's data are unchanged.

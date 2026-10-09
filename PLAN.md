@@ -1122,3 +1122,4 @@ Decided:
   (tempo, duration, cues, `audibleUntil`, notes per track, lyric line count) plus where the rest
   is; `includeTiming: true` returns the whole map. The timing map, `timing.json` and the
   player's data are unchanged.
+- 2026-10-09 — Codex reviewed PR #4: no findings.

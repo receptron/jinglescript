@@ -1150,3 +1150,4 @@ Decided:
   the MCP server with fs, relative to its working directory; the GUI plugin through the host's
   `files.byPath` (refused, with a hint to pass `score`, when the host gives none). Renders are
   named after the file. MulmoTerminal does not yet hand `files.byPath` to manageJingleScript.
+- 2026-10-09 — Codex reviewed PR #6: no findings.

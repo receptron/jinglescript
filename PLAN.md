@@ -1123,3 +1123,24 @@ Decided:
   is; `includeTiming: true` returns the whole map. The timing map, `timing.json` and the
   player's data are unchanged.
 - 2026-10-09 — Codex reviewed PR #4: no findings.
+- 2026-10-09 — User: export the music from the player view as MIDI (MusicXML later, if at all;
+  the score has no meter and notes sit off the grid, so notation would be guesswork).
+  `scoreToMidi(score)` writes a type-1 Standard MIDI File from the expanded events, at the times
+  the audio plays them: a track per score track, General MIDI sounds per built-in (a
+  `Record<InstrumentName, …>`), drums on channel 10, sounding pitches, cues as markers, lyrics as
+  lyric events, effects without a GM sound as markers. `PlayerData` gains `score` and `midi`
+  (data URI); the view has "Download MIDI" next to the audio. Six examples in `out/midi/` read
+  cleanly with @tonejs/midi (tempo, tracks, programs, notes as expected); not yet opened in a
+  DAW by the user.
+- 2026-10-09 — User: "Download MIDI works great" (in the demo). Codex reviewed PR #5 over nine
+  rounds; ten findings fixed, each with a test: an unpitched pistol note had no key (now GM
+  Gunshot on key 60); vel-0 notes were exported at velocity 1 (now left out); the header wrote one
+  byte of the track count; transposition was lost through nested bases and a stack's first layer;
+  past 15 melodic tracks channels wrapped across programs (now shared by program, which the
+  built-ins' 11 GM programs always allow); same-key notes struck together on a shared channel
+  ended at the shorter one's end; notes held past the score's length; a stack's first-layer
+  `delay` was ignored (and notes it pushes past the end are left out); a re-struck key on a
+  shared channel relied on the order players merge track chunks (now it ends a tick early, and
+  notes a tick apart end together); effect markers a delay pushes past the end were kept. The
+  seventh round found nothing, and after a lint fix (sort a copy) the eighth found the markers;
+  the ninth found nothing.

@@ -21,7 +21,7 @@ const score = {
 };
 
 describe("manageJingleScript, carried by any protocol", () => {
-  it("renders player data for a view: embedded audio, waveform peaks, the timing map", async () => {
+  it("renders player data for a view: embedded audio, waveform peaks, the timing map, the score and its MIDI", async () => {
     const result = await manage({ action: "renderScore", score }, { player: true });
     expect(result.isError).toBe(false);
     const player = result.player;
@@ -32,6 +32,8 @@ describe("manageJingleScript, carried by any protocol", () => {
     expect(Math.max(...(player?.peaks ?? []))).toBeLessThanOrEqual(1);
     expect(player?.timing.cues).toEqual({ hit: 1 });
     expect(player?.tracks).toEqual(["marimba"]);
+    expect(player?.score).toMatchObject({ title: "Test sting", tempo: 120 });
+    expect(player?.midi.startsWith("data:audio/midi;base64,TVRoZA")).toBe(true);
   });
 
   it("writes no files without an output folder, and no player data unless asked", async () => {

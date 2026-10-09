@@ -5,9 +5,10 @@ import { z } from "zod";
 import { AUDIO_FORMATS, encodeAudioBytes, FfmpegMissingError, MIME_TYPES, type AudioFormat } from "./encode.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
+import { MIDI_MIME_TYPE, scoreToMidi } from "./midi.ts";
 import { render, type RenderResult } from "./render.ts";
 import { SampleDownloadError, loadSamples } from "./samples/load.ts";
-import { checkScore, parseScore } from "./score.ts";
+import { checkScore, parseScore, type Score } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { toWav } from "./wav.ts";
 
@@ -77,6 +78,10 @@ export interface PlayerData {
   /** Instrument per track, in order. */
   tracks: string[];
   loudness: number;
+  /** The score that was rendered, with its defaults filled in. */
+  score: Score;
+  /** The score as a Standard MIDI File, as a data URI. */
+  midi: string;
 }
 
 export interface ManageResult {
@@ -186,6 +191,8 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     timing: result.timing,
     tracks: score.tracks.map((t) => t.name ?? t.instrument),
     loudness: round1(result.stats.loudness),
+    score,
+    midi: `data:${MIDI_MIME_TYPE};base64,${Buffer.from(scoreToMidi(score)).toString("base64")}`,
   };
   return { text: json(summary), isError: false, player };
 }

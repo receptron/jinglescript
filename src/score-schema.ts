@@ -5,6 +5,7 @@
 // in score.ts.
 import { z } from "zod";
 import { REVERBS } from "./dsp/reverb.ts";
+import { CUSTOM_NAME_PATTERN, InstrumentsSchema } from "./custom/schema.ts";
 import { INSTRUMENT_NAMES, INSTRUMENTS } from "./instruments/index.ts";
 import { CHORD_PATTERN, CHORD_QUALITIES } from "./chords.ts";
 import { PITCH_PATTERN } from "./pitch.ts";
@@ -138,8 +139,10 @@ export const NoteSchema = z
 export const TrackSchema = z
   .strictObject({
     instrument: z
-      .enum(INSTRUMENT_NAMES, { error: `Unknown instrument. Available: ${instrumentList}.` })
-      .describe(`Which built-in instrument or sound effect plays this track. ${instrumentHelp}`),
+      .union([z.enum(INSTRUMENT_NAMES), z.string().regex(CUSTOM_NAME_PATTERN)], {
+        error: `Unknown instrument. Built-in: ${instrumentList}; or the name of one defined under "instruments".`,
+      })
+      .describe(`Which instrument or sound effect plays this track: a built-in, or one defined under "instruments". Built-in: ${instrumentHelp}`),
     name: z.string().optional().describe('Optional label for people, e.g. "melody" or "bass".'),
     gain: z.number().min(-60).max(12).default(0).describe("Track level in dB (0 = as is, -6 = about half as loud)."),
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
@@ -177,6 +180,7 @@ export const ScoreBaseSchema = z
       .record(z.string().regex(CUE_NAME_PATTERN, { error: "Cue names start with a lowercase letter and use only letters, digits and _." }), CueSchema)
       .default({})
       .describe('Named moments, e.g. { "hit": { "seconds": 1.5 }, "voice": { "seconds": 1.8 } }. Notes can be placed on them and the timing map reports them.'),
+    instruments: InstrumentsSchema.optional(),
     tracks: z.array(TrackSchema).min(1),
   })
   .describe("A jingle: a short piece of music and sound effects, with named cues an animation can sync to.");

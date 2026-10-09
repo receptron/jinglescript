@@ -5,7 +5,7 @@ import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
 import * as dmath from "../dsp/math.ts";
 
-const VOICE = {
+export const VOICE = {
   modes: [
     { ratio: 1, level: 1, decay: 1.1 },
     { ratio: 5.4, level: 0.3, decay: 0.15 },

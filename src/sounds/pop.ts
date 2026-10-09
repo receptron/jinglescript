@@ -25,6 +25,7 @@ export const pop: Instrument = {
     description: "Pop (sound effect): a short bubbly blip for things appearing or text popping in. Optional `pitch` sets where it starts.",
     pitched: false,
     pitchOptional: true,
+    defaultFrequency: DEFAULT_START_HZ,
     sustained: false,
     range: { low: "C4", high: "C7" },
     variants: [],

@@ -496,6 +496,30 @@ Rules:
 - Definitions live inside the score, so a score stays self-contained and portable. Sharing a set
   of definitions across scores (an "instrument kit" file) is not v1; see Open questions.
 
+**As built (M2d).** Where the implementation settled what the design above left open:
+
+- Tweak parameters are the same for every built-in and act on its output: `decay` (0.25–4, a
+  multiple of the ring), `brightness` (−1…1: a low-pass closing to ~600 Hz, or a high shelf up to
+  +12 dB above 3 kHz), `attack` (seconds of fade-in), plus `transpose`, `detune`, `gain` and a
+  fixed `variant`. A `decay` above 1 needs a base with a block definition (it is re-rendered with
+  every time scaled); code built-ins can only be damped, and not when they hold for `len`.
+- Every time in a block is in seconds, and `decay` means "seconds until −60 dB" — easier for an
+  LLM than a time constant.
+- Re-expressed in blocks, each derived from the constants the built-in plays (one source, no
+  copy): marimba, xylophone, glockenspiel, vibraphone, music box, ukulele, organ. Their block
+  versions match the code within 1 LU, 5 % spectral centroid and 1.5 dB of decay (tested at
+  C4–C6); the built-ins themselves still render through their code, so no golden hash moved.
+  Not re-expressed: piano, trumpet, piccolo (models the vocabulary lacks), clap and the effects
+  (variants; effects such as the laser shape themselves relative to `len`).
+- Levels: a custom block sound is balanced against a C5 marimba note — by loudness, or by peak
+  (averaged over five seeds) when it is shorter than 0.1 s — and every custom note is capped at
+  +12 dB above the marimba's peak. The DC blocker sits at 20 Hz, which also removes sub-audio
+  content (a pitch glide sinking below hearing).
+- A plucked `string` is not band-limited by construction: it is computed at the sample rate, so
+  nothing aliases, and its harmonics reach Nyquist as a real string's do.
+- In a chord, a layered instrument's pitched layers play every pitch and its unpitched layers
+  (an impact, a clap) play once.
+
 **Quality checks you can do without ears** (the user listens; you cannot): no NaN/Inf; peak
 ≤ −1 dBFS after master; no DC offset (> 0.5 %); no energy above sampleRate/2.2 in additive partials
 (drop partials that would alias); no clicks at note starts (attack ≥ 1 ms) or at the end (fade);
@@ -713,7 +737,8 @@ built-ins as definitions. Examples: `custom-bell.json`, `custom-zap.json`, `laye
 **Done when** the re-expressed built-ins render identically (or within the M1/M2 tolerances) to
 their code versions, a fuzz test of random valid definitions never produces NaN, clicks, aliasing
 or DC, the evaluation's custom-sound requests pass, and the user has listened to the examples.
-The schema reserves `instruments` from M1 so earlier scores stay valid.
+The schema reserves `instruments` from M1 so earlier scores stay valid. **Done** (2026-10-08): the
+user listened to `out/listen-m2d/`.
 
 ### M3 — CLI, docs, LLM-readiness
 CLI commands above, `instruments`/`schema`/`demo`, README with a "how to write a jingle" section
@@ -1024,5 +1049,43 @@ Decided:
   Node's TypeScript support; README says so. CI adds a 22.12.0 test job and runs the package smoke
   on 22.12.0 and 22 (packed on 22, then installed and run on each; `SMOKE_TARBALL` in smoke.sh).
 - 2026-10-08 — **M9 done.** The user listened to the seven renders in `out/lyrics/` ("どれも良い")
-  and watched the karaoke view play on the plugin demo page; merged PR #1. Not yet: 0.2.0 on npm,
-  and MulmoTerminal still depends on 0.1.0.
+  and watched the karaoke view play on the plugin demo page; merged PR #1.
+- 2026-10-08 — Both packages on npm at 0.2.0 (published by the user; `latest` is 0.2.0). Installed
+  from the registry in a clean folder: on Node 24.19 and 22.12.0 the library and the plugin's
+  server entry render the lyrics example with both lines, the plugin's Vue entry loads, and the CLI
+  renders MP3. MulmoTerminal still depends on `^0.1.0`.
+- 2026-10-08 — User: M1, M2 and M2b are done (their listening checks happened over the rounds
+  above; heels keep "room to improve" as a possible later tweak). Starting M2d.
+- 2026-10-08 — **M2d implemented** (branch `custom-instruments`; waiting for the user's ears).
+  `instruments` in the score: tweak a built-in, layer 2–6 sounds, or build from blocks (`osc`,
+  `modes`, `noise`, `string`, `env`, `filter`, `pitchEnv`, `lfo`); `src/custom/` validates
+  definitions with repair-oriented errors (names that shadow built-ins, unknown bases, loops,
+  variants, transposes, decays, missing sources, repeated shapers, effect-only fields; a
+  definition or block that matches no form is re-checked against the form its key names) and turns
+  them into instruments with the engine-side guarantees in [Custom instruments](#custom-instruments).
+  Built-ins expressed as blocks are shown by `getInstrument` (and `jinglescript instruments
+  <name>`); `getSchema("instrument")` gives a definition's schema. Guide section, examples
+  `custom-bell.json`, `custom-zap.json`, `layered-hit.json`. Tests: block versions of seven
+  built-ins against their code; 150 random block definitions and 40 random tweaks and layers
+  render finite, ramped, faded, DC-free, capped and (oscillators and modes) alias-free; scores
+  without instruments render bit-identically.
+  - Evaluation (`eval/requests-custom.json`, 3 requests incl. Japanese; guide + schema only, no
+    check): default model 3/3 and Haiku 2/3 valid on the first try with the custom sound used;
+    Haiku's zap was valid and on time but placed by seconds without making cues (the miss seen
+    before). Both asked what a layered instrument with an impact does on a chord — it stacked the
+    impact once per pitch; now unpitched layers play once per chord, and the guide and schema
+    say so.
+  - Examples with an impact layer reach −14.5 to −15.3 LUFS with the limiter at its cap
+    (reported), like the built-in impact examples.
+- 2026-10-08 — **M2d done.** The user listened to the ten renders in `out/listen-m2d/` (the three
+  examples, the guide's block sounds and the six evaluation scores): "どれも良い感じ".
+- 2026-10-08 — User: drop the guide's "1 to 15 seconds" (length is the request's call). Codex
+  reviewed PR #2 over seven rounds; twelve findings fixed, each with a test: a source's own `env`
+  counted as a second `env` block; `string` with `pitchEnv`/vibrato now an error (strings keep
+  their pitch); transpose/detune move an effect's default pitch (`defaultFrequency`, and
+  `retune` through stacks); a bare oscillator stops after its hold; layer ranges shift with
+  `transpose`, and stacks whose ranges do not overlap are an error; a held envelope releases
+  from its level at note-off even mid-attack; a custom effect's `len` is capped at 10 s in
+  validation; a delayed layer with a length is shortened so the stack ends at `len`; short
+  holds keep every ringing layer; LFO depth defaults per kind. The seventh round found nothing.
+  The examples' audio did not change.

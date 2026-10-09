@@ -12,6 +12,13 @@ export interface SynthInput {
   variant: string | undefined;
   sampleRate: number;
   rng: Rng;
+  /**
+   * Cents to move the default pitch by when `frequency` is undefined: set by a tweak whose base
+   * (a stack of layers) has no single default pitch of its own, and applied by the layers' tweaks.
+   */
+  retune?: number;
+  /** Index of this pitch within its chord (absent or 0 for a single note): a layered instrument plays its unpitched layers once per chord. */
+  chordVoice?: number;
 }
 
 export interface InstrumentDescriptor {
@@ -21,11 +28,13 @@ export interface InstrumentDescriptor {
   pitched: boolean;
   /** For unpitched sounds that may still take a `pitch` (a laser's starting pitch). */
   pitchOptional?: boolean;
+  /** For sounds with an optional pitch: the frequency in Hz they play when a note gives none. */
+  defaultFrequency?: number;
   /**
    * Sounds whose length is set by `len` (a whoosh, a riser, a laser sweep): their default length,
    * and they may be placed by `end` instead of `at`.
    */
-  duration?: { defaultSeconds: number };
+  duration?: { defaultSeconds: number; maxSeconds?: number };
   /**
    * A very short impulse (a tick, a step, a knock). It is balanced by its peak — as loud at its
    * peak as a C5 marimba note — rather than by loudness, which for an impulse would push its peak

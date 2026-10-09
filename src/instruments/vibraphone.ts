@@ -3,10 +3,10 @@ import { modalNote } from "./modal.ts";
 import type { Instrument } from "./types.ts";
 import * as dmath from "../dsp/math.ts";
 
-const TREMOLO_HZ = 5.5;
-const TREMOLO_DEPTH = 0.25;
+export const TREMOLO_HZ = 5.5;
+export const TREMOLO_DEPTH = 0.25;
 
-const VOICE = {
+export const VOICE = {
   modes: [
     { ratio: 1, level: 1, decay: 1.4 },
     { ratio: 4.0, level: 0.25, decay: 0.25 },

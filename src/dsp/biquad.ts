@@ -51,6 +51,48 @@ export function highpass(frequency: number, q: number, sampleRate: number): Biqu
   return { b: [(1 + cos) / 2 / a0, -(1 + cos) / a0, (1 + cos) / 2 / a0], a: [1, (-2 * cos) / a0, (1 - alpha) / a0] };
 }
 
+/** High shelf: `gainDb` above `frequency`, flat below (RBJ cookbook, shelf slope 1). */
+export function highShelf(frequency: number, gainDb: number, sampleRate: number): Biquad {
+  const A = dmath.pow(10, gainDb / 40);
+  const w0 = (2 * Math.PI * frequency) / sampleRate;
+  const cos = dmath.cos(w0);
+  const alpha = (dmath.sin(w0) / 2) * Math.SQRT2;
+  const root = 2 * Math.sqrt(A) * alpha;
+  const a0 = A + 1 - (A - 1) * cos + root;
+  return {
+    b: [(A * (A + 1 + (A - 1) * cos + root)) / a0, (-2 * A * (A - 1 + (A + 1) * cos)) / a0, (A * (A + 1 + (A - 1) * cos - root)) / a0],
+    a: [1, (2 * (A - 1 - (A + 1) * cos)) / a0, (A + 1 - (A - 1) * cos - root) / a0],
+  };
+}
+
+export type FilterType = "lowpass" | "highpass" | "bandpass";
+
+const DESIGNS: Record<FilterType, (frequency: number, q: number, sampleRate: number) => Biquad> = { lowpass, highpass, bandpass };
+
+/** A filter whose cutoff moves over time (coefficients recomputed every `step` samples), kept below 0.45 × the sample rate. */
+export function sweptFilter(x: ArrayLike<number>, type: FilterType, cutoffAt: (t: number) => number, q: number, sampleRate: number, step = 32): Float64Array {
+  const y = new Float64Array(x.length);
+  const design = DESIGNS[type];
+  const clamp = (f: number): number => Math.min(sampleRate * 0.45, Math.max(10, f));
+  let x1 = 0;
+  let x2 = 0;
+  let y1 = 0;
+  let y2 = 0;
+  let coefficients = design(clamp(cutoffAt(0)), q, sampleRate);
+  for (let i = 0; i < x.length; i++) {
+    if (i % step === 0) coefficients = design(clamp(cutoffAt(i / sampleRate)), q, sampleRate);
+    const { b, a } = coefficients;
+    const x0 = x[i] ?? 0;
+    const y0 = b[0] * x0 + b[1] * x1 + b[2] * x2 - a[1] * y1 - a[2] * y2;
+    y[i] = y0;
+    x2 = x1;
+    x1 = x0;
+    y2 = y1;
+    y1 = y0;
+  }
+  return y;
+}
+
 /** Band-pass whose centre moves over time (coefficients recomputed every `step` samples). */
 export function sweptBandpass(x: ArrayLike<number>, centreAt: (t: number) => number, q: number, sampleRate: number, step = 32): Float64Array {
   const y = new Float64Array(x.length);

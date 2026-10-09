@@ -1,7 +1,8 @@
 // A parsed score → concrete note events in seconds, plus the problems that only show up once the
 // whole score is known (a cue that does not exist, a pitch out of range, a note after the end).
 // Rendering and the timing map both read these events, so they cannot disagree.
-import { descriptorOf, type InstrumentName } from "./instruments/index.ts";
+import { buildInstruments, type InstrumentTable } from "./custom/instruments.ts";
+import { INSTRUMENT_NAMES, type InstrumentDescriptor } from "./instruments/index.ts";
 import { voiceChord } from "./chords.ts";
 import { buildLyrics, type LyricLine } from "./lyrics.ts";
 import { pitchToMidi } from "./pitch.ts";
@@ -23,7 +24,8 @@ export interface NoteEvent {
   note: number;
   /** 0 for the note itself, 1… for its repetitions. */
   repeat: number;
-  instrument: InstrumentName;
+  /** A built-in's or the score's own instrument's name. */
+  instrument: string;
   /** Onset in seconds, humanize and strum looseness applied. */
   seconds: number;
   /** Onset as written, before any looseness: what "is this meant to be on a cue?" is judged on. */
@@ -57,6 +59,8 @@ export interface Expanded {
   cues: Record<string, number>;
   /** Sorted by onset, then track, then note. */
   events: NoteEvent[];
+  /** The instruments the score can play: built-ins and its own. */
+  instruments: InstrumentTable;
   /** Lyric lines of every track, sorted by start; empty when the score has no lyrics. */
   lyrics: LyricLine[];
   issues: Issue[];
@@ -85,52 +89,58 @@ function unknownCueIssue(path: IssuePath, cue: string, cues: Record<string, numb
   };
 }
 
+/** An instrument as a note sees it: its name (for messages) and what it is. */
+interface Voice {
+  name: string;
+  descriptor: InstrumentDescriptor;
+}
+
 /** The pitches a note plays: its `pitch`, or its `chord` voiced for the instrument. */
-function notePitches(note: Note, instrument: InstrumentName): string[] {
-  if (note.chord !== undefined) return voiceChord(note.chord, descriptorOf(instrument).tuning) ?? [];
+function notePitches(note: Note, voice: Voice): string[] {
+  if (note.chord !== undefined) return voiceChord(note.chord, voice.descriptor.tuning) ?? [];
   return pitchList(note.pitch);
 }
 
-function pitchIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
-  const descriptor = descriptorOf(instrument);
+function pitchIssues(note: Note, voice: Voice, path: IssuePath): Issue[] {
+  const descriptor = voice.descriptor;
   const given = note.chord === undefined ? "pitch" : "chord";
   if (note.pitch !== undefined && note.chord !== undefined) {
     return [{ path: [...path, "chord"], message: "Give `pitch` or `chord`, not both.", hint: "Use `chord` for a named chord, `pitch` for exact notes." }];
   }
-  if (!descriptor.pitched && descriptor.pitchOptional && note.chord === undefined) return rangeIssues(note, instrument, path);
+  if (!descriptor.pitched && descriptor.pitchOptional && note.chord === undefined) return rangeIssues(note, voice, path);
   if (!descriptor.pitched) {
     return note.pitch === undefined && note.chord === undefined
       ? []
-      : [{ path: [...path, given], message: `"${instrument}" is unpitched and takes no ${given}.`, hint: `Remove \`${given}\`.` }];
+      : [{ path: [...path, given], message: `"${voice.name}" is unpitched and takes no ${given}.`, hint: `Remove \`${given}\`.` }];
   }
   if (note.pitch === undefined && note.chord === undefined) {
     return [
-      { path, message: `"${instrument}" is pitched: this note needs a pitch or a chord.`, hint: 'Add "pitch": "C5", a list for a chord, or "chord": "C".' },
+      { path, message: `"${voice.name}" is pitched: this note needs a pitch or a chord.`, hint: 'Add "pitch": "C5", a list for a chord, or "chord": "C".' },
     ];
   }
-  return rangeIssues(note, instrument, path);
+  return rangeIssues(note, voice, path);
 }
 
-function rangeIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+function rangeIssues(note: Note, voice: Voice, path: IssuePath): Issue[] {
   const given = note.chord === undefined ? "pitch" : "chord";
-  const range = descriptorOf(instrument).range;
+  const range = voice.descriptor.range;
   if (range === null) return [];
   const low = pitchToMidi(range.low) ?? 0;
   const high = pitchToMidi(range.high) ?? 127;
-  return notePitches(note, instrument).flatMap((pitch, i): Issue[] => {
+  return notePitches(note, voice).flatMap((pitch, i): Issue[] => {
     const midi = pitchToMidi(pitch);
     if (midi === undefined || (midi >= low && midi <= high)) return [];
     const pitchPath = Array.isArray(note.pitch) ? [...path, "pitch", i] : [...path, "pitch"];
     const where = given === "chord" ? [...path, "chord"] : pitchPath;
-    return [{ path: where, message: `${pitch} is outside ${instrument}'s range.`, hint: `Use ${range.low}–${range.high}; move it by an octave.` }];
+    return [{ path: where, message: `${pitch} is outside ${voice.name}'s range.`, hint: `Use ${range.low}–${range.high}; move it by an octave.` }];
   });
 }
 
-function strumIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
-  if (note.strum === undefined || notePitches(note, instrument).length >= 2) return [];
+function strumIssues(note: Note, voice: Voice, path: IssuePath): Issue[] {
+  if (note.strum === undefined || notePitches(note, voice).length >= 2) return [];
   return [{ path: [...path, "strum"], message: "`strum` needs a chord.", hint: 'Give "chord": "C" or a list of pitches, in string order.' }];
 }
-function lyricIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+function lyricIssues(note: Note, voice: Voice, path: IssuePath): Issue[] {
   if (note.lyric === undefined) {
     return note.lineEnd === undefined
       ? []
@@ -142,9 +152,9 @@ function lyricIssues(note: Note, instrument: InstrumentName, path: IssuePath): I
           },
         ];
   }
-  if (!descriptorOf(instrument).pitched) {
+  if (!voice.descriptor.pitched) {
     return [
-      { path: [...path, "lyric"], message: `"${instrument}" plays no melody, so it cannot carry lyrics.`, hint: "Put the lyrics on the melody's notes." },
+      { path: [...path, "lyric"], message: `"${voice.name}" plays no melody, so it cannot carry lyrics.`, hint: "Put the lyrics on the melody's notes." },
     ];
   }
   if (note.repeat !== undefined) {
@@ -159,17 +169,17 @@ function lyricIssues(note: Note, instrument: InstrumentName, path: IssuePath): I
   return [];
 }
 
-function variantIssues(note: Note, instrument: InstrumentName, path: IssuePath): Issue[] {
+function variantIssues(note: Note, voice: Voice, path: IssuePath): Issue[] {
   if (note.variant === undefined) return [];
-  const allowed = descriptorOf(instrument).variants;
+  const allowed = voice.descriptor.variants;
   const given = Array.isArray(note.variant) ? note.variant : [note.variant];
   const bad = given.filter((v) => !allowed.includes(v));
   if (bad.length === 0) return [];
   return [
     {
       path: [...path, "variant"],
-      message: `"${instrument}" has no variant ${quoteList(bad)}.`,
-      hint: allowed.length > 0 ? `Variants: ${allowed.join(", ")}.` : `"${instrument}" has no variants; remove \`variant\`.`,
+      message: `"${voice.name}" has no variant ${quoteList(bad)}.`,
+      hint: allowed.length > 0 ? `Variants: ${allowed.join(", ")}.` : `"${voice.name}" has no variants; remove \`variant\`.`,
     },
   ];
 }
@@ -193,6 +203,8 @@ function variantAt(note: Note, repeat: number): string | undefined {
 
 interface NoteContext {
   score: ScoreData;
+  /** The track's instrument. */
+  descriptor: InstrumentDescriptor;
   cues: Record<string, number>;
   duration: number;
   trackIndex: number;
@@ -221,8 +233,8 @@ function lenSeconds(len: number | { seconds: number }, tempo: number): number {
 }
 
 /** How long an effect with a length lasts (its `len`, or its default); undefined for other sounds. */
-function soundLength(note: Note, instrument: InstrumentName, tempo: number): number | undefined {
-  const duration = descriptorOf(instrument).duration;
+function soundLength(note: Note, voice: Voice, tempo: number): number | undefined {
+  const duration = voice.descriptor.duration;
   if (duration === undefined) return undefined;
   return note.len === undefined ? duration.defaultSeconds : lenSeconds(note.len, tempo);
 }
@@ -293,14 +305,18 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
   const track = score.tracks[trackIndex];
   if (track === undefined) return { events: [], issues: [] };
   const path: IssuePath = ["tracks", trackIndex, "notes", noteIndex];
-  const issues = [
-    ...pitchIssues(note, track.instrument, path),
-    ...variantIssues(note, track.instrument, path),
-    ...strumIssues(note, track.instrument, path),
-    ...lyricIssues(note, track.instrument, path),
-  ];
+  const voice: Voice = { name: track.instrument, descriptor: ctx.descriptor };
+  const issues = [...pitchIssues(note, voice, path), ...variantIssues(note, voice, path), ...strumIssues(note, voice, path), ...lyricIssues(note, voice, path)];
   const resolve = (at: At): ResolvedAt => resolveAt(at, score.tempo, cues);
-  const length = soundLength(note, track.instrument, score.tempo);
+  const length = soundLength(note, voice, score.tempo);
+  const longest = voice.descriptor.duration?.maxSeconds;
+  if (length !== undefined && longest !== undefined && length > longest + EPSILON) {
+    issues.push({
+      path: [...path, note.len === undefined ? "end" : "len"],
+      message: `"${voice.name}" lasts at most ${longest} s; this note asks for ${length.toFixed(3)} s.`,
+      hint: "Make `len` shorter, or play several notes.",
+    });
+  }
   if (note.end !== undefined && length === undefined) {
     return {
       events: [],
@@ -312,7 +328,7 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
   const { times, until } = repeatTimes(note, start.seconds, score.tempo, resolve);
   if (until !== undefined && !until.ok) issues.push(unknownCueIssue([...path, "repeat", "until"], until.unknownCue, cues));
 
-  const pitches = notePitches(note, track.instrument);
+  const pitches = notePitches(note, voice);
   const strokes = strokesOf(note, score.tempo);
   const events = times.flatMap((t, repeat) =>
     strokes.map((stroke, k) => {
@@ -357,11 +373,23 @@ function assignHolds(events: NoteEvent[]): void {
   }
 }
 
+function unknownInstrumentIssue(name: string, trackIndex: number, definitions: ScoreData["instruments"]): Issue {
+  const custom = Object.keys(definitions ?? {});
+  return {
+    path: ["tracks", trackIndex, "instrument"],
+    message: `Unknown instrument "${name}".`,
+    hint: [
+      `Built-in: ${INSTRUMENT_NAMES.join(", ")}.`,
+      custom.length > 0 ? `Defined in this score: ${custom.join(", ")}.` : 'Or define it under "instruments".',
+    ].join(" "),
+  };
+}
+
 export function expandScore(score: ScoreData): Expanded {
   const cues: Record<string, number> = {};
   for (const [name, time] of Object.entries(score.cues)) cues[name] = timeToSeconds(time, score.tempo);
   const duration = timeToSeconds(score.length, score.tempo);
-  const issues: Issue[] = [];
+  const { table: instruments, issues } = buildInstruments(score.instruments);
   if (duration <= 0) issues.push({ path: ["length"], message: "length must be more than 0.", hint: 'e.g. "length": { "seconds": 4 }.' });
   for (const [name, seconds] of Object.entries(cues)) {
     if (seconds > duration + EPSILON) {
@@ -374,8 +402,13 @@ export function expandScore(score: ScoreData): Expanded {
   }
   const events: NoteEvent[] = [];
   score.tracks.forEach((track, trackIndex) => {
+    const instrument = instruments.get(track.instrument);
+    if (instrument === undefined) {
+      issues.push(unknownInstrumentIssue(track.instrument, trackIndex, score.instruments));
+      return;
+    }
     track.notes.forEach((note, noteIndex) => {
-      const expanded = expandNote(note, { score, cues, duration, trackIndex, noteIndex });
+      const expanded = expandNote(note, { score, descriptor: instrument.descriptor, cues, duration, trackIndex, noteIndex });
       events.push(...expanded.events);
       issues.push(...expanded.issues);
     });
@@ -384,5 +417,5 @@ export function expandScore(score: ScoreData): Expanded {
   events.sort((a, b) => a.seconds - b.seconds || a.track - b.track || a.note - b.note || a.repeat - b.repeat);
   const lyrics = buildLyrics(events, duration);
   issues.push(...lyrics.issues);
-  return { tempo: score.tempo, duration, cues, events, lyrics: lyrics.lines, issues };
+  return { tempo: score.tempo, duration, cues, events, instruments, lyrics: lyrics.lines, issues };
 }

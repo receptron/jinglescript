@@ -58,7 +58,8 @@ export interface InstrumentDescriptor {
   synthetic: boolean;
   /**
    * Plays recordings rather than a model: where they come from and their licence. They are
-   * downloaded on first use (a few MB per note) and cached.
+   * downloaded on first use (about a MB per note) and cached. Custom instruments built on a
+   * sampled one keep it: loadSamples() synthesizes only the notes of instruments that have it.
    */
   sampled?: { source: string; licence: string };
 }

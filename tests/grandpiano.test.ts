@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { resample } from "../src/dsp/resample.ts";
 import { integratedLoudness } from "../src/dsp/loudness.ts";
 import { grandPianoSample, layerFor, nearestSampled } from "../src/instruments/grandpiano.ts";
@@ -60,6 +60,19 @@ describe("grandpiano picks its samples", () => {
     expect(grandPianoSample(104, 4).cents).toBeGreaterThan(10); // the top is stretched sharp
   });
 
+  it("synthesizes nothing to find that a score without sampled instruments needs no samples", () => {
+    const organ = vi.spyOn(INSTRUMENTS.organ, "synthesize");
+    const score = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 2 },
+      tracks: [{ instrument: "organ", notes: [{ at: 0, chord: "C" }] }],
+    });
+    expect(samplesNeeded(score)).toEqual([]);
+    expect(organ).not.toHaveBeenCalled();
+    organ.mockRestore();
+  });
+
   it("lists exactly the samples a score needs, through chords and custom instruments", () => {
     expect(
       samplesNeeded(
@@ -72,7 +85,10 @@ describe("grandpiano picks its samples", () => {
       // G4 lies between F#4 and G#4: the lower is played.
       [key("C4", 4), key("C4", 2), key("E4", 2), key("F#4", 2)].sort((a, b) => a.localeCompare(b)),
     );
-    // A tweak a whole tone up: the written C4 sounds D4.
+    // A layer of a stack, and a tweak a whole tone up (the written C4 sounds D4).
+    expect(samplesNeeded(scoreWith([{ at: 0, pitch: "C4", vel: 0.5 }], { soft: { layers: [{ base: "marimba" }, { base: "grandpiano", gain: -6 }] } }))).toEqual(
+      [key("C4", 3)],
+    );
     expect(samplesNeeded(scoreWith([{ at: 0, pitch: "C4" }], { soft: { base: "grandpiano", transpose: 2 } }))).toEqual([key("D4", 4)]);
     expect(
       samplesNeeded(
@@ -198,6 +214,13 @@ describe("loadRemoteSamples", () => {
     expect(readFileSync(join(dir, remote.path))).toHaveLength(wav.length);
     const offline = await loadRemoteSamples([remote], { cacheDir: dir, download: false });
     expect(offline.get(remote.key)?.data).toEqual(source.get(remote.key)?.data);
+  });
+
+  it("lets two loads fetch the same sample at once", async () => {
+    const dir = cacheDir();
+    const [a, b] = await Promise.all([0, 1].map(() => loadRemoteSamples([remote], { cacheDir: dir, fetch: serving(wav).fetch })));
+    expect(a?.get(remote.key)?.data).toEqual(b?.get(remote.key)?.data);
+    expect(readFileSync(join(dir, remote.path))).toHaveLength(wav.length);
   });
 
   it("refuses bytes that do not match the checksum, and caches nothing", async () => {

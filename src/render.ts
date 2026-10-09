@@ -89,14 +89,15 @@ function expandOrThrow(score: Score): ReturnType<typeof expandScore> {
 
 /**
  * The recorded samples a render of `score` would read (keys for SampleSource.get), found by
- * synthesizing every note against silence. Empty when the score plays no sampled instrument.
+ * synthesizing the notes of sampled instruments (built-in, or custom ones built on them) against
+ * silence. Empty, and nothing synthesized, when the score plays no sampled instrument.
  */
 export function samplesNeeded(score: Score, options: Pick<RenderOptions, "seed"> = {}): string[] {
   const expanded = expandOrThrow(score);
   const recorder = recordingSource();
   for (const event of expanded.events) {
     const instrument = expanded.instruments.get(event.instrument);
-    if (instrument !== undefined) synthesizeEvent(instrument, event, options.seed ?? score.seed, DEFAULT_SAMPLE_RATE, recorder);
+    if (instrument?.descriptor.sampled !== undefined) synthesizeEvent(instrument, event, options.seed ?? score.seed, DEFAULT_SAMPLE_RATE, recorder);
   }
   return [...recorder.keys].sort((a, b) => a.localeCompare(b));
 }

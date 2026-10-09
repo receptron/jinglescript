@@ -1,7 +1,7 @@
 // Loading the recorded samples a score needs, before it is rendered: from the cache, or downloaded
 // into it on first use. Only the samples the score's notes actually play are fetched; each is
 // checked against the SHA-256 in the catalog, so a render reads exactly the bytes it was tested on.
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -83,8 +83,9 @@ async function download(sample: RemoteSample, file: string, options: LoadSamples
   if (bytes.length !== sample.bytes || sha256(bytes) !== sample.sha256) {
     throw new SampleDownloadError(`${sample.url} did not match its checksum (got ${bytes.length} of ${sample.bytes} bytes); nothing was cached. Try again.`);
   }
-  // Written under a temporary name and renamed: a cut-off download never looks like a cached sample.
-  const partial = `${file}.${process.pid}.partial`;
+  // Written under a temporary name of its own and renamed: a cut-off download never looks like a
+  // cached sample, and two renders fetching the same sample at once do not share a temporary file.
+  const partial = `${file}.${randomUUID()}.partial`;
   await writeFile(partial, bytes);
   await rename(partial, file);
   return bytes;

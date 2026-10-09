@@ -51,22 +51,29 @@ const GM: Record<InstrumentName, GmSound> = {
   pop: { marker: true },
 };
 
-/** A custom instrument sounds like the built-in it is based on (the first layer's, for a stack); one built from blocks like a piano, or a marker when unpitched. */
-function gmSound(name: string, score: Score, expanded: Expanded, seen: ReadonlySet<string> = new Set()): GmSound {
-  if (isInstrumentName(name)) return GM[name];
-  const definition = score.instruments?.[name];
-  let base: string | undefined;
-  if (definition !== undefined && "base" in definition) base = definition.base;
-  else if (definition !== undefined && "layers" in definition) base = definition.layers[0]?.base;
-  if (base !== undefined && !seen.has(base)) return gmSound(base, score, expanded, new Set([...seen, name]));
-  return expanded.instruments.get(name)?.descriptor.pitched === true ? { program: 0 } : { marker: true };
+interface Resolved {
+  sound: GmSound;
+  /** Semitones from the written pitch to the sounding one. */
+  shift: number;
 }
 
-/** Semitones from the written pitch to the sounding one: the instrument's own, plus a tweak's `transpose`. */
-function soundingShift(name: string, score: Score, expanded: Expanded): number {
+/**
+ * What a track's instrument is in General MIDI, and how far it transposes: a custom instrument
+ * sounds like the built-in it is based on (the first layer's, for a stack), adding each tweak's
+ * transpose on the way; one built from blocks sounds like a piano, or is a marker when unpitched.
+ */
+function resolveSound(name: string, score: Score, expanded: Expanded, seen: ReadonlySet<string> = new Set()): Resolved {
+  if (isInstrumentName(name)) return { sound: GM[name], shift: expanded.instruments.get(name)?.descriptor.transpose ?? 0 };
   const definition = score.instruments?.[name];
-  const tweak = definition !== undefined && "base" in definition ? (definition.transpose ?? 0) : 0;
-  return (expanded.instruments.get(name)?.descriptor.transpose ?? 0) + tweak;
+  let step: { base: string; transpose?: number } | undefined;
+  if (definition !== undefined && "base" in definition) step = definition;
+  else if (definition !== undefined && "layers" in definition) step = definition.layers[0];
+  if (step !== undefined && !seen.has(step.base)) {
+    const base = resolveSound(step.base, score, expanded, new Set([...seen, name]));
+    return { sound: base.sound, shift: base.shift + (step.transpose ?? 0) };
+  }
+  const descriptor = expanded.instruments.get(name)?.descriptor;
+  return { sound: descriptor?.pitched === true ? { program: 0 } : { marker: true }, shift: descriptor?.transpose ?? 0 };
 }
 
 interface MidiEvent {
@@ -120,10 +127,7 @@ interface Played {
 /** Drum hits are a sixteenth note long: a drum channel ignores note-offs, but editors draw them. */
 const DRUM_TICKS = PPQ / 4;
 
-/**
- * Each pitch of each event as a key held from its onset for its hold (`ticks` instead, when given);
- * a key ends where the same key starts again.
- */
+/** Each pitch of each event as a key held from its onset for its hold (`ticks` instead, when given). */
 function playedKeys(
   events: readonly NoteEvent[],
   toTick: (seconds: number) => number,
@@ -144,18 +148,44 @@ function playedKeys(
       played.push({ key, on, off: Math.max(on + 1, off), velocity: velocity(level) });
     });
   }
-  played.sort((a, b) => a.on - b.on);
-  for (const [i, note] of played.entries()) {
-    const next = played.slice(i + 1).find((other) => other.key === note.key && other.on > note.on);
-    if (next !== undefined) note.off = Math.min(note.off, next.on);
-  }
   return played;
 }
 
-/** The channel of each melodic track, in order, skipping the drum channel; more than 15 share. */
-function melodicChannel(index: number): number {
-  const channel = index % 15;
-  return channel >= DRUM_CHANNEL ? channel + 1 : channel;
+/** On one channel a key sounds once: it ends where the same key starts again, whichever track plays it. */
+function endBeforeRestrike(notes: readonly Played[]): void {
+  const sorted = [...notes].sort((a, b) => a.on - b.on);
+  for (const [i, note] of sorted.entries()) {
+    const next = sorted.slice(i + 1).find((other) => other.key === note.key && other.on > note.on);
+    if (next !== undefined) note.off = Math.min(note.off, next.on);
+  }
+}
+
+const MELODIC_CHANNELS = Array.from({ length: 16 }, (_, channel) => channel).filter((channel) => channel !== DRUM_CHANNEL);
+
+/**
+ * A channel per melodic track while they last. With more tracks than channels, tracks share by
+ * program, since a program change holds for the whole channel; the built-ins use fewer programs
+ * than there are channels.
+ */
+function assignChannels(sounds: readonly GmSound[]): (number | undefined)[] {
+  const melodic = sounds.flatMap((sound, track) => ("program" in sound ? [{ track, program: sound.program }] : []));
+  const channels: (number | undefined)[] = sounds.map((sound) => ("drum" in sound ? DRUM_CHANNEL : undefined));
+  if (melodic.length <= MELODIC_CHANNELS.length) {
+    melodic.forEach(({ track }, i) => (channels[track] = MELODIC_CHANNELS[i]));
+    return channels;
+  }
+  const programs = [...new Set(melodic.map(({ program }) => program))];
+  if (programs.length > MELODIC_CHANNELS.length) {
+    throw new JingleScriptError([
+      {
+        path: "tracks",
+        message: `MIDI has ${MELODIC_CHANNELS.length} melodic channels; this score needs ${programs.length} different sounds.`,
+        hint: "Use fewer instruments.",
+      },
+    ]);
+  }
+  for (const { track, program } of melodic) channels[track] = MELODIC_CHANNELS[programs.indexOf(program)];
+  return channels;
 }
 
 /** The score as a Standard MIDI File (type 1). Throws JingleScriptError for a score that does not render. */
@@ -170,24 +200,33 @@ export function scoreToMidi(score: Score): Uint8Array {
   ];
   const end = toTick(expanded.duration);
   const syllables = expanded.lyrics.flatMap((line) => line.syllables.map((syllable) => ({ track: line.track, ...syllable })));
-  let melodic = 0;
-  const tracks = score.tracks.map((track, index) => {
-    const sound = gmSound(track.instrument, score, expanded);
-    const events: MidiEvent[] = [text(0, 0x03, track.name ?? track.instrument)];
+  const resolved = score.tracks.map((track) => resolveSound(track.instrument, score, expanded));
+  const channels = assignChannels(resolved.map(({ sound }) => sound));
+  const played = score.tracks.map((_, index): Played[] => {
+    const { sound, shift } = resolved[index] ?? { sound: { marker: true }, shift: 0 };
+    if ("marker" in sound) return [];
+    const keyOf = (pitch: string | undefined): number | undefined => {
+      if ("drum" in sound) return sound.drum;
+      if (sound.key !== undefined) return sound.key;
+      const written = pitch === undefined ? undefined : pitchToMidi(pitch);
+      return written === undefined ? undefined : written + shift;
+    };
     const own = expanded.events.filter((event) => event.track === index);
-    if ("marker" in sound) {
+    return playedKeys(own, toTick, keyOf, "drum" in sound ? DRUM_TICKS : undefined);
+  });
+  for (const channel of new Set(channels)) {
+    if (channel !== undefined) endBeforeRestrike(played.filter((_, index) => channels[index] === channel).flat());
+  }
+  const tracks = score.tracks.map((track, index) => {
+    const sound = resolved[index]?.sound;
+    const channel = channels[index];
+    const events: MidiEvent[] = [text(0, 0x03, track.name ?? track.instrument)];
+    if (channel === undefined) {
+      const own = expanded.events.filter((event) => event.track === index);
       events.push(...own.map((event) => text(toTick(event.seconds), 0x06, track.instrument)));
     } else {
-      const channel = "drum" in sound ? DRUM_CHANNEL : melodicChannel(melodic++);
-      if ("program" in sound) events.push({ tick: 0, order: 0, bytes: [0xc0 | channel, sound.program] });
-      const transpose = soundingShift(track.instrument, score, expanded);
-      const keyOf = (pitch: string | undefined): number | undefined => {
-        if ("drum" in sound) return sound.drum;
-        if (sound.key !== undefined) return sound.key;
-        const written = pitch === undefined ? undefined : pitchToMidi(pitch);
-        return written === undefined ? undefined : written + transpose;
-      };
-      for (const note of playedKeys(own, toTick, keyOf, "drum" in sound ? DRUM_TICKS : undefined)) {
+      if (sound !== undefined && "program" in sound) events.push({ tick: 0, order: 0, bytes: [0xc0 | channel, sound.program] });
+      for (const note of played[index] ?? []) {
         events.push({ tick: note.on, order: 2, bytes: [0x90 | channel, note.key, note.velocity] });
         events.push({ tick: note.off, order: 1, bytes: [0x80 | channel, note.key, 0] });
       }

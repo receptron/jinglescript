@@ -188,6 +188,52 @@ describe("scoreToMidi", () => {
     expect(readMidi(scoreToMidi(many)).tracks).toHaveLength(301);
   });
 
+  it("transposes through nested bases and a stack's first layer", () => {
+    const nested = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { beats: 1 },
+      instruments: {
+        high: { base: "piano", transpose: 12 },
+        higher: { base: "high" },
+        stack: { layers: [{ base: "piano", transpose: -12 }, { base: "impact" }] },
+      },
+      tracks: [
+        { instrument: "higher", notes: [{ at: 0, pitch: "C4" }] },
+        { instrument: "stack", notes: [{ at: 0, pitch: "C4" }] },
+      ],
+    });
+    const [, higher, stack] = readMidi(scoreToMidi(nested)).tracks;
+    expect(notesOn(higher ?? [])[0]?.data[0]).toBe(72);
+    expect(notesOn(stack ?? [])[0]?.data[0]).toBe(48);
+  });
+
+  it("shares channels by sound past 15 melodic tracks, and ends a key before another track strikes it", () => {
+    const wide = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { beats: 4 },
+      tracks: Array.from({ length: 20 }, (_, i) => ({
+        instrument: i % 2 === 0 ? "marimba" : "vibraphone",
+        notes: [{ at: i * 0.125, pitch: "C5", len: 3 }],
+      })),
+    });
+    const tracks = readMidi(scoreToMidi(wide)).tracks.slice(1);
+    const programs = new Map<number, number>();
+    for (const track of tracks) {
+      const change = track.find((e) => (e.status & 0xf0) === 0xc0);
+      const channel = (change?.status ?? 0) & 0x0f;
+      expect(programs.get(channel) ?? change?.data[0]).toBe(change?.data[0]);
+      programs.set(channel, change?.data[0] ?? -1);
+    }
+    expect([...programs.values()].sort((a, b) => a - b)).toEqual([11, 12]);
+    const marimba = tracks.filter((_, i) => i % 2 === 0);
+    const ons = marimba.flatMap((track) => notesOn(track).map((e) => e.tick));
+    const offs = marimba.flatMap((track) => notesOff(track).map((e) => e.tick));
+    expect(ons).toEqual([0, 120, 240, 360, 480, 600, 720, 840, 960, 1080]);
+    expect(offs.slice(0, -1)).toEqual(ons.slice(1));
+  });
+
   it("is the same for the same score, and reads every example", () => {
     expect(scoreToMidi(score)).toEqual(scoreToMidi(score));
     for (const name of ["a-ukulele.json", "lyrics-hatena.json", "custom-zap.json", "riser-reveal.json"]) {

@@ -13,7 +13,7 @@ import { midiToFrequency, pitchToMidi } from "../pitch.ts";
 import { createRng, streamRng } from "../rng.ts";
 import { BUILTIN_DEFINITIONS } from "./builtins.ts";
 import { CAP_FADE_SECONDS, followsPitch, isSustained, planOf, renderBlocks } from "./engine.ts";
-import { BlocksDefinitionSchema, type BlocksDefinition, type Definition, type Layer, type TweakParams } from "./schema.ts";
+import { blockForm, BlocksDefinitionSchema, type BlocksDefinition, type Definition, type Layer, type TweakParams } from "./schema.ts";
 
 export type InstrumentTable = ReadonlyMap<string, Instrument>;
 
@@ -154,7 +154,7 @@ export function blocksDescriptor(definition: BlocksDefinition): InstrumentDescri
     kind: definition.kind,
     description: definition.description ?? (sfx ? "Custom sound effect built from blocks." : "Custom instrument built from blocks."),
     pitched: pitchFollowing && !sfx,
-    ...(pitchFollowing && sfx ? { pitchOptional: true } : {}),
+    ...(pitchFollowing && sfx ? { pitchOptional: true, defaultFrequency: midiToFrequency(pitchToMidi(definition.pitch ?? "A4") ?? 69) } : {}),
     ...(withLength ? { duration: { defaultSeconds: definition.length ?? 1 } } : {}),
     sustained: !withLength && isSustained(plan),
     range: pitchFollowing ? { low: "C1", high: "C8" } : null,
@@ -214,6 +214,18 @@ function damp(x: Float32Array, decay: number, sampleRate: number): Float32Array 
 /** Sounds that follow a note's pitch (always, or when given one). */
 const takesPitch = (d: InstrumentDescriptor): boolean => d.pitched || d.pitchOptional === true;
 
+/**
+ * A note's pitch moved by `shift` semitones and `detune` cents. A note without a pitch plays the
+ * base's default pitch, so a transpose or detune moves that one.
+ */
+function retune(input: SynthInput, base: InstrumentDescriptor, shift: number, detune: number): { frequency: number | undefined; midi: number | undefined } {
+  const retuned = shift !== 0 || detune !== 0;
+  const frequency = input.frequency ?? (retuned ? base.defaultFrequency : undefined);
+  if (frequency === undefined) return { frequency: undefined, midi: input.midi };
+  const midi = input.midi ?? 69 + 12 * dmath.log2(frequency / 440);
+  return { frequency: frequency * dmath.pow(2, (shift * 100 + detune) / 1200), midi: midi + shift };
+}
+
 /** The base's notes with a tweak applied. `ownTranspose`: apply the base's written-to-sounding transpose here (inside layers). */
 function tweaked(base: Instrument, definition: BlocksDefinition | undefined, tweak: Tweak, ownTranspose: boolean): Instrument {
   const decay = tweak.params?.decay ?? 1;
@@ -223,9 +235,8 @@ function tweaked(base: Instrument, definition: BlocksDefinition | undefined, twe
     descriptor: base.descriptor,
     synthesize(input) {
       const shift = (ownTranspose ? base.descriptor.transpose : 0) + tweak.transpose;
-      const frequency = !pitchable || input.frequency === undefined ? undefined : input.frequency * dmath.pow(2, (shift * 100 + tweak.detune) / 1200);
-      const midi = !pitchable || input.midi === undefined ? undefined : input.midi + shift;
-      const note: SynthInput = { ...input, frequency, midi, variant: tweak.variant ?? input.variant };
+      const pitch = pitchable ? retune(input, base.descriptor, shift, tweak.detune) : { frequency: undefined, midi: undefined };
+      const note: SynthInput = { ...input, ...pitch, variant: tweak.variant ?? input.variant };
       let x = viaBlocks === undefined ? base.synthesize(note) : viaBlocks.synthesize(note);
       if (viaBlocks === undefined && decay < 1) x = damp(x, decay, input.sampleRate);
       x = brighten(x, tweak.params?.brightness ?? 0, input.sampleRate);
@@ -461,18 +472,27 @@ function layerIssues(layer: Layer, d: InstrumentDescriptor, hasDefinition: boole
 function blockIssues(definition: BlocksDefinition, path: IssuePath): Issue[] {
   const issues: Issue[] = [];
   const count = (test: (block: BlocksDefinition["blocks"][number]) => boolean): number => definition.blocks.filter(test).length;
-  if (planOf(definition).sources.length === 0) {
+  const plan = planOf(definition);
+  if (plan.sources.length === 0) {
     issues.push({ path: [...path, "blocks"], message: "No sound source.", hint: 'Add at least one of osc, modes, noise or string, e.g. { "osc": "sine" }.' });
   }
   const repeated: [string, number][] = [
-    ["`env` block", count((b) => "env" in b)],
-    ["`pitchEnv` block", count((b) => "pitchEnv" in b)],
+    // A source's own `env` is part of that source, not an `env` block.
+    ["`env` block", count((b) => blockForm(b) === "env")],
+    ["`pitchEnv` block", count((b) => blockForm(b) === "pitchEnv")],
     ["vibrato", count((b) => "lfo" in b && b.lfo === "vibrato")],
     ["tremolo", count((b) => "lfo" in b && b.lfo === "tremolo")],
   ];
   for (const [what, n] of repeated) {
     if (n > 1)
       issues.push({ path: [...path, "blocks"], message: `More than one ${what}.`, hint: "Keep one; give a source its own `env` to shape it separately." });
+  }
+  if (plan.sources.some((s) => "string" in s) && (plan.pitchEnv !== undefined || plan.vibrato !== undefined)) {
+    issues.push({
+      path: [...path, "blocks"],
+      message: "A plucked `string` keeps its pitch: `pitchEnv` and vibrato do not apply to it.",
+      hint: "Use osc or modes for a gliding or wobbling pitch, or make the string a separate instrument and layer the two.",
+    });
   }
   definition.blocks.forEach((block, k) => {
     const at: IssuePath = [...path, "blocks", k];

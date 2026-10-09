@@ -23,6 +23,8 @@ export interface InstrumentDescriptor {
   pitched: boolean;
   /** For unpitched sounds that may still take a `pitch` (a laser's starting pitch). */
   pitchOptional?: boolean;
+  /** For sounds with an optional pitch: the frequency in Hz they play when a note gives none. */
+  defaultFrequency?: number;
   /**
    * Sounds whose length is set by `len` (a whoosh, a riser, a laser sweep): their default length,
    * and they may be placed by `end` instead of `at`.

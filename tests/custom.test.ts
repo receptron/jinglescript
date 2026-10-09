@@ -32,6 +32,13 @@ function spectrum(x: Float32Array, start: number): number[] {
   fft(re, im);
   return Array.from({ length: n / 2 }, (_, k) => Math.hypot(re[k] ?? 0, im[k] ?? 0));
 }
+/** Frequency of the strongest bin in the first 8192 samples, Hz. */
+const pitchOf = (x: Float32Array): number => {
+  const m = spectrum(x, 0);
+  let best = 1;
+  for (let k = 1; k < m.length; k++) if ((m[k] ?? 0) > (m[best] ?? 0)) best = k;
+  return (best * RATE) / 8192;
+};
 const centroid = (m: number[]) => (m.reduce((s, v, k) => s + v * k, 0) / m.reduce((s, v) => s + v, 0)) * (RATE / 8192);
 const correlation = (a: number[], b: number[]) =>
   a.reduce((s, v, i) => s + v * (b[i] ?? 0), 0) / Math.sqrt(a.reduce((s, v) => s + v * v, 0) * b.reduce((s, v) => s + v * v, 0));
@@ -176,6 +183,16 @@ describe("tweaks and layers", () => {
     expect(peakOf(x.subarray(0, Math.round(0.02 * RATE)))).toBeLessThan(0.4 * peakOf(x));
   });
 
+  it("transpose moves an effect's default pitch when the note gives none", () => {
+    const zap = { kind: "sfx", pitch: "C6", blocks: [{ osc: "sine" }, { env: { attack: 0.002, decay: 0.5 } }] };
+    const plain = expandScore(parseScore(withInstruments({ zap, x: { base: "zap", transpose: 12 } }))).instruments;
+    const lower = plain.get("zap");
+    const higher = plain.get("x");
+    if (lower === undefined || higher === undefined) throw new Error("missing");
+    expect(pitchOf(play(higher, undefined)) / pitchOf(play(lower, undefined))).toBeCloseTo(2, 1);
+    expect(pitchOf(play(custom({ base: "pop", transpose: -12 }), undefined))).toBeLessThan(pitchOf(play(INSTRUMENTS.pop, undefined)) * 0.6);
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>
@@ -259,6 +276,9 @@ describe("definition errors (written for repair)", () => {
     expect(errorsOf({ x: { kind: "sfx", blocks: [{ osc: "sine" }] } })[0]?.path).toBe("instruments.x.pitch");
     expect(errorsOf({ x: { blocks: [{ osc: "sine" }], length: 1 } })[0]?.path).toBe("instruments.x.length");
     expect(errorsOf({ x: { blocks: [{ noise: "white", burst: 0.01, decay: 0.2 }] } })[0]?.path).toBe("instruments.x.blocks[0]");
+    // A source's own env is not a second env block.
+    expect(errorsOf({ x: { blocks: [{ osc: "sine", env: {} }, { osc: "saw", env: {} }, { env: {} }] } })).toEqual([]);
+    expect(errorsOf({ x: { blocks: [{ string: {} }, { lfo: "vibrato" }] } })[0]?.message).toContain("keeps its pitch");
   });
 
   it("checks notes against a custom instrument like a built-in", () => {

@@ -37,6 +37,7 @@ export const laser: Instrument = {
       "Laser zap 'pew' (sound effect): a falling electronic sweep. Optional `pitch` sets where it starts (default about D7); `len` sets the sweep's length (default 0.25 s).",
     pitched: false,
     pitchOptional: true,
+    defaultFrequency: DEFAULT_START_HZ,
     duration: { defaultSeconds: 0.25 },
     sustained: false,
     range: { low: "C5", high: "C8" },

@@ -1079,3 +1079,13 @@ Decided:
     (reported), like the built-in impact examples.
 - 2026-10-08 — **M2d done.** The user listened to the ten renders in `out/listen-m2d/` (the three
   examples, the guide's block sounds and the six evaluation scores): "どれも良い感じ".
+- 2026-10-08 — User: drop the guide's "1 to 15 seconds" (length is the request's call). Codex
+  reviewed PR #2 over seven rounds; twelve findings fixed, each with a test: a source's own `env`
+  counted as a second `env` block; `string` with `pitchEnv`/vibrato now an error (strings keep
+  their pitch); transpose/detune move an effect's default pitch (`defaultFrequency`, and
+  `retune` through stacks); a bare oscillator stops after its hold; layer ranges shift with
+  `transpose`, and stacks whose ranges do not overlap are an error; a held envelope releases
+  from its level at note-off even mid-attack; a custom effect's `len` is capped at 10 s in
+  validation; a delayed layer with a length is shortened so the stack ends at `len`; short
+  holds keep every ringing layer; LFO depth defaults per kind. The seventh round found nothing.
+  The examples' audio did not change.

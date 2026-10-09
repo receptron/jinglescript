@@ -239,20 +239,27 @@ describe("scoreToMidi", () => {
       format: "jinglescript/1",
       tempo: 120,
       length: { beats: 4 },
-      instruments: { late: { layers: [{ base: "piano", delay: 1 }, { base: "impact" }] } },
+      instruments: {
+        late: { layers: [{ base: "piano", delay: 1 }, { base: "impact" }] },
+        lateSwoosh: { layers: [{ base: "whoosh", delay: 1 }, { base: "pop" }] },
+      },
       tracks: [
         { instrument: "organ", notes: [{ at: 0, pitch: "C5", len: 1 }] },
         { instrument: "organ", notes: [{ at: 0, pitch: "C5", len: 3 }] },
         { instrument: "organ", notes: [{ at: 3, pitch: "E5", len: 4 }] },
         { instrument: "late", notes: [{ at: 3, pitch: "A4" }] },
+        { instrument: "lateSwoosh", notes: [{ at: 0 }, { at: 3 }] },
         ...Array.from({ length: 14 }, () => ({ instrument: "organ", notes: [{ at: 0, pitch: "G4", len: 1 }] })),
       ],
     });
-    const [, short, long, late, delayed] = readMidi(scoreToMidi(together)).tracks;
+    const midi = readMidi(scoreToMidi(together));
+    const [timing, short, long, late, delayed, swoosh] = midi.tracks;
     expect(notesOff(short ?? []).map((e) => e.tick)).toEqual([1440]);
     expect(notesOff(long ?? []).map((e) => e.tick)).toEqual([1440]);
     expect(notesOff(late ?? []).map((e) => e.tick)).toEqual([1920]);
     expect(notesOn(delayed ?? [])).toHaveLength(0);
+    expect(metas(swoosh ?? [], 0x06).map((e) => e.tick)).toEqual([960]);
+    expect(midi.tracks.map((track) => track.at(-1)?.tick)).toEqual(midi.tracks.map(() => timing?.at(-1)?.tick));
   });
 
   it("ends notes of a shared key struck a tick apart together, after the last of them", () => {

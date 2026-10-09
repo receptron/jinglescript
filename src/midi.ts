@@ -249,7 +249,8 @@ export function scoreToMidi(score: Score): Uint8Array {
     if (channel === undefined) {
       const own = expanded.events.filter((event) => event.track === index);
       const delay = resolved[index]?.delay ?? 0;
-      events.push(...own.map((event) => text(toTick(event.seconds + delay), 0x06, track.instrument)));
+      const ticks = own.map((event) => toTick(event.seconds + delay)).filter((tick) => tick < end);
+      events.push(...ticks.map((tick) => text(tick, 0x06, track.instrument)));
     } else {
       if (sound !== undefined && "program" in sound) events.push({ tick: 0, order: 0, bytes: [0xc0 | channel, sound.program] });
       for (const note of played[index] ?? []) {

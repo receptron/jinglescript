@@ -151,12 +151,18 @@ function playedKeys(
   return played;
 }
 
-/** On one channel a key sounds once: it ends where the same key starts again, whichever track plays it. */
-function endBeforeRestrike(notes: readonly Played[]): void {
+/**
+ * On one channel a key sounds once, whichever track plays it: notes struck together end together
+ * (at the later end, or the first note-off would stop both), a key ends where it starts again, and
+ * nothing sounds past `end`, where the audio stops.
+ */
+function fitChannel(notes: readonly Played[], end: number): void {
   const sorted = [...notes].sort((a, b) => a.on - b.on);
-  for (const [i, note] of sorted.entries()) {
-    const next = sorted.slice(i + 1).find((other) => other.key === note.key && other.on > note.on);
-    if (next !== undefined) note.off = Math.min(note.off, next.on);
+  for (const note of sorted) {
+    const together = sorted.filter((other) => other.key === note.key && other.on === note.on);
+    const next = sorted.find((other) => other.key === note.key && other.on > note.on);
+    const off = Math.min(Math.max(...together.map((other) => other.off)), next?.on ?? end, end);
+    note.off = Math.max(note.on + 1, off);
   }
 }
 
@@ -215,7 +221,7 @@ export function scoreToMidi(score: Score): Uint8Array {
     return playedKeys(own, toTick, keyOf, "drum" in sound ? DRUM_TICKS : undefined);
   });
   for (const channel of new Set(channels)) {
-    if (channel !== undefined) endBeforeRestrike(played.filter((_, index) => channels[index] === channel).flat());
+    if (channel !== undefined) fitChannel(played.filter((_, index) => channels[index] === channel).flat(), end);
   }
   const tracks = score.tracks.map((track, index) => {
     const sound = resolved[index]?.sound;

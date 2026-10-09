@@ -377,8 +377,12 @@ class Builder {
       const parts = definition.layers.map((layer, k) => this.layer(layer, [...path, "layers", k]));
       const ready = parts.filter((p) => p !== undefined);
       if (ready.length !== parts.length) return undefined;
-      const instruments = ready.map((p) => p.instrument);
-      return { descriptor: layeredDescriptor(instruments, definition.description), synthesize: layered(ready) };
+      // Each layer's range as written: a layer transposed up an octave takes notes an octave lower.
+      const written = ready.map((p, k) => ({
+        ...p.instrument,
+        descriptor: { ...p.instrument.descriptor, range: shiftedRange(p.instrument.descriptor.range, definition.layers[k]?.transpose ?? 0) },
+      }));
+      return { descriptor: layeredDescriptor(written, definition.description), synthesize: layered(ready) };
     }
     const part = this.layer({ ...definition, delay: 0 }, path, false);
     if (part === undefined) return undefined;

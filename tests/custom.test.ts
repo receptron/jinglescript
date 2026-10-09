@@ -193,6 +193,22 @@ describe("tweaks and layers", () => {
     expect(pitchOf(play(custom({ base: "pop", transpose: -12 }), undefined))).toBeLessThan(pitchOf(play(INSTRUMENTS.pop, undefined)) * 0.6);
   });
 
+  it("a bare oscillator stops after its hold, even beside a ringing source", () => {
+    const x = play(custom({ blocks: [{ osc: "sine" }, { modes: [{ ratio: 2, level: 0, decay: 3 }] }] }), 72, 0.1);
+    expect(rmsDb(x, 0.4) - rmsDb(x, 0)).toBeLessThan(-60);
+  });
+
+  it("a transposed layer takes notes in its written range", () => {
+    const up = {
+      layers: [
+        { base: "marimba", transpose: 24 },
+        { base: "marimba", transpose: 24 },
+      ],
+    };
+    expect(errorsOf({ x: up }, [{ instrument: "x", notes: [{ at: 0, pitch: "C1" }] }])).toEqual([]);
+    expect(errorsOf({ x: up }, [{ instrument: "x", notes: [{ at: 0, pitch: "C7" }] }])[0]?.message).toContain("outside");
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>

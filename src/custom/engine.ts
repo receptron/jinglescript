@@ -59,6 +59,9 @@ export const followsPitch = (source: Source): boolean => "osc" in source || "mod
 
 const ownEnv = (source: Source): Env | undefined => ("osc" in source || "noise" in source ? source.env : undefined);
 
+/** An oscillator with no envelope at all holds at full level for the note, then fades out. */
+const BARE_ENV: Env = { attack: 0.001, decay: 0.01, sustain: 1, release: BARE_RELEASE_SECONDS };
+
 /** True when notes hold for their `len`: something sustains rather than ringing out. */
 export function isSustained(plan: Plan): boolean {
   if (plan.env !== undefined) {
@@ -309,7 +312,8 @@ function mixSources(plan: Plan, v: Voicing, length: number): Float32Array {
   const shared = new Float32Array(length);
   const own = new Float32Array(length);
   for (const source of plan.sources) {
-    const env = ownEnv(source);
+    // A bare oscillator stops after its hold even when another source rings on.
+    const env = ownEnv(source) ?? (plan.env === undefined && "osc" in source ? BARE_ENV : undefined);
     if (env === undefined) {
       renderSource(shared, source, v);
       continue;

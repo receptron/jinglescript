@@ -243,6 +243,12 @@ describe("tweaks and layers", () => {
     expect(pitchOf(play(up, undefined)) / pitchOf(play(stack, undefined))).toBeCloseTo(2, 1);
   });
 
+  it("a stack with a length still ends at its len when a layer is delayed", () => {
+    const rise = custom({ layers: [{ base: "riser" }, { base: "riser", variant: "tone", delay: 1 }] });
+    const x = play(rise, undefined, 2);
+    expect(x.length).toBe(2 * RATE);
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>

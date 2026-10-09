@@ -26,6 +26,8 @@ const TRANSIENT_SECONDS = 0.1;
 /** DC blocker corner, Hz: also removes sub-audio content (a pitch glide that sinks below hearing). */
 const DC_HZ = 20;
 const END_FADE_SECONDS = 0.01;
+/** A delayed layer with a length plays only if this much of it is left. */
+const MIN_LAYER_SECONDS = 0.02;
 
 // ---- Levels -----------------------------------------------------------------------------------
 
@@ -265,9 +267,12 @@ function layered(layers: readonly { instrument: Instrument; delay: number }[]): 
     const parts = layers
       .map((layer, k) => ({ layer, k }))
       .filter(({ layer }) => firstOfChord || takesPitch(layer.instrument.descriptor))
-      .map(({ layer, k }) => ({
+      // A layer with a length that starts late is shortened by its delay, so the stack still ends at `len`.
+      .map(({ layer, k }) => ({ layer, k, hold: layer.instrument.descriptor.duration === undefined ? input.hold : input.hold - layer.delay }))
+      .filter(({ hold }) => hold >= MIN_LAYER_SECONDS)
+      .map(({ layer, k, hold }) => ({
         offset: Math.round(layer.delay * input.sampleRate),
-        x: layer.instrument.synthesize({ ...input, rng: streamRng(seed, "layer", k) }),
+        x: layer.instrument.synthesize({ ...input, hold, rng: streamRng(seed, "layer", k) }),
       }));
     if (parts.length === 0) return new Float32Array(1);
     const out = new Float32Array(Math.max(...parts.map((p) => p.offset + p.x.length)));

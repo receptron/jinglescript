@@ -43,7 +43,11 @@ const LayerFields = {
 export const LayerSchema = z
   .strictObject({
     ...LayerFields,
-    delay: seconds(0, 1).optional().describe("Seconds after the note's onset that this layer starts (an echo, a late sparkle). Default 0."),
+    delay: seconds(0, 1)
+      .optional()
+      .describe(
+        "Seconds after the note's onset that this layer starts (an echo, a late sparkle). Default 0. A layer with a length (whoosh, riser) is shortened by its delay, so the stack still ends at the note's `len`.",
+      ),
   })
   .describe("One sound in a stack: a base with its own adjustments.");
 

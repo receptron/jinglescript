@@ -50,6 +50,10 @@
           "mp3",
           "ogg"
         ]
+      },
+      "includeTiming": {
+        "description": "renderScore: true to get the whole timing map back (every beat, note and lyric syllable). By default only its summary comes back — tempo, duration, cues, audibleUntil, note counts — which is enough to check that cues land where intended.",
+        "type": "boolean"
       }
     },
     "required": [

@@ -49,6 +49,12 @@ export const ManageInputSchema = z
       .optional()
       .describe('renderScore: file stem for the outputs (default "jingle").'),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
+    includeTiming: z
+      .boolean()
+      .optional()
+      .describe(
+        "renderScore: true to get the whole timing map back (every beat, note and lyric syllable). By default only its summary comes back — tempo, duration, cues, audibleUntil, note counts — which is enough to check that cues land where intended.",
+      ),
   })
   .superRefine((input, ctx) => {
     for (const field of REQUIRED[input.action]) {
@@ -129,6 +135,22 @@ function parseMaybeJson(score: unknown): unknown {
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
 const round1 = (x: number): number => Math.round(x * 10) / 10;
 
+/** The timing map without its per-beat, per-note and per-syllable lists, which are long and rarely needed by the LLM. */
+function timingSummary(timing: TimingMap, trackCount: number, fullTimingAt: string) {
+  const notesPerTrack = Array.from({ length: trackCount }, () => 0);
+  for (const note of timing.notes) notesPerTrack[note.track] = (notesPerTrack[note.track] ?? 0) + 1;
+  return {
+    format: timing.format,
+    tempo: timing.tempo,
+    duration: timing.duration,
+    cues: timing.cues,
+    audibleUntil: timing.audibleUntil,
+    notesPerTrack,
+    ...(timing.lyrics ? { lyricLines: timing.lyrics.length } : {}),
+    omitted: `beats, notes${timing.lyrics ? " and lyrics" : ""} — ${fullTimingAt}`,
+  };
+}
+
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
   const raw = parseMaybeJson(input.score);
   const check = checkScore(raw);
@@ -144,6 +166,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     if (error instanceof FfmpegMissingError || error instanceof SampleDownloadError) return { text: error.message, isError: true };
     throw error;
   }
+  const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : "render again with includeTiming: true to get them";
   const summary = {
     ok: true,
     ...(files ? { audio: files.audio, timingFile: files.timing } : {}),
@@ -152,7 +175,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     limitingDb: round1(result.stats.limitingDb),
     belowLoudnessTarget: result.stats.limitedByPeak,
     warnings: check.warnings,
-    timing: result.timing,
+    timing: input.includeTiming ? result.timing : timingSummary(result.timing, score.tracks.length, fullTimingAt),
   };
   if (!options.player) return { text: json(summary), isError: false };
   const player: PlayerData = {

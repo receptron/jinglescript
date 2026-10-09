@@ -231,25 +231,28 @@ describe("scoreToMidi", () => {
     const ons = marimba.flatMap((track) => notesOn(track).map((e) => e.tick));
     const offs = marimba.flatMap((track) => notesOff(track).map((e) => e.tick));
     expect(ons).toEqual([0, 120, 240, 360, 480, 600, 720, 840, 960, 1080]);
-    expect(offs.slice(0, -1)).toEqual(ons.slice(1));
+    expect(offs.slice(0, -1)).toEqual(ons.slice(1).map((tick) => tick - 1));
   });
 
-  it("ends a shared key struck together at the later end, and nothing past the score's length", () => {
+  it("ends a shared key struck together at the later end, and plays nothing past the score's length", () => {
     const together = parseScore({
       format: "jinglescript/1",
       tempo: 120,
       length: { beats: 4 },
+      instruments: { late: { layers: [{ base: "piano", delay: 1 }, { base: "impact" }] } },
       tracks: [
         { instrument: "organ", notes: [{ at: 0, pitch: "C5", len: 1 }] },
         { instrument: "organ", notes: [{ at: 0, pitch: "C5", len: 3 }] },
         { instrument: "organ", notes: [{ at: 3, pitch: "E5", len: 4 }] },
+        { instrument: "late", notes: [{ at: 3, pitch: "A4" }] },
         ...Array.from({ length: 14 }, () => ({ instrument: "organ", notes: [{ at: 0, pitch: "G4", len: 1 }] })),
       ],
     });
-    const [, short, long, late] = readMidi(scoreToMidi(together)).tracks;
+    const [, short, long, late, delayed] = readMidi(scoreToMidi(together)).tracks;
     expect(notesOff(short ?? []).map((e) => e.tick)).toEqual([1440]);
     expect(notesOff(long ?? []).map((e) => e.tick)).toEqual([1440]);
     expect(notesOff(late ?? []).map((e) => e.tick)).toEqual([1920]);
+    expect(notesOn(delayed ?? [])).toHaveLength(0);
   });
 
   it("is the same for the same score, and reads every example", () => {

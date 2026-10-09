@@ -130,12 +130,15 @@ interface Played {
 /** Drum hits are a sixteenth note long: a drum channel ignores note-offs, but editors draw them. */
 const DRUM_TICKS = PPQ / 4;
 
-/** Each pitch of each event as a key held from its onset (`delay` later) for its hold (`ticks` instead, when given). */
+/**
+ * Each pitch of each event as a key held from its onset (`delay` later) for its hold (`ticks`
+ * instead, when given). A note that would start at or after `end` is left out: the audio has stopped.
+ */
 function playedKeys(
   events: readonly NoteEvent[],
   toTick: (seconds: number) => number,
   keyOf: (pitch: string | undefined) => number | undefined,
-  timing: { delay: number; ticks: number | undefined },
+  timing: { delay: number; ticks: number | undefined; end: number },
 ): Played[] {
   const played: Played[] = [];
   for (const event of events) {
@@ -147,6 +150,7 @@ function playedKeys(
       if (level <= 0 || key === undefined || key < 0 || key > 127) return;
       const start = event.seconds + timing.delay + (event.strum?.offsets[voice] ?? 0);
       const on = toTick(start);
+      if (on >= timing.end) return;
       const off = timing.ticks === undefined ? toTick(start + event.hold) : on + timing.ticks;
       played.push({ key, on, off: Math.max(on + 1, off), velocity: velocity(level) });
     });
@@ -156,15 +160,16 @@ function playedKeys(
 
 /**
  * On one channel a key sounds once, whichever track plays it: notes struck together end together
- * (at the later end, or the first note-off would stop both), a key ends where it starts again, and
- * nothing sounds past `end`, where the audio stops.
+ * (at the later end, or the first note-off would stop both), a key ends a tick before it starts
+ * again (so the note-off comes first whichever track chunk a player merges first), and nothing
+ * sounds past `end`, where the audio stops.
  */
 function fitChannel(notes: readonly Played[], end: number): void {
   const sorted = [...notes].sort((a, b) => a.on - b.on);
   for (const note of sorted) {
     const together = sorted.filter((other) => other.key === note.key && other.on === note.on);
     const next = sorted.find((other) => other.key === note.key && other.on > note.on);
-    const off = Math.min(Math.max(...together.map((other) => other.off)), next?.on ?? end, end);
+    const off = Math.min(Math.max(...together.map((other) => other.off)), next === undefined ? end : next.on - 1, end);
     note.off = Math.max(note.on + 1, off);
   }
 }
@@ -221,7 +226,7 @@ export function scoreToMidi(score: Score): Uint8Array {
       return written === undefined ? undefined : written + shift;
     };
     const own = expanded.events.filter((event) => event.track === index);
-    return playedKeys(own, toTick, keyOf, { delay, ticks: "drum" in sound ? DRUM_TICKS : undefined });
+    return playedKeys(own, toTick, keyOf, { delay, ticks: "drum" in sound ? DRUM_TICKS : undefined, end });
   });
   for (const channel of new Set(channels)) {
     if (channel !== undefined) fitChannel(played.filter((_, index) => channels[index] === channel).flat(), end);

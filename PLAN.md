@@ -1132,3 +1132,13 @@ Decided:
   (data URI); the view has "Download MIDI" next to the audio. Six examples in `out/midi/` read
   cleanly with @tonejs/midi (tempo, tracks, programs, notes as expected); not yet opened in a
   DAW by the user.
+- 2026-10-09 — User: "Download MIDI works great" (in the demo). Codex reviewed PR #5 over seven
+  rounds; nine findings fixed, each with a test: an unpitched pistol note had no key (now GM
+  Gunshot on key 60); vel-0 notes were exported at velocity 1 (now left out); the header wrote one
+  byte of the track count; transposition was lost through nested bases and a stack's first layer;
+  past 15 melodic tracks channels wrapped across programs (now shared by program, which the
+  built-ins' 11 GM programs always allow); same-key notes struck together on a shared channel
+  ended at the shorter one's end; notes held past the score's length; a stack's first-layer
+  `delay` was ignored (and notes it pushes past the end are left out); a re-struck key on a
+  shared channel relied on the order players merge track chunks (now it ends a tick early, and
+  notes a tick apart end together). The seventh round found nothing.

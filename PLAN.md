@@ -1113,3 +1113,7 @@ Decided:
   hashes unchanged; `a-grandpiano.json` added (hashed on the stand-ins). Listening set in
   `out/grandpiano/`: demo across the range, the A opening on piano and on grandpiano, velocities.
 - 2026-10-09 — **grandpiano done.** The user listened to `out/grandpiano/`: "It's beautiful."
+- 2026-10-09 — Codex reviewed PR #3 over two rounds; two findings fixed, each with a test: two
+  loads of the same uncached sample shared a temporary file (ENOENT on rename), and
+  `samplesNeeded` synthesized every note of every score — now only notes of `sampled`
+  instruments (layered custom instruments carry the mark). The second round found nothing.

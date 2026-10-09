@@ -309,6 +309,14 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
   const issues = [...pitchIssues(note, voice, path), ...variantIssues(note, voice, path), ...strumIssues(note, voice, path), ...lyricIssues(note, voice, path)];
   const resolve = (at: At): ResolvedAt => resolveAt(at, score.tempo, cues);
   const length = soundLength(note, voice, score.tempo);
+  const longest = voice.descriptor.duration?.maxSeconds;
+  if (length !== undefined && longest !== undefined && length > longest + EPSILON) {
+    issues.push({
+      path: [...path, note.len === undefined ? "end" : "len"],
+      message: `"${voice.name}" lasts at most ${longest} s; this note asks for ${length.toFixed(3)} s.`,
+      hint: "Make `len` shorter, or play several notes.",
+    });
+  }
   if (note.end !== undefined && length === undefined) {
     return {
       events: [],

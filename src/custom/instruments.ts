@@ -13,7 +13,7 @@ import { midiToFrequency, pitchToMidi } from "../pitch.ts";
 import { createRng, streamRng } from "../rng.ts";
 import { BUILTIN_DEFINITIONS } from "./builtins.ts";
 import { CAP_FADE_SECONDS, followsPitch, isSustained, planOf, renderBlocks } from "./engine.ts";
-import { blockForm, BlocksDefinitionSchema, type BlocksDefinition, type Definition, type Layer, type TweakParams } from "./schema.ts";
+import { blockForm, BlocksDefinitionSchema, MAX_NOTE_SECONDS, type BlocksDefinition, type Definition, type Layer, type TweakParams } from "./schema.ts";
 
 export type InstrumentTable = ReadonlyMap<string, Instrument>;
 
@@ -155,7 +155,7 @@ export function blocksDescriptor(definition: BlocksDefinition): InstrumentDescri
     description: definition.description ?? (sfx ? "Custom sound effect built from blocks." : "Custom instrument built from blocks."),
     pitched: pitchFollowing && !sfx,
     ...(pitchFollowing && sfx ? { pitchOptional: true, defaultFrequency: midiToFrequency(pitchToMidi(definition.pitch ?? "A4") ?? 69) } : {}),
-    ...(withLength ? { duration: { defaultSeconds: definition.length ?? 1 } } : {}),
+    ...(withLength ? { duration: { defaultSeconds: definition.length ?? 1, maxSeconds: MAX_NOTE_SECONDS } } : {}),
     sustained: !withLength && isSustained(plan),
     range: pitchFollowing ? { low: "C1", high: "C8" } : null,
     variants: [],
@@ -218,12 +218,21 @@ const takesPitch = (d: InstrumentDescriptor): boolean => d.pitched || d.pitchOpt
  * A note's pitch moved by `shift` semitones and `detune` cents. A note without a pitch plays the
  * base's default pitch, so a transpose or detune moves that one.
  */
-function retune(input: SynthInput, base: InstrumentDescriptor, shift: number, detune: number): { frequency: number | undefined; midi: number | undefined } {
-  const retuned = shift !== 0 || detune !== 0;
-  const frequency = input.frequency ?? (retuned ? base.defaultFrequency : undefined);
-  if (frequency === undefined) return { frequency: undefined, midi: input.midi };
-  const midi = input.midi ?? 69 + 12 * dmath.log2(frequency / 440);
-  return { frequency: frequency * dmath.pow(2, (shift * 100 + detune) / 1200), midi: midi + shift };
+function retune(
+  input: SynthInput,
+  base: InstrumentDescriptor,
+  shift: number,
+  detune: number,
+): { frequency: number | undefined; midi: number | undefined; retune: number | undefined } {
+  if (input.frequency !== undefined) {
+    return { frequency: input.frequency * dmath.pow(2, (shift * 100 + detune) / 1200), midi: (input.midi ?? 69) + shift, retune: undefined };
+  }
+  const cents = shift * 100 + detune + (input.retune ?? 0);
+  if (cents === 0) return { frequency: undefined, midi: input.midi, retune: undefined };
+  // A stack of layers has no one default: pass the move on to each layer.
+  if (base.defaultFrequency === undefined) return { frequency: undefined, midi: input.midi, retune: cents };
+  const frequency = base.defaultFrequency * dmath.pow(2, cents / 1200);
+  return { frequency, midi: 69 + 12 * dmath.log2(frequency / 440), retune: undefined };
 }
 
 /** The base's notes with a tweak applied. `ownTranspose`: apply the base's written-to-sounding transpose here (inside layers). */
@@ -235,7 +244,7 @@ function tweaked(base: Instrument, definition: BlocksDefinition | undefined, twe
     descriptor: base.descriptor,
     synthesize(input) {
       const shift = (ownTranspose ? base.descriptor.transpose : 0) + tweak.transpose;
-      const pitch = pitchable ? retune(input, base.descriptor, shift, tweak.detune) : { frequency: undefined, midi: undefined };
+      const pitch = pitchable ? retune(input, base.descriptor, shift, tweak.detune) : { frequency: undefined, midi: undefined, retune: undefined };
       const note: SynthInput = { ...input, ...pitch, variant: tweak.variant ?? input.variant };
       let x = viaBlocks === undefined ? base.synthesize(note) : viaBlocks.synthesize(note);
       if (viaBlocks === undefined && decay < 1) x = damp(x, decay, input.sampleRate);

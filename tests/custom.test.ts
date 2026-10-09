@@ -226,6 +226,23 @@ describe("tweaks and layers", () => {
     expect(peakOf(x.subarray(Math.round(0.05 * RATE)))).toBeLessThan(0.01 * peak);
   });
 
+  it("an effect longer than the cap is an error, so audio and timing agree", () => {
+    const hum = { kind: "sfx", length: 1, blocks: [{ noise: "pink", env: { attack: 0.01, decay: 1, sustain: 1, release: 0.1 } }] };
+    const tracks = [{ instrument: "hum", notes: [{ end: { seconds: 15 }, len: { seconds: 15 } }] }];
+    expect(checkScore({ ...base, length: { seconds: 16 }, instruments: { hum }, tracks }).errors[0]).toMatchObject({ path: "tracks[0].notes[0].len" });
+  });
+
+  it("transpose moves a stack of effects when the note gives no pitch", () => {
+    const ping = { kind: "sfx", pitch: "C6", blocks: [{ osc: "sine" }, { env: { attack: 0.002, decay: 0.5 } }] };
+    const instruments = expandScore(
+      parseScore(withInstruments({ ping, stack: { layers: [{ base: "ping" }, { base: "ping", gain: -6 }] }, up: { base: "stack", transpose: 12 } })),
+    ).instruments;
+    const stack = instruments.get("stack");
+    const up = instruments.get("up");
+    if (stack === undefined || up === undefined) throw new Error("missing");
+    expect(pitchOf(play(up, undefined)) / pitchOf(play(stack, undefined))).toBeCloseTo(2, 1);
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>

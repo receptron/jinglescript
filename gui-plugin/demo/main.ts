@@ -26,7 +26,13 @@ const PlayerSchema = z.object({
 const SamplesSchema = z.array(z.object({ toolName: z.string(), uuid: z.string(), message: z.string(), title: z.string().optional(), data: PlayerSchema }));
 
 const response = await fetch(new URL("./samples.json", import.meta.url));
-const results: ToolResultComplete<PlayerData>[] = SamplesSchema.parse(await response.json());
+const parsed = SamplesSchema.safeParse(response.ok ? await response.json() : undefined);
+if (!parsed.success) {
+  // A missing or stale samples.json (written before PlayerData changed) would otherwise leave a blank page.
+  document.body.textContent = "demo/samples.json is missing or out of date: run `npm run demo-data`, then reload.";
+  throw new Error(`demo/samples.json does not match PlayerData:\n${z.prettifyError(parsed.error)}`);
+}
+const results: ToolResultComplete<PlayerData>[] = parsed.data;
 
 createApp({
   render: () => [

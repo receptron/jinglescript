@@ -7,7 +7,7 @@ import type { Expanded, NoteEvent } from "./events.ts";
 import { isInstrumentName, type InstrumentName } from "./instruments/index.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { expandOrThrow } from "./render.ts";
-import type { Score } from "./score.ts";
+import { JingleScriptError, type Score } from "./score.ts";
 import { secondsToBeats } from "./time.ts";
 
 export const MIDI_MIME_TYPE = "audio/midi";
@@ -15,10 +15,15 @@ export const MIDI_MIME_TYPE = "audio/midi";
 /** Ticks per quarter note. */
 const PPQ = 480;
 const DRUM_CHANNEL = 9;
+/** A MIDI file counts its tracks in 16 bits. */
+const MAX_TRACKS = 0xffff;
 const TIMING_TRACK_NAME = "cues";
 
-/** A General MIDI program (0-based) on a melodic channel, a key on the drum channel, or only a marker. */
-type GmSound = { program: number } | { drum: number } | { marker: true };
+/**
+ * A General MIDI program (0-based) on a melodic channel (`key`: the key an unpitched sound plays),
+ * a key on the drum channel, or only a marker.
+ */
+type GmSound = { program: number; key?: number } | { drum: number } | { marker: true };
 
 const GM: Record<InstrumentName, GmSound> = {
   marimba: { program: 12 },
@@ -36,7 +41,7 @@ const GM: Record<InstrumentName, GmSound> = {
   clock: { drum: 76 },
   knock: { drum: 77 },
   impact: { drum: 49 },
-  pistol: { program: 127 },
+  pistol: { program: 127, key: 60 },
   footsteps: { marker: true },
   heels: { marker: true },
   tapdance: { marker: true },
@@ -129,12 +134,14 @@ function playedKeys(
   for (const event of events) {
     const pitches: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
     pitches.forEach((pitch, voice) => {
+      const level = event.vel * (event.strum?.weights[voice] ?? 1);
       const key = keyOf(pitch);
-      if (key === undefined || key < 0 || key > 127) return;
+      // A silent note (vel 0) is left out: velocity 0 would be a note-off.
+      if (level <= 0 || key === undefined || key < 0 || key > 127) return;
       const start = event.seconds + (event.strum?.offsets[voice] ?? 0);
       const on = toTick(start);
       const off = ticks === undefined ? toTick(start + event.hold) : on + ticks;
-      played.push({ key, on, off: Math.max(on + 1, off), velocity: velocity(event.vel * (event.strum?.weights[voice] ?? 1)) });
+      played.push({ key, on, off: Math.max(on + 1, off), velocity: velocity(level) });
     });
   }
   played.sort((a, b) => a.on - b.on);
@@ -176,6 +183,7 @@ export function scoreToMidi(score: Score): Uint8Array {
       const transpose = soundingShift(track.instrument, score, expanded);
       const keyOf = (pitch: string | undefined): number | undefined => {
         if ("drum" in sound) return sound.drum;
+        if (sound.key !== undefined) return sound.key;
         const written = pitch === undefined ? undefined : pitchToMidi(pitch);
         return written === undefined ? undefined : written + transpose;
       };
@@ -187,6 +195,16 @@ export function scoreToMidi(score: Score): Uint8Array {
     events.push(...syllables.filter((syllable) => syllable.track === index).map((syllable) => text(toTick(syllable.seconds), 0x05, syllable.text)));
     return trackChunk(events, end);
   });
-  const header = chunk("MThd", [0, 1, 0, tracks.length + 1, PPQ >>> 8, PPQ & 0xff]);
+  const count = tracks.length + 1;
+  if (count > MAX_TRACKS) {
+    throw new JingleScriptError([
+      {
+        path: "tracks",
+        message: `MIDI holds at most ${MAX_TRACKS - 1} tracks; this score has ${tracks.length}.`,
+        hint: "Merge tracks that play the same instrument.",
+      },
+    ]);
+  }
+  const header = chunk("MThd", [0, 1, count >>> 8, count & 0xff, PPQ >>> 8, PPQ & 0xff]);
   return Uint8Array.from([...header, ...trackChunk(timingTrack, end), ...tracks.flat()]);
 }

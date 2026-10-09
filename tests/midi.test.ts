@@ -156,6 +156,38 @@ describe("scoreToMidi", () => {
     expect(stack?.find((e) => (e.status & 0xf0) === 0xc0)?.data).toEqual([0]);
   });
 
+  it("plays a pistol shot on Gunshot, leaves silent notes out, and counts tracks past 255", () => {
+    const shots = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { beats: 2 },
+      instruments: { bang: { base: "pistol" } },
+      tracks: [
+        { instrument: "pistol", notes: [{ at: 0 }] },
+        { instrument: "bang", notes: [{ at: 1 }] },
+        {
+          instrument: "marimba",
+          notes: [
+            { at: 0, pitch: "C5", vel: 0 },
+            { at: 1, pitch: "D5" },
+          ],
+        },
+      ],
+    });
+    const [, pistol, bang, marimba] = readMidi(scoreToMidi(shots)).tracks;
+    expect(pistol?.find((e) => (e.status & 0xf0) === 0xc0)?.data).toEqual([127]);
+    expect(notesOn(pistol ?? []).map((e) => [e.tick, e.data[0]])).toEqual([[0, 60]]);
+    expect(notesOn(bang ?? []).map((e) => [e.tick, e.data[0]])).toEqual([[480, 60]]);
+    expect(notesOn(marimba ?? []).map((e) => e.data[0])).toEqual([74]);
+    const many = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { beats: 1 },
+      tracks: Array.from({ length: 300 }, () => ({ instrument: "marimba", notes: [{ at: 0, pitch: "C5" }] })),
+    });
+    expect(readMidi(scoreToMidi(many)).tracks).toHaveLength(301);
+  });
+
   it("is the same for the same score, and reads every example", () => {
     expect(scoreToMidi(score)).toEqual(scoreToMidi(score));
     for (const name of ["a-ukulele.json", "lyrics-hatena.json", "custom-zap.json", "riser-reveal.json"]) {

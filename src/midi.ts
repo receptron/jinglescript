@@ -168,7 +168,7 @@ function fitChannel(notes: readonly Played[], end: number): void {
   const byKey = new Map<number, Played[]>();
   for (const note of notes) byKey.set(note.key, [...(byKey.get(note.key) ?? []), note]);
   for (const keyNotes of byKey.values()) {
-    const sorted = keyNotes.sort((a, b) => a.on - b.on);
+    const sorted = [...keyNotes].sort((a, b) => a.on - b.on);
     const runs: Played[][] = [];
     for (const note of sorted) {
       const run = runs.at(-1);

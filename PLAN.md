@@ -1056,8 +1056,6 @@ Decided:
   renders MP3. MulmoTerminal still depends on `^0.1.0`.
 - 2026-10-08 — User: M1, M2 and M2b are done (their listening checks happened over the rounds
   above; heels keep "room to improve" as a possible later tweak). Starting M2d.
-<<<<<<< HEAD
-=======
 - 2026-10-08 — **M2d implemented** (branch `custom-instruments`; waiting for the user's ears).
   `instruments` in the score: tweak a built-in, layer 2–6 sounds, or build from blocks (`osc`,
   `modes`, `noise`, `string`, `env`, `filter`, `pitchEnv`, `lfo`); `src/custom/` validates
@@ -1091,4 +1089,3 @@ Decided:
   validation; a delayed layer with a length is shortened so the stack ends at `len`; short
   holds keep every ringing layer; LFO depth defaults per kind. The seventh round found nothing.
   The examples' audio did not change.
->>>>>>> 20c9149f18feb14409871536794eeb7b820b84e7

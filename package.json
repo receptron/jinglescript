@@ -1,6 +1,6 @@
 {
   "name": "jinglescript",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A score language for short jingles and sound effects that an LLM writes, rendered to audio plus a timing map for syncing animation.",
   "keywords": [
     "jingle",

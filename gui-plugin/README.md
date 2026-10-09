@@ -7,7 +7,8 @@ successful `renderScore` returns the jingle as `data`, and the view plays it wit
 beat grid, named cues (click one to jump there) and a lane of notes per track; effects with a
 length (risers, whooshes) show as bars. When the score has lyrics, the view shows them
 karaoke-style: the line being played and the next, each syllable filling in as its note plays.
-Every other action answers the LLM in text and shows no card.
+The audio and the music as MIDI (the library's `scoreToMidi`) can be downloaded from the view;
+the data also carries the score that was rendered. Every other action answers the LLM in text and shows no card.
 
 - **`"@gui-chat-plugin/jinglescript"`** (main entry, Node): `TOOL_DEFINITION`, `pluginCore`
   (`execute` renders on the host's server). The audio is embedded as a data URI — MP3 when ffmpeg

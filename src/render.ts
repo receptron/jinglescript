@@ -77,7 +77,8 @@ function mixEvent(voices: Voice[], event: NoteEvent, mix: [Float32Array, Float32
   }
 }
 
-function expandOrThrow(score: Score): ReturnType<typeof expandScore> {
+/** The score's events, or a JingleScriptError listing what keeps it from rendering. */
+export function expandOrThrow(score: Score): ReturnType<typeof expandScore> {
   const expanded = expandScore(score);
   if (expanded.issues.length > 0) {
     throw new JingleScriptError(

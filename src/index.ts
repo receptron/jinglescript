@@ -13,6 +13,7 @@ export type { LoadSamplesOptions } from "./samples/load.ts";
 export { SamplesNotLoadedError } from "./samples/source.ts";
 export type { SampleSource, SampleData } from "./samples/source.ts";
 export { renderToFiles } from "./output.ts";
+export { scoreToMidi, MIDI_MIME_TYPE } from "./midi.ts";
 export { toWav } from "./wav.ts";
 export type { WavBits } from "./wav.ts";
 export { integratedLoudness, truePeak } from "./dsp/loudness.ts";

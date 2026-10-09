@@ -1123,3 +1123,12 @@ Decided:
   is; `includeTiming: true` returns the whole map. The timing map, `timing.json` and the
   player's data are unchanged.
 - 2026-10-09 — Codex reviewed PR #4: no findings.
+- 2026-10-09 — User: export the music from the player view as MIDI (MusicXML later, if at all;
+  the score has no meter and notes sit off the grid, so notation would be guesswork).
+  `scoreToMidi(score)` writes a type-1 Standard MIDI File from the expanded events, at the times
+  the audio plays them: a track per score track, General MIDI sounds per built-in (a
+  `Record<InstrumentName, …>`), drums on channel 10, sounding pitches, cues as markers, lyrics as
+  lyric events, effects without a GM sound as markers. `PlayerData` gains `score` and `midi`
+  (data URI); the view has "Download MIDI" next to the audio. Six examples in `out/midi/` read
+  cleanly with @tonejs/midi (tempo, tracks, programs, notes as expected); not yet opened in a
+  DAW by the user.

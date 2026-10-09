@@ -79,7 +79,7 @@ Then ask for a jingle in a sentence ("a 5-second ukulele opening that lands on a
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,
 `manageJingleScript`, for hosts such as MulmoTerminal and MulmoClaude. A rendered jingle opens in a
 **player view**: waveform, beats, named cues you can click to jump to, and a lane of notes per
-track. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
+track, with downloads of the audio and of the music as MIDI. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
 
 ## Library
 
@@ -96,6 +96,14 @@ await writeFile("out/jingle.timing.json", JSON.stringify(timing, null, 2));
 `render` is synchronous and never touches the network; `loadSamples` fetches what a score's
 `grandpiano` notes play (or reads it from the cache; `{ download: false }` keeps it offline).
 `renderToFiles(score, dir, stem)`, the CLI and the MCP tool do this for you.
+
+`scoreToMidi(score)` gives the music as a Standard MIDI File (`Uint8Array`, type 1) to edit in a
+DAW or notation program: a track per score track, at the times the audio plays them, with General
+MIDI sounds for the built-ins (claps, knocks, the clock and impacts on the drum channel; the
+pistol as Gunshot). A custom instrument gets its base's sound. Effects with no General MIDI sound
+(whoosh, riser, laser, pop, footsteps, heels, tap dance) are markers named after the effect;
+cues are markers, lyrics are lyric events. Pitches are as they sound (a glockenspiel's written C5
+is C6).
 
 For LLMs and agents: `getSchema(part?)`, `getAuthoringGuide()`, `listInstruments()`,
 `getInstrument(name)` and `checkScore(json)` (never throws; returns errors with JSON paths and

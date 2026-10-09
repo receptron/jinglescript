@@ -131,7 +131,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
         <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </button>
       <span class="time">{{ formatTime(now) }} / {{ formatTime(data.duration) }}</span>
-      <a class="download" :href="data.audio" :download="`${data.title}.${extension}`">Download</a>
+      <span class="downloads">
+        <a :href="data.audio" :download="`${data.title}.${extension}`">Download {{ extension.toUpperCase() }}</a>
+        <a :href="data.midi" :download="`${data.title}.mid`">Download MIDI</a>
+      </span>
     </div>
 
     <div v-if="cues.length > 0" class="cues">
@@ -299,8 +302,12 @@ h2 {
   font-size: 0.95rem;
   cursor: pointer;
 }
-.download {
+.downloads {
   margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+.downloads a {
   color: var(--wave);
   font-size: 0.85rem;
 }

@@ -8,14 +8,18 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
                                            └──► timing.json (cues, beats, note onsets, lyrics)
 ```
 
-- Everything is synthesized in code: no samples, no network, no third-party audio. What you render
-  is yours to use.
+- Everything is synthesized in code — except `grandpiano`, which plays recordings of a real grand
+  piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL) (CC0, public
+  domain). Those samples are not in the package: the first render that uses `grandpiano` downloads
+  the notes it plays (about 1.2 MB each) into `~/.cache/jinglescript` (`JINGLESCRIPT_CACHE`
+  overrides it). Everything else needs no samples and no network. What you render is yours to use.
 - Deterministic: the same score and seed give bit-identical audio on every machine.
 - Cues are named moments (`"hit": { "seconds": 1.5 }`); notes are placed on them, and the timing map
   reports them, so an animation reads `cues.hit` instead of hard-coding a time.
 
-**Status: early (0.x).** Eleven instruments (marimba, xylophone, glockenspiel, vibraphone, music
-box, piano, organ, ukulele, piccolo and trumpet — both synthetic-sounding — and clap) and eleven
+**Status: early (0.x).** Twelve instruments (marimba, xylophone, glockenspiel, vibraphone, music
+box, piano, grandpiano (sampled), organ, ukulele, piccolo and trumpet — both synthetic-sounding —
+and clap) and eleven
 sound effects (clock, footsteps, heels, tapdance, knock, pistol, laser, whoosh, riser, impact, pop).
 Chords by name (`"chord": "G7"`) and tab-style strums (`"strum": "D-DU-UDU"`). An MCP server and a
 GUI Chat Protocol plugin with a player view. Custom instruments are planned.
@@ -77,13 +81,18 @@ track. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
 ## Library
 
 ```ts
-import { parseScore, render, toWav, checkScore, getSchema, getAuthoringGuide } from "jinglescript";
+import { parseScore, render, loadSamples, toWav, checkScore, getSchema, getAuthoringGuide } from "jinglescript";
 
 const score = parseScore(json); // zod-validated; throws with every problem, each with a path and a hint
-const { audio, sampleRate, timing } = render(score); // audio: [left, right] Float32Array
+const samples = await loadSamples(score); // grandpiano's recordings (cached; nothing when it is not used)
+const { audio, sampleRate, timing } = render(score, { samples }); // audio: [left, right] Float32Array
 await writeFile("out/jingle.wav", toWav(audio, sampleRate));
 await writeFile("out/jingle.timing.json", JSON.stringify(timing, null, 2));
 ```
+
+`render` is synchronous and never touches the network; `loadSamples` fetches what a score's
+`grandpiano` notes play (or reads it from the cache; `{ download: false }` keeps it offline).
+`renderToFiles(score, dir, stem)`, the CLI and the MCP tool do this for you.
 
 For LLMs and agents: `getSchema(part?)`, `getAuthoringGuide()`, `listInstruments()`,
 `getInstrument(name)` and `checkScore(json)` (never throws; returns errors with JSON paths and
@@ -174,9 +183,12 @@ reports before rendering.
 Every instrument and its range is listed in the schema (`tracks[].instrument`) and by
 listInstruments() / `jinglescript instruments`. Rules of thumb:
 
-- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, ukulele,
-  clap) ring out on their own; `len` is ignored. **Sustained** (organ, piccolo, trumpet) hold
+- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, grandpiano,
+  ukulele, clap) ring out on their own; `len` is ignored. **Sustained** (organ, piccolo, trumpet) hold
   each note until the track's next note unless you give `len` in beats.
+- **grandpiano** is a recorded grand piano (range A0–A7): use it when the piano should sound real.
+  **piano** is synthesized: lighter, and a little electric. grandpiano's samples download on first
+  use (about 1.2 MB per note), so its first render needs the network.
 - **musicbox** and **piccolo** sound an octave above the written pitch.
 - **piccolo** and **trumpet** sound synthetic; use them for a playful line, not for realism.
 - **clap** takes no pitch. Use `repeat` for claps on every beat. The default is a drum-machine

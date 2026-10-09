@@ -12,11 +12,12 @@ import { AUTHORING_GUIDE } from "../src/guide.ts";
 import { checkScore, getInstrument, getSchema, parseScore, render } from "../src/index.ts";
 import { midiToFrequency } from "../src/pitch.ts";
 import { createRng, type Rng } from "../src/rng.ts";
+import { pianoFixture } from "./sample-fixture.ts";
 
 const RATE = 48000;
 const play = (instrument: Instrument, midi: number | undefined, hold = 1, seed = 7): Float32Array => {
   const frequency = midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose);
-  return instrument.synthesize({ midi, frequency, velocity: 1, hold, variant: undefined, sampleRate: RATE, rng: createRng(seed) });
+  return instrument.synthesize({ midi, frequency, velocity: 1, hold, variant: undefined, sampleRate: RATE, rng: createRng(seed), samples: pianoFixture });
 };
 const peakOf = (x: Float32Array) => x.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
 const hash = (x: Float32Array) =>

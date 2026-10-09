@@ -2,6 +2,8 @@
 
 exports[`every shipped example > a-glockenspiel.json renders cleanly at the loudness target (or says why not) 1`] = `"8477fa1c4c11ff03efd090310c65f46a6b5d0fc06891c6f43bfc0d6f7aae3e39"`;
 
+exports[`every shipped example > a-grandpiano.json renders cleanly at the loudness target (or says why not) 1`] = `"d928fe6ec0fe98bfb6ace2d053aca55d8922112dd5b19644383cd9dadf987b02"`;
+
 exports[`every shipped example > a-marimba-glocken-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"769c0d905a26d91d3a1eb13b0bd57c8a3cdba1d31e8b92ea385000fa7fbc12d8"`;
 
 exports[`every shipped example > a-musicbox.json renders cleanly at the loudness target (or says why not) 1`] = `"bfdcce71b41bbb40b3e73c299e5e716b9b7f7a18213e3b80832f3618f91f74a6"`;

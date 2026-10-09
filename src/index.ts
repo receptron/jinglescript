@@ -3,11 +3,16 @@ export { parseScore, checkScore, ScoreSchema, JingleScriptError, formatProblem }
 export type { Score, ScoreProblem, CheckResult } from "./score.ts";
 export { ScoreBaseSchema, NoteSchema, TrackSchema, CueSchema, AtSchema, FORMAT } from "./score-schema.ts";
 export type { ScoreInput, Note, Track } from "./score-schema.ts";
-export { render, DEFAULT_SAMPLE_RATE, SAMPLE_RATES } from "./render.ts";
+export { render, samplesNeeded, DEFAULT_SAMPLE_RATE, SAMPLE_RATES } from "./render.ts";
 export type { RenderOptions, RenderResult, SampleRate } from "./render.ts";
 export { TimingSchema, TIMING_FORMAT } from "./timing.ts";
 export type { TimingMap, TimingNote, TimingLyricLine } from "./timing.ts";
 export type { MasterStats } from "./dsp/master.ts";
+export { loadSamples, defaultCacheDir, SampleDownloadError } from "./samples/load.ts";
+export type { LoadSamplesOptions } from "./samples/load.ts";
+export { SamplesNotLoadedError } from "./samples/source.ts";
+export type { SampleSource, SampleData } from "./samples/source.ts";
+export { renderToFiles } from "./output.ts";
 export { toWav } from "./wav.ts";
 export type { WavBits } from "./wav.ts";
 export { integratedLoudness, truePeak } from "./dsp/loudness.ts";

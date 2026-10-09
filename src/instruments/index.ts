@@ -1,6 +1,7 @@
 // The built-in instruments and sound effects (src/sounds/). Adding a name to INSTRUMENT_NAMES without an entry
 // in INSTRUMENTS is a type error.
 import { clap } from "./clap.ts";
+import { grandpiano } from "./grandpiano.ts";
 import { glockenspiel } from "./glockenspiel.ts";
 import { marimba } from "./marimba.ts";
 import { musicbox } from "./musicbox.ts";
@@ -31,6 +32,7 @@ export const INSTRUMENT_NAMES = [
   "vibraphone",
   "musicbox",
   "piano",
+  "grandpiano",
   "organ",
   "ukulele",
   "piccolo",
@@ -57,6 +59,7 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   vibraphone,
   musicbox,
   piano,
+  grandpiano,
   organ,
   ukulele,
   piccolo,

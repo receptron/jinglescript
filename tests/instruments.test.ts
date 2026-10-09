@@ -8,6 +8,7 @@ import { MAX_PARTIAL_FRACTION } from "../src/instruments/common.ts";
 import { parseScore, render } from "../src/index.ts";
 import { midiToFrequency, pitchToMidi } from "../src/pitch.ts";
 import { createRng } from "../src/rng.ts";
+import { pianoFixture } from "./sample-fixture.ts";
 
 const RATE = 48000;
 const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE, hold = 1, variant?: string, seed = 7) => {
@@ -15,7 +16,8 @@ const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE,
   const frequency = midi === undefined ? undefined : midiToFrequency(midi + descriptor.transpose);
   // Effects with a length are tested at their default length.
   const length = descriptor.duration?.defaultSeconds ?? hold;
-  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold: length, variant, sampleRate, rng: createRng(seed) });
+  // Sampled instruments play stand-ins for their recordings (tests/sample-fixture.ts).
+  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold: length, variant, sampleRate, rng: createRng(seed), samples: pianoFixture });
 };
 /** Tonal sounds, whose partials must stay clear of Nyquist. Noise is not "aliasing". */
 const tonal = (name: InstrumentName): boolean => INSTRUMENTS[name].descriptor.pitched || INSTRUMENTS[name].descriptor.pitchOptional === true;
@@ -112,7 +114,9 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
     },
   );
 
-  it.runIf(descriptor.transient !== true).each(variantsOf(name))(
+  // A sampled instrument's level is set on its recordings, not on the stand-ins: tests/grandpiano.test.ts
+  // checks it when the recordings are in the cache.
+  it.runIf(descriptor.transient !== true && descriptor.sampled === undefined).each(variantsOf(name))(
     "is as loud as the marimba for a C5 at full velocity (variant %s, ±0.5 LU), so mixes balance",
     (variant) => {
       // Noise-based sounds vary a little with the seed: compare the mean over five seeds.
@@ -174,7 +178,7 @@ describe("every shipped example", () => {
 
   it.each(files)("%s renders cleanly at the loudness target (or says why not)", (file) => {
     const score = parseScore(JSON.parse(readFileSync(new URL(file, dir), "utf8")));
-    const { audio, stats, timing } = render(score);
+    const { audio, stats, timing } = render(score, { samples: pianoFixture });
     expect(audio.every((channel) => channel.every(Number.isFinite))).toBe(true);
     expect(truePeak(audio)).toBeLessThanOrEqual(-1.5);
     if (!stats.limitedByPeak) expect(Math.abs(integratedLoudness(audio, RATE) - score.master.loudness)).toBeLessThanOrEqual(0.5);

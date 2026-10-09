@@ -19,6 +19,7 @@ import {
 } from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
+import { SampleDownloadError } from "./samples/load.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
 import { WAV_BITS } from "./wav.ts";
 
@@ -73,6 +74,11 @@ function intArg(value: string | undefined, name: string): number | undefined {
   return Number.isInteger(n) && n >= 0 ? n : fail(`${name} must be a non-negative integer`);
 }
 
+/** Sampled instruments download their samples on first use: say so on stderr. */
+function downloadNotice(file: string, bytes: number): void {
+  console.error(`downloading sample ${file} (${(bytes / 1e6).toFixed(1)} MB)`);
+}
+
 function report(files: Awaited<ReturnType<typeof renderToFiles>>, target: number): void {
   const { loudness, truePeak, limitingDb, limitedByPeak } = files.result.stats;
   console.log(`wrote ${files.audio} and ${files.timing}`);
@@ -93,6 +99,7 @@ async function renderCommand(file: string | undefined): Promise<void> {
     seed: intArg(args.seed, "--seed"),
     bits,
     format,
+    onDownload: downloadNotice,
   });
   report(files, score.master.loudness);
 }
@@ -105,7 +112,7 @@ async function demoCommand(name: string | undefined): Promise<void> {
         .join(", ")}`,
     );
   const score = parseScore(demoScore(name));
-  report(await renderToFiles(score, args.out ?? "out", `demo-${name}`, { sampleRate: sampleRateArg() }), score.master.loudness);
+  report(await renderToFiles(score, args.out ?? "out", `demo-${name}`, { sampleRate: sampleRateArg(), onDownload: downloadNotice }), score.master.loudness);
 }
 
 async function checkCommand(file: string | undefined): Promise<void> {
@@ -141,7 +148,15 @@ function instrumentsCommand(name: string | undefined): void {
   }
   for (const i of all) {
     const range = i.range ? `${i.range.low}–${i.range.high}` : "unpitched";
-    const traits = [i.kind, range, i.sustained ? "sustained" : "rings out", i.synthetic ? "synthetic-sounding" : ""].filter(Boolean).join(", ");
+    const traits = [
+      i.kind,
+      range,
+      i.sustained ? "sustained" : "rings out",
+      i.synthetic ? "synthetic-sounding" : "",
+      i.sampled ? "recorded samples, downloaded on first use" : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
     console.log(`${i.name} (${traits})\n  ${i.description}`);
   }
 }
@@ -177,6 +192,6 @@ try {
   await main();
 } catch (error) {
   // Problems the user can fix are reported as messages, not stack traces.
-  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError) fail(error.message);
+  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError || error instanceof SampleDownloadError) fail(error.message);
   throw error;
 }

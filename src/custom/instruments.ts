@@ -287,7 +287,7 @@ function layeredDescriptor(parts: readonly Instrument[], description: string | u
     ...(duration === undefined ? {} : { duration }),
     ...(descriptors.every((d) => d.transient === true) ? { transient: true } : {}),
     sustained: descriptors.some((d) => d.sustained),
-    range: pitched ? { low: NOTE_NAMES_BY_MIDI(Math.min(low, high)), high: NOTE_NAMES_BY_MIDI(high) } : null,
+    range: pitched ? { low: NOTE_NAMES_BY_MIDI(low), high: NOTE_NAMES_BY_MIDI(high) } : null,
     variants: [],
     ...(tuning === undefined ? {} : { tuning }),
     transpose: 0,
@@ -382,7 +382,20 @@ class Builder {
         ...p.instrument,
         descriptor: { ...p.instrument.descriptor, range: shiftedRange(p.instrument.descriptor.range, definition.layers[k]?.transpose ?? 0) },
       }));
-      return { descriptor: layeredDescriptor(written, definition.description), synthesize: layered(ready) };
+      const descriptor = layeredDescriptor(written, definition.description);
+      const range = descriptor.range;
+      if (range !== null && (pitchToMidi(range.low) ?? 0) > (pitchToMidi(range.high) ?? 0)) {
+        const ranges = written
+          .map((w, k) => (w.descriptor.pitched && w.descriptor.range !== null ? `layers[${k}] ${w.descriptor.range.low}–${w.descriptor.range.high}` : ""))
+          .filter(Boolean);
+        this.issues.push({
+          path: [...path, "layers"],
+          message: `The pitched layers share no note they can all play (written ranges: ${ranges.join(", ")}).`,
+          hint: "Transpose the layers so their ranges overlap.",
+        });
+        return undefined;
+      }
+      return { descriptor, synthesize: layered(ready) };
     }
     const part = this.layer({ ...definition, delay: 0 }, path, false);
     if (part === undefined) return undefined;

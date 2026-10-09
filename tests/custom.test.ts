@@ -209,6 +209,23 @@ describe("tweaks and layers", () => {
     expect(errorsOf({ x: up }, [{ instrument: "x", notes: [{ at: 0, pitch: "C7" }] }])[0]?.message).toContain("outside");
   });
 
+  it("rejects layers whose ranges do not overlap", () => {
+    const apart = {
+      layers: [
+        { base: "marimba", transpose: 24 },
+        { base: "piccolo", transpose: -24 },
+      ],
+    };
+    expect(errorsOf({ x: apart })[0]).toMatchObject({ path: "instruments.x.layers", hint: "Transpose the layers so their ranges overlap." });
+  });
+
+  it("a held note that ends during its attack releases from where it is, without a jump", () => {
+    const x = play(custom({ blocks: [{ osc: "sine" }, { env: { attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.01 } }] }), 72, 0.02);
+    const peak = peakOf(x);
+    // Before the fix the envelope kept rising to 0.1 s and then fell to zero in one step.
+    expect(peakOf(x.subarray(Math.round(0.05 * RATE)))).toBeLessThan(0.01 * peak);
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>

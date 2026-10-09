@@ -77,17 +77,18 @@ export function isSustained(plan: Plan): boolean {
 
 /** Seconds an envelope takes to end: to silence for a struck one, through its release for a held one. */
 function envSeconds(env: Env, hold: number, scale: number): number {
-  return env.sustain > 0 ? Math.max(hold, env.attack) + env.release * scale : env.attack + env.decay * scale;
+  return env.sustain > 0 ? hold + env.release * scale : env.attack + env.decay * scale;
 }
 
 /** Level of an envelope at `t`: linear attack, exponential decay (to silence, or to the sustain level), exponential release after `hold`. */
 export function envAt(env: Env, t: number, hold: number, scale: number): number {
-  if (t < env.attack) return t / env.attack;
-  const fall = dmath.exp((-RING_TIME_CONSTANTS * (t - env.attack)) / (env.decay * scale));
-  if (env.sustain === 0) return fall;
-  const level = (u: number): number =>
-    u < env.attack ? u / env.attack : env.sustain + (1 - env.sustain) * dmath.exp((-RING_TIME_CONSTANTS * (u - env.attack)) / (env.decay * scale));
-  if (t <= hold) return level(t);
+  const level = (u: number): number => {
+    if (u < env.attack) return u / env.attack;
+    const fall = dmath.exp((-RING_TIME_CONSTANTS * (u - env.attack)) / (env.decay * scale));
+    return env.sustain + (1 - env.sustain) * fall;
+  };
+  // A struck envelope ignores the hold; a held one releases from wherever it is at note-off, even mid-attack.
+  if (env.sustain === 0 || t <= hold) return level(t);
   return level(hold) * dmath.exp((-RING_TIME_CONSTANTS * (t - hold)) / (env.release * scale));
 }
 

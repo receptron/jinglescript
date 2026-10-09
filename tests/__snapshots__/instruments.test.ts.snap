@@ -22,6 +22,10 @@ exports[`every shipped example > a-xylophone.json renders cleanly at the loudnes
 
 exports[`every shipped example > clock-to-chime.json renders cleanly at the loudness target (or says why not) 1`] = `"c0584241f2d9204eec536d4da51ef4cd7dfe728ee9835576e596a47fe1c86c12"`;
 
+exports[`every shipped example > custom-bell.json renders cleanly at the loudness target (or says why not) 1`] = `"d8de4ba0db92a6bebe036368afc9bc7efe94cbe19d63b9228a75cb056dea2351"`;
+
+exports[`every shipped example > custom-zap.json renders cleanly at the loudness target (or says why not) 1`] = `"12dd77bd8050171c07063de33ea274c5eae36a1a460cc01c1beb2ca56eedc201"`;
+
 exports[`every shipped example > hatena-marumo-a.json renders cleanly at the loudness target (or says why not) 1`] = `"c8affcc9071f9b2e70309dc85b39435bd12d20192e077788b090491d88284bcf"`;
 
 exports[`every shipped example > hatena-marumo-b.json renders cleanly at the loudness target (or says why not) 1`] = `"86e98efc9e5e5b855f92ce2377d77b4d87dcb2928e8555ede9a4edcbffdd8adc"`;
@@ -29,6 +33,8 @@ exports[`every shipped example > hatena-marumo-b.json renders cleanly at the lou
 exports[`every shipped example > hatena-marumo-c.json renders cleanly at the loudness target (or says why not) 1`] = `"f9f57e199df98bb09fa57c3fd229397677a7a935c9096992ed0144beefc48eee"`;
 
 exports[`every shipped example > laser-zaps.json renders cleanly at the loudness target (or says why not) 1`] = `"cb143ed200f8f7a89efe5c5980ea52d42a897a6d0e2ddacfe375d7ad6606bc03"`;
+
+exports[`every shipped example > layered-hit.json renders cleanly at the loudness target (or says why not) 1`] = `"023c8e9264f2846078871d02a7b9af9f4863bb49c21289b654776a5d50a41043"`;
 
 exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudness target (or says why not) 1`] = `"e9b5fd01720ea59d6efb6865d8dc1546811bfd2b30a2f1ac30494308f26e310b"`;
 

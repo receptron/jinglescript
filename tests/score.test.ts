@@ -58,7 +58,8 @@ describe("score validation (errors written for repair)", () => {
   it("lists the instruments when one is unknown", () => {
     const [error] = errorsOf({ ...base, tracks: [{ instrument: "kazoo", notes: [{ at: 0 }] }] });
     expect(error?.path).toBe("tracks[0].instrument");
-    expect(error?.message).toContain('"marimba"');
+    expect(error?.message).toBe('Unknown instrument "kazoo".');
+    expect(error?.hint).toContain("marimba");
   });
 
   it("rejects unknown fields", () => {

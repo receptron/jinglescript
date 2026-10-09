@@ -1,6 +1,7 @@
 // Parsing and checking scores. Errors are written for repair: each says where (a JSON path), what
 // is wrong, and what is allowed — an LLM reads them and fixes its score.
 import { z } from "zod";
+import { BLOCK_SCHEMAS, blockForm, DEFINITION_FORM_SCHEMAS, definitionForm } from "./custom/schema.ts";
 import { expandScore, type Expanded, type Issue } from "./events.ts";
 import { ScoreBaseSchema, type ScoreData } from "./score-schema.ts";
 import { roundMs, secondsToBeats } from "./time.ts";
@@ -63,10 +64,53 @@ function problemOf(issue: z.core.$ZodIssue): ScoreProblem {
   return { path, message: issue.message };
 }
 
+function valueAt(input: unknown, path: readonly PropertyKey[]): unknown {
+  let value = input;
+  for (const key of path) {
+    if (typeof value !== "object" || value === null) return undefined;
+    const next: unknown = Reflect.get(value, key);
+    value = next;
+  }
+  return value;
+}
+
+/** The schema of the union branch a value under `instruments` was meant for, judged by its key. */
+function intendedBranch(path: readonly PropertyKey[], value: unknown): z.ZodType | undefined {
+  if (path[0] !== "instruments") return undefined;
+  if (path.length === 2) {
+    const form = definitionForm(value);
+    return form === undefined ? undefined : DEFINITION_FORM_SCHEMAS[form];
+  }
+  if (path.at(-2) === "blocks") {
+    const form = blockForm(value);
+    return form === undefined ? undefined : BLOCK_SCHEMAS[form];
+  }
+  return undefined;
+}
+
+/**
+ * A custom instrument or block that matches no form only says "invalid input"; validating it
+ * against the form its key names gives the problems an LLM can fix.
+ */
+function precise(issues: readonly z.core.$ZodIssue[], input: unknown): z.core.$ZodIssue[] {
+  return issues.flatMap((issue) => {
+    if (issue.code !== "invalid_union") return [issue];
+    const value = valueAt(input, issue.path);
+    const branch = intendedBranch(issue.path, value);
+    if (branch === undefined) return [issue];
+    const result = branch.safeParse(value);
+    if (result.success) return [issue];
+    const nested = result.error.issues.map((inner) => ({ ...inner, path: [...issue.path, ...inner.path] }));
+    return precise(nested, input);
+  });
+}
+
+const problemsOf = (error: z.ZodError, input: unknown): ScoreProblem[] => precise(error.issues, input).map(problemOf);
+
 /** Parses and validates a score; throws JingleScriptError listing every problem. */
 export function parseScore(input: unknown): Score {
   const result = ScoreSchema.safeParse(input);
-  if (!result.success) throw new JingleScriptError(result.error.issues.map(problemOf));
+  if (!result.success) throw new JingleScriptError(problemsOf(result.error, input));
   return result.data;
 }
 
@@ -109,7 +153,7 @@ function nearCueWarnings(expanded: Expanded): ScoreProblem[] {
 /** Checks a score without throwing: errors with paths and hints, and what the score resolves to. */
 export function checkScore(input: unknown): CheckResult {
   const result = ScoreSchema.safeParse(input);
-  if (!result.success) return { ok: false, errors: result.error.issues.map(problemOf), warnings: [], cues: {} };
+  if (!result.success) return { ok: false, errors: problemsOf(result.error, input), warnings: [], cues: {} };
   const expanded = expandScore(result.data);
   const cues = Object.fromEntries(
     Object.entries(expanded.cues).map(([name, seconds]) => [

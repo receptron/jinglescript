@@ -36,7 +36,10 @@ export const ManageInputSchema = z
       .describe(
         "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds.",
       ),
-    part: z.enum(SCHEMA_PARTS).optional().describe('getSchema: one part only ("score" is the whole format, "timing" the timing map\'s).'),
+    part: z
+      .enum(SCHEMA_PARTS)
+      .optional()
+      .describe('getSchema: one part only ("score" is the whole format, "instrument" a custom instrument\'s, "timing" the timing map\'s).'),
     instrument: z.string().optional().describe("getInstrument: the instrument or sound effect's name."),
     score: z.unknown().optional().describe("checkScore, renderScore: the score as a JSON object (format jinglescript/1). A JSON string is accepted too."),
     fileName: z

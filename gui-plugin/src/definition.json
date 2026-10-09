@@ -18,13 +18,14 @@
         "description": "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds."
       },
       "part": {
-        "description": "getSchema: one part only (\"score\" is the whole format, \"timing\" the timing map's).",
+        "description": "getSchema: one part only (\"score\" is the whole format, \"instrument\" a custom instrument's, \"timing\" the timing map's).",
         "type": "string",
         "enum": [
           "score",
           "track",
           "note",
           "cue",
+          "instrument",
           "timing"
         ]
       },

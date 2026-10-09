@@ -1,0 +1,20 @@
+[
+  {
+    "id": "soft-bell",
+    "request": "A 6-second gentle jingle with a bell that is softer and rings longer than the glockenspiel; the last chord lands at 2.5 s.",
+    "cues": [2.5],
+    "custom": true
+  },
+  {
+    "id": "retro-zap-ja",
+    "request": "レトロゲーム風の低くて太いザップ音を自作して、0.4秒・1.0秒・1.6秒に3回鳴らして。全部で3秒。",
+    "cues": [0.4, 1.0, 1.6],
+    "custom": true
+  },
+  {
+    "id": "layered-hit",
+    "request": "A 5-second logo sting: a short piano lead-in, then on the logo at 1.5 s one hit that layers a piano chord with a soft boom under it.",
+    "cues": [1.5],
+    "custom": true
+  }
+]

@@ -146,6 +146,717 @@
         "description": "A named moment the animation syncs to, e.g. { \"seconds\": 1.5 } for a hit. Give it in seconds when the animation fixes the time, so you never convert seconds to beats yourself. A cue needs no note on it (e.g. where a voice-over starts)."
       }
     },
+    "instruments": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[a-z]\\w*$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "base": {
+                "type": "string",
+                "description": "A built-in instrument or effect (e.g. \"glockenspiel\", \"impact\"), or another custom instrument of this score."
+              },
+              "params": {
+                "type": "object",
+                "properties": {
+                  "decay": {
+                    "description": "How long it rings, as a multiple of the base's ring: 0.5 = half as long (damped), 2 = twice as long. Above 1 only for built-ins that have a block definition (listed by getInstrument).",
+                    "type": "number",
+                    "minimum": 0.25,
+                    "maximum": 4
+                  },
+                  "brightness": {
+                    "description": "Tone colour: -1 dark and muffled, 0 as is, 1 bright and crisp.",
+                    "type": "number",
+                    "minimum": -1,
+                    "maximum": 1
+                  },
+                  "attack": {
+                    "description": "Seconds to fade in at the start: 0.001 keeps the strike; 0.02–0.08 softens it; 0.2+ swells in.",
+                    "type": "number",
+                    "minimum": 0.001,
+                    "maximum": 0.5
+                  }
+                },
+                "additionalProperties": false,
+                "description": "Adjustments to the base sound. Leave out what should stay as it is."
+              },
+              "variant": {
+                "description": "Always play this variant of the base (for bases with variants, e.g. impact \"soft\"/\"hard\").",
+                "type": "string"
+              },
+              "transpose": {
+                "description": "Semitones to shift the pitch (12 = an octave up). Pitched bases only.",
+                "type": "integer",
+                "minimum": -24,
+                "maximum": 24
+              },
+              "detune": {
+                "description": "Cents to detune by (a slight detune against another layer thickens the sound).",
+                "type": "number",
+                "minimum": -100,
+                "maximum": 100
+              },
+              "gain": {
+                "description": "Level in dB relative to the base (0 = as is, -6 = about half as loud).",
+                "type": "number",
+                "minimum": -36,
+                "maximum": 12
+              },
+              "description": {
+                "description": "One line for people: what this sounds like.",
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "base"
+            ],
+            "additionalProperties": false,
+            "description": "A built-in with adjustments: { \"base\": \"glockenspiel\", \"params\": { \"decay\": 1.5, \"brightness\": -0.4 } }."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "layers": {
+                "minItems": 2,
+                "maxItems": 6,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "base": {
+                      "type": "string",
+                      "description": "A built-in instrument or effect (e.g. \"glockenspiel\", \"impact\"), or another custom instrument of this score."
+                    },
+                    "params": {
+                      "type": "object",
+                      "properties": {
+                        "decay": {
+                          "description": "How long it rings, as a multiple of the base's ring: 0.5 = half as long (damped), 2 = twice as long. Above 1 only for built-ins that have a block definition (listed by getInstrument).",
+                          "type": "number",
+                          "minimum": 0.25,
+                          "maximum": 4
+                        },
+                        "brightness": {
+                          "description": "Tone colour: -1 dark and muffled, 0 as is, 1 bright and crisp.",
+                          "type": "number",
+                          "minimum": -1,
+                          "maximum": 1
+                        },
+                        "attack": {
+                          "description": "Seconds to fade in at the start: 0.001 keeps the strike; 0.02–0.08 softens it; 0.2+ swells in.",
+                          "type": "number",
+                          "minimum": 0.001,
+                          "maximum": 0.5
+                        }
+                      },
+                      "additionalProperties": false,
+                      "description": "Adjustments to the base sound. Leave out what should stay as it is."
+                    },
+                    "variant": {
+                      "description": "Always play this variant of the base (for bases with variants, e.g. impact \"soft\"/\"hard\").",
+                      "type": "string"
+                    },
+                    "transpose": {
+                      "description": "Semitones to shift the pitch (12 = an octave up). Pitched bases only.",
+                      "type": "integer",
+                      "minimum": -24,
+                      "maximum": 24
+                    },
+                    "detune": {
+                      "description": "Cents to detune by (a slight detune against another layer thickens the sound).",
+                      "type": "number",
+                      "minimum": -100,
+                      "maximum": 100
+                    },
+                    "gain": {
+                      "description": "Level in dB relative to the base (0 = as is, -6 = about half as loud).",
+                      "type": "number",
+                      "minimum": -36,
+                      "maximum": 12
+                    },
+                    "delay": {
+                      "description": "Seconds after the note's onset that this layer starts (an echo, a late sparkle). Default 0. A layer with a length (whoosh, riser) is shortened by its delay, so the stack still ends at the note's `len`.",
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "required": [
+                    "base"
+                  ],
+                  "additionalProperties": false,
+                  "description": "One sound in a stack: a base with its own adjustments."
+                },
+                "description": "2–6 sounds played together on every note. On a chord, pitched layers play every pitch; layers without pitch (an impact, a clap) play once."
+              },
+              "description": {
+                "description": "One line for people: what this sounds like.",
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "layers"
+            ],
+            "additionalProperties": false,
+            "description": "Several sounds played together on every note, e.g. a piano chord with a soft impact under it: { \"layers\": [ { \"base\": \"piano\" }, { \"base\": \"impact\", \"gain\": -8 } ] }."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "default": "instrument",
+                "description": "\"instrument\" plays notes; \"sfx\" is a sound effect — `pitch` becomes optional (it uses `pitch` below when none is given).",
+                "type": "string",
+                "enum": [
+                  "instrument",
+                  "sfx"
+                ]
+              },
+              "pitch": {
+                "description": "For an \"sfx\" with pitched blocks: the pitch it plays when a note gives none (e.g. \"D7\" for a laser). Notes may give any pitch from C1 to C8.",
+                "type": "string",
+                "pattern": "^([A-G])([#b]?)(-?\\d)$"
+              },
+              "length": {
+                "description": "For an \"sfx\": the sound lasts `len` (default this many seconds), like whoosh and riser, and may be placed by `end`. pitchEnv and envelopes without times then span the whole length.",
+                "type": "number",
+                "minimum": 0.02,
+                "maximum": 10
+              },
+              "blocks": {
+                "minItems": 1,
+                "maxItems": 16,
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "osc": {
+                          "type": "string",
+                          "enum": [
+                            "sine",
+                            "triangle",
+                            "saw",
+                            "square",
+                            "pulse"
+                          ],
+                          "description": "Waveform: sine (pure, soft), triangle (hollow, flute-like), saw (bright, brassy, buzzy), square (hollow, retro, clarinet-like), pulse (nasal; set `width`)."
+                        },
+                        "ratio": {
+                          "default": 1,
+                          "description": "Frequency as a multiple of the note's (1 = the note, 2 = an octave up, 0.5 = an octave down, 3 = a fifth above the octave).",
+                          "type": "number",
+                          "minimum": 0.125,
+                          "maximum": 16
+                        },
+                        "detune": {
+                          "default": 0,
+                          "description": "Cents (two saws at -7 and +7 make a thick, chorused sound).",
+                          "type": "number",
+                          "minimum": -100,
+                          "maximum": 100
+                        },
+                        "width": {
+                          "default": 0.5,
+                          "description": "Pulse width for `pulse` (0.5 = square, 0.1 = thin and nasal).",
+                          "type": "number",
+                          "minimum": 0.05,
+                          "maximum": 0.95
+                        },
+                        "level": {
+                          "default": 1,
+                          "description": "Level 0–1, relative to the other blocks.",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "env": {
+                          "description": "This oscillator's own envelope; without it the oscillator follows the whole sound's `env`.",
+                          "type": "object",
+                          "properties": {
+                            "attack": {
+                              "default": 0.002,
+                              "description": "Seconds to rise to full level (0.001–0.005 a strike; 0.05+ a soft swell).",
+                              "type": "number",
+                              "minimum": 0.001,
+                              "maximum": 2
+                            },
+                            "decay": {
+                              "default": 1,
+                              "description": "Seconds to fall from full level: to silence (-60 dB) when sustain is 0; otherwise the time to settle to the sustain level.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 10
+                            },
+                            "sustain": {
+                              "default": 0,
+                              "description": "Level held while the note is held (0–1). 0 = a struck or plucked sound that rings out; above 0 = a sustained sound that holds for the note's `len`.",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "release": {
+                              "default": 0.2,
+                              "description": "Seconds to fade to silence after a held note ends.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 5
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "osc"
+                      ],
+                      "additionalProperties": false,
+                      "description": "An oscillator following the note's pitch: { \"osc\": \"saw\", \"level\": 0.6 }. Band-limited by the engine."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "modes": {
+                          "minItems": 1,
+                          "maxItems": 32,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ratio": {
+                                "type": "number",
+                                "minimum": 0.25,
+                                "maximum": 40,
+                                "description": "Frequency as a multiple of the note's. Bars and bells have inharmonic ratios (marimba 1, 3.93, 9.2; glockenspiel 1, 2.76, 5.4, 8.93)."
+                              },
+                              "level": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                                "description": "Level 0–1."
+                              },
+                              "decay": {
+                                "type": "number",
+                                "minimum": 0.01,
+                                "maximum": 15,
+                                "description": "Seconds until this partial has faded to silence (-60 dB); notes are cut (with a fade) at 10 s. Higher partials usually die sooner."
+                              }
+                            },
+                            "required": [
+                              "ratio",
+                              "level",
+                              "decay"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "Damped partials, each ringing out on its own — the model of struck bars, bells, tines and plates."
+                        },
+                        "lowRingsLonger": {
+                          "default": 0,
+                          "description": "How much longer low notes ring: 0 = the same at every pitch; 1 = twice as long two octaves below middle C (a marimba).",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 2
+                        }
+                      },
+                      "required": [
+                        "modes"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Struck partials: { \"modes\": [ { \"ratio\": 1, \"level\": 1, \"decay\": 3 }, { \"ratio\": 2.76, \"level\": 0.3, \"decay\": 0.8 } ] }."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "noise": {
+                          "type": "string",
+                          "enum": [
+                            "white",
+                            "pink"
+                          ],
+                          "description": "white = hiss, pink = softer, rumblier noise."
+                        },
+                        "level": {
+                          "default": 1,
+                          "description": "Level 0–1, relative to the other blocks.",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "burst": {
+                          "description": "A short burst of this many seconds at the start, smoothly windowed: a mallet click (0.004), a pick or pin (0.002), a breath (0.05).",
+                          "type": "number",
+                          "minimum": 0.0005,
+                          "maximum": 0.2
+                        },
+                        "decay": {
+                          "description": "Seconds for the noise to fade to silence (-60 dB) from the onset, instead of a `burst`.",
+                          "type": "number",
+                          "minimum": 0.005,
+                          "maximum": 10
+                        },
+                        "env": {
+                          "description": "An envelope instead of `burst` or `decay` (for held noise: wind, breath, a hiss).",
+                          "type": "object",
+                          "properties": {
+                            "attack": {
+                              "default": 0.002,
+                              "description": "Seconds to rise to full level (0.001–0.005 a strike; 0.05+ a soft swell).",
+                              "type": "number",
+                              "minimum": 0.001,
+                              "maximum": 2
+                            },
+                            "decay": {
+                              "default": 1,
+                              "description": "Seconds to fall from full level: to silence (-60 dB) when sustain is 0; otherwise the time to settle to the sustain level.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 10
+                            },
+                            "sustain": {
+                              "default": 0,
+                              "description": "Level held while the note is held (0–1). 0 = a struck or plucked sound that rings out; above 0 = a sustained sound that holds for the note's `len`.",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "release": {
+                              "default": 0.2,
+                              "description": "Seconds to fade to silence after a held note ends.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 5
+                            }
+                          },
+                          "additionalProperties": false
+                        },
+                        "filter": {
+                          "description": "Colour the noise: { \"type\": \"bandpass\", \"cutoff\": 2000, \"q\": 1.5 }.",
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "lowpass",
+                                "highpass",
+                                "bandpass"
+                              ]
+                            },
+                            "cutoff": {
+                              "type": "number",
+                              "minimum": 20,
+                              "maximum": 20000,
+                              "description": "Cutoff (centre for bandpass) in Hz: lowpass 800 is muffled, 4000 soft, 12000 open."
+                            },
+                            "q": {
+                              "default": 0.7,
+                              "description": "Resonance: 0.7 neutral, 2–6 a peak at the cutoff (squelchy, vocal), up to 12.",
+                              "type": "number",
+                              "minimum": 0.3,
+                              "maximum": 12
+                            },
+                            "sweep": {
+                              "default": 0,
+                              "description": "Octaves the cutoff starts away from `cutoff` and glides back over `sweepTime` (4 = starts 4 octaves higher: a bright pluck that closes).",
+                              "type": "number",
+                              "minimum": -6,
+                              "maximum": 6
+                            },
+                            "sweepTime": {
+                              "default": 0.3,
+                              "description": "Seconds the sweep takes to reach `cutoff`.",
+                              "type": "number",
+                              "minimum": 0.005,
+                              "maximum": 10
+                            }
+                          },
+                          "required": [
+                            "type",
+                            "cutoff"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "at": {
+                          "default": 0,
+                          "description": "Seconds after the onset that the noise starts.",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 2
+                        }
+                      },
+                      "required": [
+                        "noise"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Noise for clicks, breath, scrapes, snares and hiss: { \"noise\": \"white\", \"burst\": 0.004, \"level\": 0.2 }. Give `burst`, `decay` or `env` (default: decay 0.1)."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "string": {
+                          "type": "object",
+                          "properties": {
+                            "pluck": {
+                              "default": 500,
+                              "description": "Brightness of the pluck in Hz: 500 a soft finger (nylon), 3000 a pick, 8000 a sharp metal twang.",
+                              "type": "number",
+                              "minimum": 100,
+                              "maximum": 10000
+                            },
+                            "position": {
+                              "default": 0.3,
+                              "description": "Where the string is plucked: 0.5 the middle (round), 0.1 near the bridge (thin, twangy).",
+                              "type": "number",
+                              "minimum": 0.05,
+                              "maximum": 0.5
+                            },
+                            "damping": {
+                              "default": 0.65,
+                              "description": "How fast the highs die: 0 rings bright (steel), 0.65 soft (nylon), 0.9 muted.",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 0.9
+                            },
+                            "ring": {
+                              "default": 2,
+                              "description": "Seconds to fade to silence at middle C; higher notes ring shorter.",
+                              "type": "number",
+                              "minimum": 0.1,
+                              "maximum": 8
+                            },
+                            "body": {
+                              "default": 2200,
+                              "description": "Low-pass on the output in Hz: 2200 mellow, 8000 open.",
+                              "type": "number",
+                              "minimum": 500,
+                              "maximum": 16000
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "A plucked string (Karplus–Strong). {} is a soft nylon string."
+                        },
+                        "level": {
+                          "default": 1,
+                          "description": "Level 0–1, relative to the other blocks.",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        }
+                      },
+                      "required": [
+                        "string"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A plucked string that follows the note's pitch: { \"string\": { \"pluck\": 3000, \"damping\": 0.3, \"ring\": 3 } }."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "env": {
+                          "type": "object",
+                          "properties": {
+                            "attack": {
+                              "default": 0.002,
+                              "description": "Seconds to rise to full level (0.001–0.005 a strike; 0.05+ a soft swell).",
+                              "type": "number",
+                              "minimum": 0.001,
+                              "maximum": 2
+                            },
+                            "decay": {
+                              "default": 1,
+                              "description": "Seconds to fall from full level: to silence (-60 dB) when sustain is 0; otherwise the time to settle to the sustain level.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 10
+                            },
+                            "sustain": {
+                              "default": 0,
+                              "description": "Level held while the note is held (0–1). 0 = a struck or plucked sound that rings out; above 0 = a sustained sound that holds for the note's `len`.",
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "release": {
+                              "default": 0.2,
+                              "description": "Seconds to fade to silence after a held note ends.",
+                              "type": "number",
+                              "minimum": 0.01,
+                              "maximum": 5
+                            }
+                          },
+                          "additionalProperties": false,
+                          "description": "Envelope: how the level moves over the note. Struck sounds: { \"attack\": 0.002, \"decay\": 1.5 }. Held sounds: { \"attack\": 0.02, \"decay\": 0.3, \"sustain\": 0.7, \"release\": 0.3 }."
+                        }
+                      },
+                      "required": [
+                        "env"
+                      ],
+                      "additionalProperties": false,
+                      "description": "The envelope of the whole sound (oscillators and strings follow it unless they have their own)."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "filter": {
+                          "type": "string",
+                          "enum": [
+                            "lowpass",
+                            "highpass",
+                            "bandpass"
+                          ],
+                          "description": "lowpass removes highs (warmer), highpass removes lows (thinner), bandpass keeps a band (telephone, nasal)."
+                        },
+                        "cutoff": {
+                          "type": "number",
+                          "minimum": 20,
+                          "maximum": 20000,
+                          "description": "Cutoff (centre for bandpass) in Hz: lowpass 800 is muffled, 4000 soft, 12000 open."
+                        },
+                        "q": {
+                          "default": 0.7,
+                          "description": "Resonance: 0.7 neutral, 2–6 a peak at the cutoff (squelchy, vocal), up to 12.",
+                          "type": "number",
+                          "minimum": 0.3,
+                          "maximum": 12
+                        },
+                        "sweep": {
+                          "default": 0,
+                          "description": "Octaves the cutoff starts away from `cutoff` and glides back over `sweepTime` (4 = starts 4 octaves higher: a bright pluck that closes).",
+                          "type": "number",
+                          "minimum": -6,
+                          "maximum": 6
+                        },
+                        "sweepTime": {
+                          "default": 0.3,
+                          "description": "Seconds the sweep takes to reach `cutoff`.",
+                          "type": "number",
+                          "minimum": 0.005,
+                          "maximum": 10
+                        }
+                      },
+                      "required": [
+                        "filter",
+                        "cutoff"
+                      ],
+                      "additionalProperties": false,
+                      "description": "A filter on the whole sound: { \"filter\": \"lowpass\", \"cutoff\": 3000, \"q\": 0.7, \"sweep\": 3, \"sweepTime\": 0.2 }."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "pitchEnv": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "number",
+                              "minimum": -48,
+                              "maximum": 48,
+                              "description": "Semitones away from the note's pitch at the onset (24 = two octaves above)."
+                            },
+                            "to": {
+                              "default": 0,
+                              "description": "Semitones away from the note's pitch at the end of the glide (0 = lands on the note).",
+                              "type": "number",
+                              "minimum": -48,
+                              "maximum": 48
+                            },
+                            "time": {
+                              "description": "Seconds the glide takes. Default: the whole note (for effects with a length, its `len`).",
+                              "type": "number",
+                              "minimum": 0.001,
+                              "maximum": 10
+                            },
+                            "curve": {
+                              "default": "exp",
+                              "description": "exp: fast at first, then settles (kicks, pops, thumps); linear: an even glide in semitones (lasers, sirens, risers).",
+                              "type": "string",
+                              "enum": [
+                                "linear",
+                                "exp"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "from"
+                          ],
+                          "additionalProperties": false,
+                          "description": "A pitch glide at the start of every note."
+                        }
+                      },
+                      "required": [
+                        "pitchEnv"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Pitch sweep: { \"pitchEnv\": { \"from\": 24, \"to\": -12, \"time\": 0.25, \"curve\": \"linear\" } } is a laser."
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "lfo": {
+                          "type": "string",
+                          "enum": [
+                            "vibrato",
+                            "tremolo"
+                          ],
+                          "description": "vibrato wobbles the pitch, tremolo the level."
+                        },
+                        "rate": {
+                          "default": 5.5,
+                          "description": "Wobbles per second (5–6 is natural; 30+ is a buzz).",
+                          "type": "number",
+                          "minimum": 0.1,
+                          "maximum": 40
+                        },
+                        "depth": {
+                          "description": "vibrato: cents up and down (10–30 natural; default 20); tremolo: 0–1, how far the level dips (default 0.25, gentle).",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        },
+                        "delay": {
+                          "default": 0,
+                          "description": "Seconds before the wobble starts (it fades in over the same time).",
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 2
+                        }
+                      },
+                      "required": [
+                        "lfo"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Vibrato or tremolo: { \"lfo\": \"vibrato\", \"rate\": 5.5, \"depth\": 20, \"delay\": 0.2 }."
+                    }
+                  ],
+                  "description": "One block, named by its key: osc, modes, noise, string, env, filter, pitchEnv, lfo. Sound sources (osc, modes, noise, string) are mixed; env, filter, pitchEnv and lfo shape the whole sound."
+                },
+                "description": "Sound sources and shapers. At least one source (osc, modes, noise or string)."
+              },
+              "description": {
+                "description": "One line for people: what this sounds like.",
+                "type": "string",
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "blocks"
+            ],
+            "additionalProperties": false,
+            "description": "A sound built from blocks: { \"blocks\": [ { \"osc\": \"square\", \"level\": 0.6 }, { \"pitchEnv\": { \"from\": 24, \"to\": -12, \"time\": 0.25 } }, { \"env\": { \"attack\": 0.002, \"decay\": 0.3 } } ] }."
+          }
+        ],
+        "description": "A custom instrument: { \"base\": … } tweaks a built-in, { \"layers\": [ … ] } stacks sounds, { \"blocks\": [ … ] } builds one from blocks."
+      },
+      "description": "Custom instruments and effects, by name, used in tracks like built-ins: { \"softBell\": { \"base\": \"glockenspiel\", \"params\": { \"decay\": 1.5, \"brightness\": -0.4 } } }. Data only: the engine keeps every sound clean and at a balanced level."
+    },
     "tracks": {
       "minItems": 1,
       "type": "array",
@@ -153,32 +864,40 @@
         "type": "object",
         "properties": {
           "instrument": {
-            "type": "string",
-            "enum": [
-              "marimba",
-              "xylophone",
-              "glockenspiel",
-              "vibraphone",
-              "musicbox",
-              "piano",
-              "organ",
-              "ukulele",
-              "piccolo",
-              "trumpet",
-              "clap",
-              "clock",
-              "footsteps",
-              "heels",
-              "tapdance",
-              "pistol",
-              "laser",
-              "whoosh",
-              "riser",
-              "impact",
-              "pop",
-              "knock"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "marimba",
+                  "xylophone",
+                  "glockenspiel",
+                  "vibraphone",
+                  "musicbox",
+                  "piano",
+                  "organ",
+                  "ukulele",
+                  "piccolo",
+                  "trumpet",
+                  "clap",
+                  "clock",
+                  "footsteps",
+                  "heels",
+                  "tapdance",
+                  "pistol",
+                  "laser",
+                  "whoosh",
+                  "riser",
+                  "impact",
+                  "pop",
+                  "knock"
+                ]
+              },
+              {
+                "type": "string",
+                "pattern": "^[a-z]\\w*$"
+              }
             ],
-            "description": "Which built-in instrument or sound effect plays this track. marimba: Wooden bar struck with a soft mallet: warm, round, bouncy. The default for friendly openings, question-and-answer melodies and big chord hits with a low bass. [range C2–C7] | xylophone: Hard wooden bars, bright and dry with a short ring: quick runs, playful and comedic hits, cartoon energy. [range C3–C7] | glockenspiel: Small steel bars: bell-like, sparkling, long ring. Magic, twinkles, a logo shine; doubles a melody an octave up at low gain for sparkle. [range C3–C8] | vibraphone: Metal bars with a shimmering tremolo: smooth, jazzy, calm. Lounge, tech and corporate stings, soft chords. [range C3–C7] | musicbox: Tiny plucked steel comb: delicate, nostalgic, lullaby-like. Sounds an octave above the written pitch. [range C3–C7; sounds an octave above the written pitch] | piano: Acoustic piano: full, warm, versatile. Chords and melodies for any style; rings about 3 s per note. [range A0–C8] | organ: Drawbar organ with a gentle wobble: sustained, churchy or retro-funky. Holds each note for its `len`. [range C2–C7; sustained (holds for len)] | ukulele: Nylon-string ukulele, finger-plucked: soft, warm, short ring. Happy vlog and family-channel tunes, gentle strums. [range C3–C6] | piccolo: Synthetic piccolo/flute: airy, whistling melody line. Sounds an octave above the written pitch. Sounds synthetic, not like a real flute. [range C4–C7; sounds an octave above the written pitch; sustained (holds for len); sounds synthetic] | trumpet: Synthetic trumpet: bright brass fanfare line. Sounds synthetic, not like a real trumpet. [range E3–C6; sustained (holds for len); sounds synthetic] | clap: Hand clap (unpitched). Variants: \"studio\" (drum-machine clap, the default), \"snappy\" (tighter, brighter), \"hands\" (one person, natural), \"group\" (a few people together). Use `repeat` for claps on every beat. [no pitch; variants studio/snappy/hands/group] | clock: Clock tick-tock (sound effect). Variants \"tick\" (default) and \"tock\"; alternate them with \"variant\": [\"tick\", \"tock\"] and `repeat`. [no pitch; variants tick/tock] | footsteps: Footsteps (sound effect): heel, toe and scuff of an ordinary shoe. Variants \"left\" (default) and \"right\"; walk with \"variant\": [\"left\", \"right\"] and `repeat` every 0.5–1 beat. [no pitch; variants left/right] | heels: High-heel footsteps (sound effect): a sharp clack and the sole after it. Variants \"left\" (default) and \"right\"; walk with \"variant\": [\"left\", \"right\"] and `repeat`. [no pitch; variants left/right] | tapdance: Tap-dance taps (sound effect): a dry crack on a wooden floor. Variants \"toe\" (default), \"heel\" (lower, heavier), \"shuffle\" (a brush and a tap). [no pitch; variants toe/heel/shuffle] | pistol: Pistol shot (sound effect). Variants \"shot\" (default: crack and boom) and \"cartoon\" (a light pop-gun). [no pitch; variants shot/cartoon; sounds synthetic] | laser: Laser zap 'pew' (sound effect): a falling electronic sweep. Optional `pitch` sets where it starts (default about D7); `len` sets the sweep's length (default 0.25 s). [range C5–C8 (optional pitch); len default 0.25 s; sounds synthetic] | whoosh: Whoosh (sound effect) for transitions and things flying past. Variants \"soft\" (default) and \"fast\". `len` sets its length (default 0.5 s); place it with \"end\" to finish on a cut. [no pitch; len default 0.5 s; variants soft/fast] | riser: Riser (sound effect): builds up into a hit. Variants \"noise\" (default) and \"tone\". Place it by its end: { \"end\": \"hit\", \"len\": 4 } rises for 4 beats and stops exactly on the cue. Default length 2 s. [no pitch; len default 2 s; variants noise/tone; sounds synthetic] | impact: Impact boom (sound effect) for reveals and big landings. Variants \"soft\" (default) and \"hard\". Put it on the cue the animation lands on. [no pitch; variants soft/hard] | pop: Pop (sound effect): a short bubbly blip for things appearing or text popping in. Optional `pitch` sets where it starts. [range C4–C7 (optional pitch)] | knock: Knock on wood (sound effect). Variants \"door\" (default) and \"table\". \"Knock-knock\": two notes about half a beat apart, or `repeat`. [no pitch; variants door/table]"
+            "description": "Which instrument or sound effect plays this track: a built-in, or one defined under \"instruments\". Built-in: marimba: Wooden bar struck with a soft mallet: warm, round, bouncy. The default for friendly openings, question-and-answer melodies and big chord hits with a low bass. [range C2–C7] | xylophone: Hard wooden bars, bright and dry with a short ring: quick runs, playful and comedic hits, cartoon energy. [range C3–C7] | glockenspiel: Small steel bars: bell-like, sparkling, long ring. Magic, twinkles, a logo shine; doubles a melody an octave up at low gain for sparkle. [range C3–C8] | vibraphone: Metal bars with a shimmering tremolo: smooth, jazzy, calm. Lounge, tech and corporate stings, soft chords. [range C3–C7] | musicbox: Tiny plucked steel comb: delicate, nostalgic, lullaby-like. Sounds an octave above the written pitch. [range C3–C7; sounds an octave above the written pitch] | piano: Acoustic piano: full, warm, versatile. Chords and melodies for any style; rings about 3 s per note. [range A0–C8] | organ: Drawbar organ with a gentle wobble: sustained, churchy or retro-funky. Holds each note for its `len`. [range C2–C7; sustained (holds for len)] | ukulele: Nylon-string ukulele, finger-plucked: soft, warm, short ring. Happy vlog and family-channel tunes, gentle strums. [range C3–C6] | piccolo: Synthetic piccolo/flute: airy, whistling melody line. Sounds an octave above the written pitch. Sounds synthetic, not like a real flute. [range C4–C7; sounds an octave above the written pitch; sustained (holds for len); sounds synthetic] | trumpet: Synthetic trumpet: bright brass fanfare line. Sounds synthetic, not like a real trumpet. [range E3–C6; sustained (holds for len); sounds synthetic] | clap: Hand clap (unpitched). Variants: \"studio\" (drum-machine clap, the default), \"snappy\" (tighter, brighter), \"hands\" (one person, natural), \"group\" (a few people together). Use `repeat` for claps on every beat. [no pitch; variants studio/snappy/hands/group] | clock: Clock tick-tock (sound effect). Variants \"tick\" (default) and \"tock\"; alternate them with \"variant\": [\"tick\", \"tock\"] and `repeat`. [no pitch; variants tick/tock] | footsteps: Footsteps (sound effect): heel, toe and scuff of an ordinary shoe. Variants \"left\" (default) and \"right\"; walk with \"variant\": [\"left\", \"right\"] and `repeat` every 0.5–1 beat. [no pitch; variants left/right] | heels: High-heel footsteps (sound effect): a sharp clack and the sole after it. Variants \"left\" (default) and \"right\"; walk with \"variant\": [\"left\", \"right\"] and `repeat`. [no pitch; variants left/right] | tapdance: Tap-dance taps (sound effect): a dry crack on a wooden floor. Variants \"toe\" (default), \"heel\" (lower, heavier), \"shuffle\" (a brush and a tap). [no pitch; variants toe/heel/shuffle] | pistol: Pistol shot (sound effect). Variants \"shot\" (default: crack and boom) and \"cartoon\" (a light pop-gun). [no pitch; variants shot/cartoon; sounds synthetic] | laser: Laser zap 'pew' (sound effect): a falling electronic sweep. Optional `pitch` sets where it starts (default about D7); `len` sets the sweep's length (default 0.25 s). [range C5–C8 (optional pitch); len default 0.25 s; sounds synthetic] | whoosh: Whoosh (sound effect) for transitions and things flying past. Variants \"soft\" (default) and \"fast\". `len` sets its length (default 0.5 s); place it with \"end\" to finish on a cut. [no pitch; len default 0.5 s; variants soft/fast] | riser: Riser (sound effect): builds up into a hit. Variants \"noise\" (default) and \"tone\". Place it by its end: { \"end\": \"hit\", \"len\": 4 } rises for 4 beats and stops exactly on the cue. Default length 2 s. [no pitch; len default 2 s; variants noise/tone; sounds synthetic] | impact: Impact boom (sound effect) for reveals and big landings. Variants \"soft\" (default) and \"hard\". Put it on the cue the animation lands on. [no pitch; variants soft/hard] | pop: Pop (sound effect): a short bubbly blip for things appearing or text popping in. Optional `pitch` sets where it starts. [range C4–C7 (optional pitch)] | knock: Knock on wood (sound effect). Variants \"door\" (default) and \"table\". \"Knock-knock\": two notes about half a beat apart, or `repeat`. [no pitch; variants door/table]"
           },
           "name": {
             "description": "Optional label for people, e.g. \"melody\" or \"bass\".",

@@ -1,0 +1,37 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Custom bell: a softer, longer glockenspiel",
+  "tempo": 96,
+  "length": { "seconds": 7 },
+  "seed": 1,
+  "cues": { "shine": { "seconds": 2.5 } },
+  "instruments": {
+    "softBell": {
+      "base": "glockenspiel",
+      "params": { "decay": 1.8, "brightness": -0.5, "attack": 0.01 },
+      "description": "A glockenspiel with a softer strike and a longer, darker ring."
+    }
+  },
+  "tracks": [
+    {
+      "instrument": "softBell",
+      "name": "bell",
+      "notes": [
+        { "at": 0, "pitch": "E5", "vel": 0.7 },
+        { "at": 1, "pitch": "G5", "vel": 0.7 },
+        { "at": 2, "pitch": "B5", "vel": 0.75 },
+        { "at": "shine", "pitch": ["E5", "B5", "E6"], "vel": 0.9 }
+      ]
+    },
+    {
+      "instrument": "vibraphone",
+      "name": "pad",
+      "gain": -8,
+      "notes": [
+        { "at": 0, "chord": "Em7", "vel": 0.5 },
+        { "at": "shine", "chord": "Cmaj7", "vel": 0.6 }
+      ]
+    }
+  ]
+}

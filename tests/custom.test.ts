@@ -246,7 +246,7 @@ describe("tweaks and layers", () => {
   it("a stack with a length still ends at its len when a layer is delayed", () => {
     const rise = custom({ layers: [{ base: "riser" }, { base: "riser", variant: "tone", delay: 1 }] });
     const x = play(rise, undefined, 2);
-    expect(x.length).toBe(2 * RATE);
+    expect(x).toHaveLength(2 * RATE);
   });
 
   it("a very short hold still plays every ringing layer", () => {

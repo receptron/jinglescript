@@ -229,7 +229,12 @@ export const LfoBlockSchema = z
   .strictObject({
     lfo: z.enum(["vibrato", "tremolo"]).describe("vibrato wobbles the pitch, tremolo the level."),
     rate: z.number().min(0.1).max(40).default(5.5).describe("Wobbles per second (5–6 is natural; 30+ is a buzz)."),
-    depth: z.number().min(0).max(100).default(20).describe("vibrato: cents up and down (10–30 natural); tremolo: 0–1, how far the level dips (0.25 gentle)."),
+    depth: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .describe("vibrato: cents up and down (10–30 natural; default 20); tremolo: 0–1, how far the level dips (default 0.25, gentle)."),
     delay: seconds(0, 2).default(0).describe("Seconds before the wobble starts (it fades in over the same time)."),
   })
   .describe('Vibrato or tremolo: { "lfo": "vibrato", "rate": 5.5, "depth": 20, "delay": 0.2 }.');

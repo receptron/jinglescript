@@ -269,7 +269,7 @@ function layered(layers: readonly { instrument: Instrument; delay: number }[]): 
       .filter(({ layer }) => firstOfChord || takesPitch(layer.instrument.descriptor))
       // A layer with a length that starts late is shortened by its delay, so the stack still ends at `len`.
       .map(({ layer, k }) => ({ layer, k, hold: layer.instrument.descriptor.duration === undefined ? input.hold : input.hold - layer.delay }))
-      .filter(({ hold }) => hold >= MIN_LAYER_SECONDS)
+      .filter(({ layer, hold }) => layer.instrument.descriptor.duration === undefined || hold >= MIN_LAYER_SECONDS)
       .map(({ layer, k, hold }) => ({
         offset: Math.round(layer.delay * input.sampleRate),
         x: layer.instrument.synthesize({ ...input, hold, rng: streamRng(seed, "layer", k) }),
@@ -527,7 +527,7 @@ function blockIssues(definition: BlocksDefinition, path: IssuePath): Issue[] {
   }
   definition.blocks.forEach((block, k) => {
     const at: IssuePath = [...path, "blocks", k];
-    if ("lfo" in block && block.lfo === "tremolo" && block.depth > 1) {
+    if ("lfo" in block && block.lfo === "tremolo" && (block.depth ?? 0) > 1) {
       issues.push({ path: [...at, "depth"], message: "A tremolo's depth is 0–1 (how far the level dips).", hint: "e.g. 0.25." });
     }
     if ("noise" in block && [block.burst, block.decay, block.env].filter((v) => v !== undefined).length > 1) {

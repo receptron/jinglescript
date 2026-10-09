@@ -816,8 +816,7 @@
                           "maximum": 40
                         },
                         "depth": {
-                          "default": 20,
-                          "description": "vibrato: cents up and down (10–30 natural); tremolo: 0–1, how far the level dips (0.25 gentle).",
+                          "description": "vibrato: cents up and down (10–30 natural; default 20); tremolo: 0–1, how far the level dips (default 0.25, gentle).",
                           "type": "number",
                           "minimum": 0,
                           "maximum": 100

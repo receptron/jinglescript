@@ -249,6 +249,11 @@ describe("tweaks and layers", () => {
     expect(x.length).toBe(2 * RATE);
   });
 
+  it("a very short hold still plays every ringing layer", () => {
+    const x = play(custom({ layers: [{ base: "marimba" }, { base: "glockenspiel", delay: 0.05 }] }), 72, 0.01);
+    expect(rmsDb(x, 0.1)).toBeGreaterThan(rmsDb(play(INSTRUMENTS.marimba, 72), 0.1));
+  });
+
   it("on a chord, a layer without pitch plays once", () => {
     const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>
@@ -335,6 +340,8 @@ describe("definition errors (written for repair)", () => {
     // A source's own env is not a second env block.
     expect(errorsOf({ x: { blocks: [{ osc: "sine", env: {} }, { osc: "saw", env: {} }, { env: {} }] } })).toEqual([]);
     expect(errorsOf({ x: { blocks: [{ string: {} }, { lfo: "vibrato" }] } })[0]?.message).toContain("keeps its pitch");
+    // Each LFO kind has a default depth of its own.
+    expect(errorsOf({ x: { blocks: [{ osc: "sine" }, { lfo: "tremolo" }, { lfo: "vibrato" }] } })).toEqual([]);
   });
 
   it("checks notes against a custom instrument like a built-in", () => {

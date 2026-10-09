@@ -140,11 +140,14 @@ function pitchCurve(plan: Plan, length: number, sampleRate: number, noteLength: 
       semitones =
         pitchEnv.curve === "linear" ? pitchEnv.from - span * Math.min(1, t / glide) : pitchEnv.to + span * dmath.exp((-RING_TIME_CONSTANTS * t) / glide);
     }
-    if (vibrato !== undefined) semitones += (vibrato.depth / 100) * lfoFade(vibrato, t) * dmath.sin(TWO_PI * vibrato.rate * t);
+    if (vibrato !== undefined) semitones += (depthOf(vibrato) / 100) * lfoFade(vibrato, t) * dmath.sin(TWO_PI * vibrato.rate * t);
     curve[i] = dmath.pow(2, semitones / 12);
   }
   return curve;
 }
+
+/** Vibrato in cents, tremolo as a 0–1 dip; each kind has its own default. */
+export const depthOf = (lfo: Lfo): number => lfo.depth ?? (lfo.lfo === "vibrato" ? 20 : 0.25);
 
 /** 0 before an LFO's delay, rising to 1 over the same time again. */
 function lfoFade(lfo: Lfo, t: number): number {
@@ -334,7 +337,7 @@ function mixSources(plan: Plan, v: Voicing, length: number): Float32Array {
 function applyTremolo(x: Float32Array, tremolo: Lfo, sampleRate: number): void {
   for (let i = 0; i < x.length; i++) {
     const t = i / sampleRate;
-    x[i] = (x[i] ?? 0) * (1 - (tremolo.depth * lfoFade(tremolo, t) * (1 - dmath.cos(TWO_PI * tremolo.rate * t))) / 2);
+    x[i] = (x[i] ?? 0) * (1 - (depthOf(tremolo) * lfoFade(tremolo, t) * (1 - dmath.cos(TWO_PI * tremolo.rate * t))) / 2);
   }
 }
 

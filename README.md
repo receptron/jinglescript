@@ -96,9 +96,9 @@ or the MCP action `getGuide`; it is generated from `src/guide.ts` (`npm run read
 
 <!-- guide:start -->
 
-A JingleScript score is JSON (format "jinglescript/1") describing a short jingle — 1 to 15
-seconds of music and sound effects — plus named **cues** an animation syncs to. Get the exact
-schema with getSchema() / `jinglescript schema` / the MCP action `getSchema`; check your score
+A JingleScript score is JSON (format "jinglescript/1") describing a jingle — music and sound
+effects — plus named **cues** an animation syncs to. Get the exact schema with getSchema() /
+`jinglescript schema` / the MCP action `getSchema`; check your score
 with checkScore() / `jinglescript check` / the MCP action `checkScore`, and fix every error it
 reports before rendering.
 

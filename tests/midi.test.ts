@@ -255,6 +255,21 @@ describe("scoreToMidi", () => {
     expect(notesOn(delayed ?? [])).toHaveLength(0);
   });
 
+  it("ends notes of a shared key struck a tick apart together, after the last of them", () => {
+    const close = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { beats: 4 },
+      tracks: Array.from({ length: 16 }, (_, i) => ({
+        instrument: "organ",
+        notes: [{ at: i < 3 ? { seconds: (i * 1) / 960 } : 2, pitch: i < 3 ? "C5" : "G4", len: 1 }],
+      })),
+    });
+    const tracks = readMidi(scoreToMidi(close)).tracks.slice(1, 4);
+    expect(tracks.map((track) => notesOn(track)[0]?.tick)).toEqual([0, 1, 2]);
+    expect(tracks.map((track) => notesOff(track)[0]?.tick)).toEqual([482, 482, 482]);
+  });
+
   it("is the same for the same score, and reads every example", () => {
     expect(scoreToMidi(score)).toEqual(scoreToMidi(score));
     for (const name of ["a-ukulele.json", "lyrics-hatena.json", "custom-zap.json", "riser-reveal.json"]) {

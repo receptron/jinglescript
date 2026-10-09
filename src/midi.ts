@@ -159,18 +159,29 @@ function playedKeys(
 }
 
 /**
- * On one channel a key sounds once, whichever track plays it: notes struck together end together
- * (at the later end, or the first note-off would stop both), a key ends a tick before it starts
- * again (so the note-off comes first whichever track chunk a player merges first), and nothing
- * sounds past `end`, where the audio stops.
+ * On one channel a key sounds once, whichever track plays it. Notes of a key struck together — at
+ * most a tick apart, one after another — end together, at the latest end (or the first note-off
+ * would stop them all); the key ends a tick before it is struck again, so the note-off comes first
+ * whichever track chunk a player merges first; and nothing sounds past `end`, where the audio stops.
  */
 function fitChannel(notes: readonly Played[], end: number): void {
-  const sorted = [...notes].sort((a, b) => a.on - b.on);
-  for (const note of sorted) {
-    const together = sorted.filter((other) => other.key === note.key && other.on === note.on);
-    const next = sorted.find((other) => other.key === note.key && other.on > note.on);
-    const off = Math.min(Math.max(...together.map((other) => other.off)), next === undefined ? end : next.on - 1, end);
-    note.off = Math.max(note.on + 1, off);
+  const byKey = new Map<number, Played[]>();
+  for (const note of notes) byKey.set(note.key, [...(byKey.get(note.key) ?? []), note]);
+  for (const keyNotes of byKey.values()) {
+    const sorted = keyNotes.sort((a, b) => a.on - b.on);
+    const runs: Played[][] = [];
+    for (const note of sorted) {
+      const run = runs.at(-1);
+      const last = run?.at(-1);
+      if (run !== undefined && last !== undefined && note.on - last.on <= 1) run.push(note);
+      else runs.push([note]);
+    }
+    runs.forEach((run, i) => {
+      const lastOn = run.at(-1)?.on ?? 0;
+      const nextOn = runs[i + 1]?.[0]?.on;
+      const off = Math.min(Math.max(...run.map((note) => note.off)), nextOn === undefined ? end : nextOn - 1, end);
+      for (const note of run) note.off = Math.max(lastOn + 1, off);
+    });
   }
 }
 

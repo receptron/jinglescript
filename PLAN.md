@@ -762,6 +762,23 @@ such as the Versilian Community Sample Library (VCSL) — verify its licence and
 download samples on demand into a cache (never commit them), keep the score format unchanged
 (`"instrument": "vcsl:trumpet"` or similar). Ask the user before starting.
 
+**Piano started** (2026-10-08, the user asked for a sampled piano from the free libraries in
+dtm-sale.com/1275). Of that list only Salamander (CC-BY 3.0, attribution required) and VCSL (CC0)
+are raw samples a program may fetch; the rest are Kontakt/plugin instruments or have no clear
+licence. Built on VCSL's Steinway B (pedal up, close mics, whole tones A#0–G#7, layers 2–4),
+pinned to commit c1ea7bc: `"instrument": "grandpiano"` (a plain name; the `vcsl:` prefix was not
+needed). `src/samples/` holds the catalog (`scripts/write-sample-catalog.ts`: bytes, SHA-256 and
+measured tuning of each file's first 4.5 s), the WAV reader and the loader (HTTP range download,
+checksum, cache in `~/.cache/jinglescript` or `$JINGLESCRIPT_CACHE`). `render()` stays
+synchronous and offline: `loadSamples(score)` finds the samples by synthesizing the score against
+silence (`samplesNeeded`) and `render(score, { samples })` reads them; `renderToFiles`, the CLI and
+`manage()` load them first. Each sample is normalized by its K-weighted attack RMS (VCSL
+normalized the layers; pitches varied by 10 dB), the velocity sets the gain, the layer the
+timbre; the recordings' stretch tuning (−20 to +19 cents) is taken out, so it plays in equal
+temperament with the other instruments. Played mono. Tests use synthesized stand-ins
+(`tests/sample-fixture.ts`); checks on the real recordings run only when they are cached.
+**Piano done** (2026-10-09): the user listened to `out/grandpiano/`: "It's beautiful."
+
 ### M6 — Analyse existing audio (optional)
 `jinglescript analyze <audio>` — tempo, beats, onsets, the loudest hit, `audibleUntil` — so an
 existing jingle can drive an animation the same way. The prototype did this with librosa
@@ -1089,3 +1106,14 @@ Decided:
   validation; a delayed layer with a length is shortened so the stack ends at `len`; short
   holds keep every ringing layer; LFO depth defaults per kind. The seventh round found nothing.
   The examples' audio did not change.
+- 2026-10-08 — M5 started for the piano only, at the user's request: `grandpiano` (VCSL Steinway
+  B, CC0), samples downloaded on demand and cached. Measured on the recordings: C5 at full velocity
+  −9.82 LUFS vs the marimba's −9.84; across A0–A7 at velocity 0.9, within −13 to −7 LU; in tune to
+  ±0.3 cents (0.2–2.2 s) from F#3 up; finite, first sample 0, last sample 0. Examples' golden
+  hashes unchanged; `a-grandpiano.json` added (hashed on the stand-ins). Listening set in
+  `out/grandpiano/`: demo across the range, the A opening on piano and on grandpiano, velocities.
+- 2026-10-09 — **grandpiano done.** The user listened to `out/grandpiano/`: "It's beautiful."
+- 2026-10-09 — Codex reviewed PR #3 over two rounds; two findings fixed, each with a test: two
+  loads of the same uncached sample shared a temporary file (ENOENT on rename), and
+  `samplesNeeded` synthesized every note of every score — now only notes of `sampled`
+  instruments (layered custom instruments carry the mark). The second round found nothing.

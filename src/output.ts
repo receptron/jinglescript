@@ -6,6 +6,7 @@ import { render, type RenderOptions, type RenderResult } from "./render.ts";
 import type { Score } from "./score.ts";
 import { encodeAudio, type AudioFormat } from "./encode.ts";
 import { toWav, type WavBits } from "./wav.ts";
+import { loadSamples } from "./samples/load.ts";
 
 export interface RenderedFiles {
   audio: string;
@@ -18,11 +19,14 @@ export interface FileOptions extends RenderOptions {
   format?: AudioFormat;
   /** WAV bit depth (default 24). */
   bits?: WavBits;
+  /** Told about each sample downloaded for a sampled instrument (when `samples` is not given). */
+  onDownload?: (file: string, bytes: number) => void;
 }
 
-/** Renders `score` and writes `<dir>/<stem>.<format>` and `<dir>/<stem>.timing.json`. */
+/** Renders `score` (loading the samples it plays, unless `options.samples` is given) and writes `<dir>/<stem>.<format>` and `<dir>/<stem>.timing.json`. */
 export async function renderToFiles(score: Score, dir: string, stem: string, options: FileOptions = {}): Promise<RenderedFiles> {
-  const result = render(score, options);
+  const samples = options.samples ?? (await loadSamples(score, { seed: options.seed, onDownload: options.onDownload }));
+  const result = render(score, { ...options, samples });
   await mkdir(dir, { recursive: true });
   const format = options.format ?? "wav";
   const audio = join(dir, `${stem}.${format}`);

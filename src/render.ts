@@ -7,6 +7,7 @@ import { streamRng } from "./rng.ts";
 import { formatPath, JingleScriptError, type Score } from "./score.ts";
 import { secondsToSample } from "./time.ts";
 import { buildTiming, type TimingMap } from "./timing.ts";
+import { NO_SAMPLES, recordingSource, type SampleSource } from "./samples/source.ts";
 import * as dmath from "./dsp/math.ts";
 
 export const DEFAULT_SAMPLE_RATE = 48000;
@@ -17,6 +18,8 @@ export interface RenderOptions {
   sampleRate?: SampleRate;
   /** Overrides the score's seed. */
   seed?: number;
+  /** Recorded samples for sampled instruments (grandpiano), from `await loadSamples(score)`. */
+  samples?: SampleSource;
 }
 
 export interface RenderResult {
@@ -33,47 +36,84 @@ function panGains(pan: number): [number, number] {
   return [dmath.cos(angle), dmath.sin(angle)];
 }
 
-function mixEvent(instrument: Instrument, event: NoteEvent, mix: [Float32Array, Float32Array], seed: number, sampleRate: number): void {
+interface Voice {
+  /** Onset, in samples. */
+  start: number;
+  samples: Float32Array;
+}
+
+/** What one event plays: a voice per pitch of its chord (one for unpitched sounds). */
+function synthesizeEvent(instrument: Instrument, event: NoteEvent, seed: number, sampleRate: number, samples: SampleSource): Voice[] {
   const voices: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
+  return voices.map((pitch, voice) => {
+    const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
+    return {
+      start: secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate),
+      samples: instrument.synthesize({
+        midi,
+        frequency: midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose + event.detune / 100),
+        velocity: event.vel * (event.strum?.weights[voice] ?? 1),
+        hold: event.hold,
+        variant: event.variant,
+        sampleRate,
+        rng: streamRng(seed, "note", event.track, event.note, event.repeat, voice),
+        chordVoice: voice,
+        samples,
+      }),
+    };
+  });
+}
+
+function mixEvent(voices: Voice[], event: NoteEvent, mix: [Float32Array, Float32Array]): void {
   const gain = dmath.dbToGain(event.gainDb);
   const [left, right] = panGains(event.pan).map((g) => g * gain);
-  voices.forEach((pitch, voice) => {
-    const start = secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate);
-    const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
-    const samples = instrument.synthesize({
-      midi,
-      frequency: midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose + event.detune / 100),
-      velocity: event.vel * (event.strum?.weights[voice] ?? 1),
-      hold: event.hold,
-      variant: event.variant,
-      sampleRate,
-      rng: streamRng(seed, "note", event.track, event.note, event.repeat, voice),
-      chordVoice: voice,
-    });
+  for (const { start, samples } of voices) {
     const end = Math.min(mix[0].length, start + samples.length);
     for (let i = Math.max(0, start); i < end; i++) {
       const s = samples[i - start] ?? 0;
       mix[0][i] = (mix[0][i] ?? 0) + s * (left ?? 0);
       mix[1][i] = (mix[1][i] ?? 0) + s * (right ?? 0);
     }
-  });
+  }
 }
 
-export function render(score: Score, options: RenderOptions = {}): RenderResult {
-  const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
-  const seed = options.seed ?? score.seed;
+function expandOrThrow(score: Score): ReturnType<typeof expandScore> {
   const expanded = expandScore(score);
   if (expanded.issues.length > 0) {
     throw new JingleScriptError(
       expanded.issues.map((issue) => ({ path: formatPath(issue.path), message: issue.message, ...(issue.hint ? { hint: issue.hint } : {}) })),
     );
   }
+  return expanded;
+}
+
+/**
+ * The recorded samples a render of `score` would read (keys for SampleSource.get), found by
+ * synthesizing the notes of sampled instruments (built-in, or custom ones built on them) against
+ * silence. Empty, and nothing synthesized, when the score plays no sampled instrument.
+ */
+export function samplesNeeded(score: Score, options: Pick<RenderOptions, "seed"> = {}): string[] {
+  const expanded = expandOrThrow(score);
+  const recorder = recordingSource();
+  for (const event of expanded.events) {
+    const instrument = expanded.instruments.get(event.instrument);
+    if (instrument?.descriptor.sampled !== undefined) synthesizeEvent(instrument, event, options.seed ?? score.seed, DEFAULT_SAMPLE_RATE, recorder);
+  }
+  return [...recorder.keys].sort((a, b) => a.localeCompare(b));
+}
+
+export function render(score: Score, options: RenderOptions = {}): RenderResult {
+  const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
+  const seed = options.seed ?? score.seed;
+  const expanded = expandOrThrow(score);
   const length = secondsToSample(expanded.duration, sampleRate);
   const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   for (const event of expanded.events) {
     const instrument = expanded.instruments.get(event.instrument);
-    if (instrument !== undefined) mixEvent(instrument, event, score.tracks[event.track]?.reverb === false ? dry : wet, seed, sampleRate);
+    if (instrument === undefined) continue;
+    const voices = synthesizeEvent(instrument, event, seed, sampleRate, options.samples ?? NO_SAMPLES);
+    mixEvent(voices, event, score.tracks[event.track]?.reverb === false ? dry : wet);
   }
   const { audio, stats } = master(wet, dry, {
     sampleRate,

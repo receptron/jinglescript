@@ -293,6 +293,8 @@ function layeredDescriptor(parts: readonly Instrument[], description: string | u
   const high = Math.min(...highs);
   const duration = descriptors.find((d) => d.duration !== undefined)?.duration;
   const tuning = pitchedOnes.find((d) => d.tuning !== undefined)?.tuning;
+  // A stack with a sampled layer needs its samples loaded (loadSamples looks for this).
+  const sampled = descriptors.find((d) => d.sampled !== undefined)?.sampled;
   return {
     kind: descriptors.every((d) => d.kind === "sfx") ? "sfx" : "instrument",
     description: description ?? "Custom: several sounds layered.",
@@ -306,6 +308,7 @@ function layeredDescriptor(parts: readonly Instrument[], description: string | u
     ...(tuning === undefined ? {} : { tuning }),
     transpose: 0,
     synthetic: descriptors.some((d) => d.synthetic),
+    ...(sampled === undefined ? {} : { sampled }),
   };
 }
 

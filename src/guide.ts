@@ -81,9 +81,12 @@ reports before rendering.
 Every instrument and its range is listed in the schema (\`tracks[].instrument\`) and by
 listInstruments() / \`jinglescript instruments\`. Rules of thumb:
 
-- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, ukulele,
-  clap) ring out on their own; \`len\` is ignored. **Sustained** (organ, piccolo, trumpet) hold
+- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, grandpiano,
+  ukulele, clap) ring out on their own; \`len\` is ignored. **Sustained** (organ, piccolo, trumpet) hold
   each note until the track's next note unless you give \`len\` in beats.
+- **grandpiano** is a recorded grand piano (range A0–A7): use it when the piano should sound real.
+  **piano** is synthesized: lighter, and a little electric. grandpiano's samples download on first
+  use (about 1.2 MB per note), so its first render needs the network.
 - **musicbox** and **piccolo** sound an octave above the written pitch.
 - **piccolo** and **trumpet** sound synthetic; use them for a playful line, not for realism.
 - **clap** takes no pitch. Use \`repeat\` for claps on every beat. The default is a drum-machine

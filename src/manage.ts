@@ -6,6 +6,7 @@ import { AUDIO_FORMATS, encodeAudioBytes, FfmpegMissingError, MIME_TYPES, type A
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
 import { render, type RenderResult } from "./render.ts";
+import { SampleDownloadError, loadSamples } from "./samples/load.ts";
 import { checkScore, parseScore } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { toWav } from "./wav.ts";
@@ -137,10 +138,10 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   let files: { audio: string; timing: string } | undefined;
   let result: RenderResult;
   try {
-    if (options.outDir === undefined) result = render(score);
+    if (options.outDir === undefined) result = render(score, { samples: await loadSamples(score) });
     else ({ result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" }));
   } catch (error) {
-    if (error instanceof FfmpegMissingError) return { text: error.message, isError: true };
+    if (error instanceof FfmpegMissingError || error instanceof SampleDownloadError) return { text: error.message, isError: true };
     throw error;
   }
   const summary = {

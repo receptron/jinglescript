@@ -55,25 +55,28 @@ interface Resolved {
   sound: GmSound;
   /** Semitones from the written pitch to the sounding one. */
   shift: number;
+  /** Seconds after the note's onset that the sound starts (a delayed layer). */
+  delay: number;
 }
 
 /**
  * What a track's instrument is in General MIDI, and how far it transposes: a custom instrument
  * sounds like the built-in it is based on (the first layer's, for a stack), adding each tweak's
- * transpose on the way; one built from blocks sounds like a piano, or is a marker when unpitched.
+ * transpose and layer delay on the way; one built from blocks sounds like a piano, or is a marker
+ * when unpitched.
  */
 function resolveSound(name: string, score: Score, expanded: Expanded, seen: ReadonlySet<string> = new Set()): Resolved {
-  if (isInstrumentName(name)) return { sound: GM[name], shift: expanded.instruments.get(name)?.descriptor.transpose ?? 0 };
+  if (isInstrumentName(name)) return { sound: GM[name], shift: expanded.instruments.get(name)?.descriptor.transpose ?? 0, delay: 0 };
   const definition = score.instruments?.[name];
-  let step: { base: string; transpose?: number } | undefined;
+  let step: { base: string; transpose?: number; delay?: number } | undefined;
   if (definition !== undefined && "base" in definition) step = definition;
   else if (definition !== undefined && "layers" in definition) step = definition.layers[0];
   if (step !== undefined && !seen.has(step.base)) {
     const base = resolveSound(step.base, score, expanded, new Set([...seen, name]));
-    return { sound: base.sound, shift: base.shift + (step.transpose ?? 0) };
+    return { sound: base.sound, shift: base.shift + (step.transpose ?? 0), delay: base.delay + (step.delay ?? 0) };
   }
   const descriptor = expanded.instruments.get(name)?.descriptor;
-  return { sound: descriptor?.pitched === true ? { program: 0 } : { marker: true }, shift: descriptor?.transpose ?? 0 };
+  return { sound: descriptor?.pitched === true ? { program: 0 } : { marker: true }, shift: descriptor?.transpose ?? 0, delay: 0 };
 }
 
 interface MidiEvent {
@@ -127,12 +130,12 @@ interface Played {
 /** Drum hits are a sixteenth note long: a drum channel ignores note-offs, but editors draw them. */
 const DRUM_TICKS = PPQ / 4;
 
-/** Each pitch of each event as a key held from its onset for its hold (`ticks` instead, when given). */
+/** Each pitch of each event as a key held from its onset (`delay` later) for its hold (`ticks` instead, when given). */
 function playedKeys(
   events: readonly NoteEvent[],
   toTick: (seconds: number) => number,
   keyOf: (pitch: string | undefined) => number | undefined,
-  ticks: number | undefined,
+  timing: { delay: number; ticks: number | undefined },
 ): Played[] {
   const played: Played[] = [];
   for (const event of events) {
@@ -142,9 +145,9 @@ function playedKeys(
       const key = keyOf(pitch);
       // A silent note (vel 0) is left out: velocity 0 would be a note-off.
       if (level <= 0 || key === undefined || key < 0 || key > 127) return;
-      const start = event.seconds + (event.strum?.offsets[voice] ?? 0);
+      const start = event.seconds + timing.delay + (event.strum?.offsets[voice] ?? 0);
       const on = toTick(start);
-      const off = ticks === undefined ? toTick(start + event.hold) : on + ticks;
+      const off = timing.ticks === undefined ? toTick(start + event.hold) : on + timing.ticks;
       played.push({ key, on, off: Math.max(on + 1, off), velocity: velocity(level) });
     });
   }
@@ -209,7 +212,7 @@ export function scoreToMidi(score: Score): Uint8Array {
   const resolved = score.tracks.map((track) => resolveSound(track.instrument, score, expanded));
   const channels = assignChannels(resolved.map(({ sound }) => sound));
   const played = score.tracks.map((_, index): Played[] => {
-    const { sound, shift } = resolved[index] ?? { sound: { marker: true }, shift: 0 };
+    const { sound, shift, delay } = resolved[index] ?? { sound: { marker: true }, shift: 0, delay: 0 };
     if ("marker" in sound) return [];
     const keyOf = (pitch: string | undefined): number | undefined => {
       if ("drum" in sound) return sound.drum;
@@ -218,7 +221,7 @@ export function scoreToMidi(score: Score): Uint8Array {
       return written === undefined ? undefined : written + shift;
     };
     const own = expanded.events.filter((event) => event.track === index);
-    return playedKeys(own, toTick, keyOf, "drum" in sound ? DRUM_TICKS : undefined);
+    return playedKeys(own, toTick, keyOf, { delay, ticks: "drum" in sound ? DRUM_TICKS : undefined });
   });
   for (const channel of new Set(channels)) {
     if (channel !== undefined) fitChannel(played.filter((_, index) => channels[index] === channel).flat(), end);
@@ -229,7 +232,8 @@ export function scoreToMidi(score: Score): Uint8Array {
     const events: MidiEvent[] = [text(0, 0x03, track.name ?? track.instrument)];
     if (channel === undefined) {
       const own = expanded.events.filter((event) => event.track === index);
-      events.push(...own.map((event) => text(toTick(event.seconds), 0x06, track.instrument)));
+      const delay = resolved[index]?.delay ?? 0;
+      events.push(...own.map((event) => text(toTick(event.seconds + delay), 0x06, track.instrument)));
     } else {
       if (sound !== undefined && "program" in sound) events.push({ tick: 0, order: 0, bytes: [0xc0 | channel, sound.program] });
       for (const note of played[index] ?? []) {

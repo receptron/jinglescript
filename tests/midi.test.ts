@@ -188,7 +188,7 @@ describe("scoreToMidi", () => {
     expect(readMidi(scoreToMidi(many)).tracks).toHaveLength(301);
   });
 
-  it("transposes through nested bases and a stack's first layer", () => {
+  it("transposes through nested bases and a stack's first layer, and starts after its delay", () => {
     const nested = parseScore({
       format: "jinglescript/1",
       tempo: 120,
@@ -196,7 +196,7 @@ describe("scoreToMidi", () => {
       instruments: {
         high: { base: "piano", transpose: 12 },
         higher: { base: "high" },
-        stack: { layers: [{ base: "piano", transpose: -12 }, { base: "impact" }] },
+        stack: { layers: [{ base: "piano", transpose: -12, delay: 0.25 }, { base: "impact" }] },
       },
       tracks: [
         { instrument: "higher", notes: [{ at: 0, pitch: "C4" }] },
@@ -205,7 +205,7 @@ describe("scoreToMidi", () => {
     });
     const [, higher, stack] = readMidi(scoreToMidi(nested)).tracks;
     expect(notesOn(higher ?? [])[0]?.data[0]).toBe(72);
-    expect(notesOn(stack ?? [])[0]?.data[0]).toBe(48);
+    expect(notesOn(stack ?? []).map((e) => [e.tick, e.data[0]])).toEqual([[240, 48]]);
   });
 
   it("shares channels by sound past 15 melodic tracks, and ends a key before another track strikes it", () => {

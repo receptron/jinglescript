@@ -1160,3 +1160,6 @@ Decided:
   only with what the user gives. PCM, golden hashes and the timing map are unchanged. Not run
   through the LLM evaluation.
 - 2026-10-10 — Codex reviewed PR #7: no findings.
+- 2026-10-10 — Both packages on npm at 0.7.0 (published by the user). Installed from the
+  registry in a clean folder: a score with `author` and `copyright` checks, and its WAV carries
+  the ICOP tag.

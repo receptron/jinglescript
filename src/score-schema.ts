@@ -171,7 +171,17 @@ export const ScoreBaseSchema = z
   .strictObject({
     $schema: z.string().optional().describe("Optional URL or path of this JSON Schema, for editors."),
     format: z.literal(FORMAT, { error: `format must be "${FORMAT}".` }).describe(`Always "${FORMAT}".`),
-    title: z.string().optional(),
+    title: z.string().optional().describe("Name of the jingle. Written to the audio file's tags and the MIDI file."),
+    author: z
+      .string()
+      .optional()
+      .describe("Who made the jingle (a person or company), written to the audio file's artist tag. Only fill it in when the user gives it; never guess."),
+    copyright: z
+      .string()
+      .optional()
+      .describe(
+        'Copyright notice, e.g. "© 2026 Example Inc.", written to the audio file\'s copyright tag and the MIDI copyright event. Only fill it in when the user gives it; never guess.',
+      ),
     tempo: z.number().min(20).max(400).describe("Beats per minute; one beat is a quarter note. 100–140 suits most jingles."),
     length: LengthSchema,
     seed: z.int().min(0).default(1).describe("Seed for every random detail (mallet noise, reverb, humanize). Same score + seed = identical audio."),

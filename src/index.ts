@@ -16,6 +16,8 @@ export { renderToFiles } from "./output.ts";
 export { scoreToMidi, MIDI_MIME_TYPE } from "./midi.ts";
 export { toWav } from "./wav.ts";
 export type { WavBits } from "./wav.ts";
+export { tagsOf } from "./tags.ts";
+export type { AudioTags } from "./tags.ts";
 export { integratedLoudness, truePeak } from "./dsp/loudness.ts";
 export { getSchema, getAuthoringGuide, listInstruments, getInstrument, SCHEMA_PARTS } from "./llm.ts";
 export type { SchemaPart, InstrumentInfo } from "./llm.ts";

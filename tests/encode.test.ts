@@ -33,3 +33,25 @@ describe.runIf(hasFfmpeg)("MP3 and OGG through ffmpeg", () => {
     });
   }
 });
+
+const tagged = parseScore({
+  format: "jinglescript/1",
+  title: "Tag test",
+  author: "Jingle Co.",
+  copyright: "© 2026 Jingle Co.",
+  tempo: 120,
+  length: { seconds: 1 },
+  tracks: [{ instrument: "marimba", notes: [{ at: 0, pitch: "C5" }] }],
+});
+
+describe.runIf(hasFfmpeg)("title, author and copyright in MP3 and OGG", () => {
+  for (const format of ["mp3", "ogg"] as const) {
+    it(`writes title, artist and copyright to ${format}`, async () => {
+      const files = await renderToFiles(tagged, dir, `tagged-${format}`, { format });
+      const probe = execFileSync("ffprobe", ["-v", "error", "-show_entries", "format_tags:stream_tags", "-of", "json", files.audio], { encoding: "utf8" });
+      const info = JSON.parse(probe) as { format?: { tags?: Record<string, string> }; streams?: { tags?: Record<string, string> }[] };
+      const tags = Object.fromEntries(Object.entries({ ...info.format?.tags, ...info.streams?.[0]?.tags }).map(([key, value]) => [key.toLowerCase(), value]));
+      expect(tags).toMatchObject({ title: "Tag test", artist: "Jingle Co.", copyright: "© 2026 Jingle Co." });
+    });
+  }
+});

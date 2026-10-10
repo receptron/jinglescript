@@ -12,6 +12,15 @@
       "description": "Always \"jinglescript/1\"."
     },
     "title": {
+      "description": "Name of the jingle. Written to the audio file's tags and the MIDI file.",
+      "type": "string"
+    },
+    "author": {
+      "description": "Who made the jingle (a person or company), written to the audio file's artist tag. Only fill it in when the user gives it; never guess.",
+      "type": "string"
+    },
+    "copyright": {
+      "description": "Copyright notice, e.g. \"© 2026 Example Inc.\", written to the audio file's copyright tag and the MIDI copyright event. Only fill it in when the user gives it; never guess.",
       "type": "string"
     },
     "tempo": {

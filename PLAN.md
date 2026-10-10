@@ -1159,3 +1159,4 @@ Decided:
   carries them too. Schema descriptions and the guide tell the LLM to fill author and copyright
   only with what the user gives. PCM, golden hashes and the timing map are unchanged. Not run
   through the LLM evaluation.
+- 2026-10-10 — Codex reviewed PR #7: no findings.

@@ -1151,3 +1151,12 @@ Decided:
   `files.byPath` (refused, with a hint to pass `score`, when the host gives none). Renders are
   named after the file. MulmoTerminal does not yet hand `files.byPath` to manageJingleScript.
 - 2026-10-09 — Codex reviewed PR #6: no findings.
+- 2026-10-10 — User: the score needs a place for author and copyright. Optional `author` and
+  `copyright` strings sit next to `title`; all three are written as tags (`src/tags.ts`, shared
+  by every writer): WAV LIST/INFO (INAM, IART, ICOP; a WAV without tags is byte-identical to
+  before), MP3/OGG through ffmpeg `-metadata` (title, artist, copyright), and MIDI's copyright
+  meta event first in the first track (MIDI has no author slot). The player's embedded audio
+  carries them too. Schema descriptions and the guide tell the LLM to fill author and copyright
+  only with what the user gives. PCM, golden hashes and the timing map are unchanged. Not run
+  through the LLM evaluation.
+- 2026-10-10 — Codex reviewed PR #7: no findings.

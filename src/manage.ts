@@ -11,6 +11,7 @@ import { SampleDownloadError, loadSamples } from "./samples/load.ts";
 import { checkScore, parseScore, type Score } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { toWav } from "./wav.ts";
+import { tagsOf, type AudioTags } from "./tags.ts";
 
 export const MANAGE_TOOL = "manageJingleScript";
 export const MANAGE_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore"] as const;
@@ -154,15 +155,15 @@ function peaksOf(audio: readonly Float32Array[]): number[] {
 }
 
 /** MP3 when ffmpeg is there (small), otherwise 16-bit WAV. */
-async function embeddedAudio(result: RenderResult): Promise<{ audio: string; mimeType: string }> {
+async function embeddedAudio(result: RenderResult, tags: AudioTags): Promise<{ audio: string; mimeType: string }> {
   let format: AudioFormat = "mp3";
   let bytes: Uint8Array;
   try {
-    bytes = await encodeAudioBytes(result.audio, result.sampleRate, "mp3");
+    bytes = await encodeAudioBytes(result.audio, result.sampleRate, "mp3", tags);
   } catch (error) {
     if (!(error instanceof FfmpegMissingError)) throw error;
     format = "wav";
-    bytes = toWav(result.audio, result.sampleRate, 16);
+    bytes = toWav(result.audio, result.sampleRate, 16, tags);
   }
   return { audio: `data:${MIME_TYPES[format]};base64,${Buffer.from(bytes).toString("base64")}`, mimeType: MIME_TYPES[format] };
 }
@@ -248,7 +249,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   if (!options.player) return { text: json(summary), isError: false };
   const player: PlayerData = {
     title: score.title ?? stem,
-    ...(await embeddedAudio(result)),
+    ...(await embeddedAudio(result, tagsOf(score))),
     duration: result.timing.duration,
     peaks: peaksOf(result.audio),
     timing: result.timing,

@@ -268,6 +268,10 @@ melody; the words are text on its notes, timed exactly by them.
 
 ## Output
 
+\`title\`, \`author\` and \`copyright\` (all optional) are written into the audio file's tags
+(WAV, MP3, OGG) and the MIDI file. Fill in \`author\` and \`copyright\` only with what the user
+gave you — never invent a name, a company or a year.
+
 Rendering gives audio and a timing map (\`jinglescript-timing/1\`): every cue, beat and note in
 seconds, \`audibleUntil\`, and — when the score has lyrics — every line and syllable with its
 time (\`lyrics\`). The animation reads cue times from it by name.

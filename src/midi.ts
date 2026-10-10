@@ -213,16 +213,22 @@ function assignChannels(sounds: readonly GmSound[]): (number | undefined)[] {
   return channels;
 }
 
-/** The score as a Standard MIDI File (type 1). Throws JingleScriptError for a score that does not render. */
-export function scoreToMidi(score: Score): Uint8Array {
-  const expanded = expandOrThrow(score);
-  const toTick = (seconds: number): number => Math.max(0, Math.round(secondsToBeats(seconds, expanded.tempo) * PPQ));
+/** The first track: copyright (the standard puts it first), name, tempo and a marker per cue. */
+function timingTrackEvents(score: Score, expanded: Expanded, toTick: (seconds: number) => number): MidiEvent[] {
   const tempo = Math.round(60_000_000 / expanded.tempo);
-  const timingTrack: MidiEvent[] = [
+  return [
+    ...(score.copyright ? [text(0, 0x02, score.copyright)] : []),
     text(0, 0x03, score.title ?? TIMING_TRACK_NAME),
     meta(0, 0x51, [(tempo >>> 16) & 0xff, (tempo >>> 8) & 0xff, tempo & 0xff]),
     ...Object.entries(expanded.cues).map(([name, seconds]) => text(toTick(seconds), 0x06, name)),
   ];
+}
+
+/** The score as a Standard MIDI File (type 1). Throws JingleScriptError for a score that does not render. */
+export function scoreToMidi(score: Score): Uint8Array {
+  const expanded = expandOrThrow(score);
+  const toTick = (seconds: number): number => Math.max(0, Math.round(secondsToBeats(seconds, expanded.tempo) * PPQ));
+  const timingTrack = timingTrackEvents(score, expanded, toTick);
   const end = toTick(expanded.duration);
   const syllables = expanded.lyrics.flatMap((line) => line.syllables.map((syllable) => ({ track: line.track, ...syllable })));
   const resolved = score.tracks.map((track) => resolveSound(track.instrument, score, expanded));

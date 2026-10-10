@@ -3,6 +3,7 @@
 // the encoder's own output may differ between ffmpeg builds.
 import { spawn } from "node:child_process";
 import { toWav } from "./wav.ts";
+import { TAG_KEYS, type AudioTags, type TagKey } from "./tags.ts";
 
 export const AUDIO_FORMATS = ["wav", "mp3", "ogg"] as const;
 export type AudioFormat = (typeof AUDIO_FORMATS)[number];
@@ -12,6 +13,16 @@ const CODEC: Record<Exclude<AudioFormat, "wav">, string[]> = {
   mp3: ["-c:a", "libmp3lame", "-q:a", "2"],
   ogg: ["-c:a", "libvorbis", "-q:a", "6"],
 };
+
+// ffmpeg's names, which it maps to ID3 frames (TIT2, TPE1, TCOP) and Vorbis comments.
+const METADATA_KEYS: Record<TagKey, string> = { title: "title", author: "artist", copyright: "copyright" };
+
+function metadataArgs(tags: AudioTags): string[] {
+  return TAG_KEYS.flatMap((key) => {
+    const value = tags[key];
+    return value === undefined ? [] : ["-metadata", `${METADATA_KEYS[key]}=${value}`];
+  });
+}
 
 export class FfmpegMissingError extends Error {
   constructor(format: AudioFormat) {
@@ -48,9 +59,18 @@ export async function ffmpegAvailable(): Promise<boolean> {
   return result.code === 0;
 }
 
-/** Writes stereo audio to `path` as MP3 or OGG via ffmpeg. */
-export async function encodeAudio(audio: readonly Float32Array[], sampleRate: number, format: Exclude<AudioFormat, "wav">, path: string): Promise<void> {
-  const result = await run(["-hide_banner", "-loglevel", "error", "-y", "-f", "wav", "-i", "pipe:0", ...CODEC[format], path], toWav(audio, sampleRate, 24));
+/** Writes stereo audio to `path` as MP3 or OGG via ffmpeg, with `tags` in the file's metadata. */
+export async function encodeAudio(
+  audio: readonly Float32Array[],
+  sampleRate: number,
+  format: Exclude<AudioFormat, "wav">,
+  path: string,
+  tags: AudioTags = {},
+): Promise<void> {
+  const result = await run(
+    ["-hide_banner", "-loglevel", "error", "-y", "-f", "wav", "-i", "pipe:0", ...CODEC[format], ...metadataArgs(tags), path],
+    toWav(audio, sampleRate, 24),
+  );
   if (result.missing) throw new FfmpegMissingError(format);
   if (result.code !== 0) throw new Error(`ffmpeg could not write ${path}: ${result.stderr.trim()}`);
 }
@@ -59,9 +79,14 @@ const CONTAINER: Record<Exclude<AudioFormat, "wav">, string> = { mp3: "mp3", ogg
 export const MIME_TYPES: Record<AudioFormat, string> = { wav: "audio/wav", mp3: "audio/mpeg", ogg: "audio/ogg" };
 
 /** MP3 or OGG bytes in memory (for embedding in a page or a data URI). */
-export async function encodeAudioBytes(audio: readonly Float32Array[], sampleRate: number, format: Exclude<AudioFormat, "wav">): Promise<Uint8Array> {
+export async function encodeAudioBytes(
+  audio: readonly Float32Array[],
+  sampleRate: number,
+  format: Exclude<AudioFormat, "wav">,
+  tags: AudioTags = {},
+): Promise<Uint8Array> {
   const result = await run(
-    ["-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0", ...CODEC[format], "-f", CONTAINER[format], "pipe:1"],
+    ["-hide_banner", "-loglevel", "error", "-f", "wav", "-i", "pipe:0", ...CODEC[format], ...metadataArgs(tags), "-f", CONTAINER[format], "pipe:1"],
     toWav(audio, sampleRate, 24),
   );
   if (result.missing) throw new FfmpegMissingError(format);

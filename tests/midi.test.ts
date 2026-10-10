@@ -101,6 +101,12 @@ describe("scoreToMidi", () => {
     expect(metas(melody ?? [], 0x03)[0]?.text).toBe("melody");
   });
 
+  it("writes the copyright notice first in the timing track, and none when the score has none", () => {
+    expect(metas(timing ?? [], 0x02)).toEqual([]);
+    const tagged = readMidi(scoreToMidi(parseScore({ ...score, author: "Jingle Co.", copyright: "© 2026 Jingle Co." })));
+    expect(tagged.tracks[0]?.[0]).toMatchObject({ tick: 0, meta: 0x02, text: "© 2026 Jingle Co." });
+  });
+
   it("plays each note on its beat with its velocity, General MIDI sounds and the drum channel", () => {
     expect(melody?.find((e) => (e.status & 0xf0) === 0xc0)?.data).toEqual([12]);
     expect(notesOn(melody ?? []).map((e) => [e.tick, e.data[0]])).toEqual([

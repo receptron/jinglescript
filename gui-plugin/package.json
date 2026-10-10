@@ -1,6 +1,6 @@
 {
   "name": "@gui-chat-plugin/jinglescript",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "GUI Chat Protocol plugin for JingleScript: the manageJingleScript tool, with a player view for rendered jingles (waveform, cues, beats, notes).",
   "keywords": [
     "gui-chat-protocol",
@@ -52,7 +52,7 @@
   },
   "peerDependencies": {
     "gui-chat-protocol": "^2.3.0",
-    "jinglescript": "^0.6.0",
+    "jinglescript": "^0.7.0",
     "vue": "^3.5.43"
   },
   "devDependencies": {

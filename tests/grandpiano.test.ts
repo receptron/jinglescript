@@ -129,6 +129,55 @@ describe("grandpiano renders from loaded samples only", () => {
     }
   });
 
+  it("cuts a key's ringing note when the same track strikes it again, and only then", () => {
+    const dry = (tracks: unknown[]) =>
+      render(parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 2 }, master: { reverb: "none", fadeOut: 0 }, tracks }), {
+        samples: pianoFixture,
+      }).audio[0];
+    const track = (notes: unknown[]) => ({ instrument: "grandpiano", reverb: false, notes });
+    /** RMS-normalized shape of x over [from, to) seconds: equal shapes mean the same sound at any level. */
+    const shape = (x: Float32Array, from: number, to: number) => {
+      const w = x.subarray(Math.round(from * RATE), Math.round(to * RATE));
+      const rms = Math.sqrt(w.reduce((sum, v) => sum + v * v, 0) / w.length);
+      return Array.from(w, (v) => v / rms);
+    };
+    const distance = (a: number[], b: number[]) => Math.sqrt(a.reduce((sum, v, i) => sum + (v - (b[i] ?? 0)) ** 2, 0) / a.length);
+    const alone = shape(dry([track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5);
+    // Struck again 0.5 s later on the same track: once the 80 ms fade is over, only the new note sounds.
+    expect(
+      distance(
+        shape(
+          dry([
+            track([
+              { at: 0, pitch: "C4" },
+              { at: 1, pitch: "C4" },
+            ]),
+          ]),
+          0.7,
+          1.5,
+        ),
+        alone,
+      ),
+    ).toBeLessThan(0.01);
+    // On two tracks (two pianos), or another key, the first note rings on.
+    expect(distance(shape(dry([track([{ at: 0, pitch: "C4" }]), track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5), alone)).toBeGreaterThan(0.1);
+    expect(
+      distance(
+        shape(
+          dry([
+            track([
+              { at: 0, pitch: "D4" },
+              { at: 1, pitch: "C4" },
+            ]),
+          ]),
+          0.7,
+          1.5,
+        ),
+        alone,
+      ),
+    ).toBeGreaterThan(0.1);
+  });
+
   it("is bit-identical on every render", () => {
     const score = scoreWith([
       { at: 0, chord: "Am7", vel: 0.7 },

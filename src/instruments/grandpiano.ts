@@ -2,7 +2,8 @@
 // velocity layers. A note plays the nearest sample, moved at most a semitone by band-limited
 // resampling (src/dsp/resample.ts) and retuned to equal temperament, in the layer its velocity
 // falls in. Like `piano` it rings
-// about 3 s whatever the note length, then a short damper fade. The recordings are stereo; they
+// about 3 s whatever the note length, then a short damper fade; a key struck again on the same
+// track cuts the note still ringing on it (its `damper`, applied by render.ts). The recordings are stereo; they
 // are played mono, placed by the track's pan like every other instrument.
 import { buffer, finish, MAX_PARTIAL_FRACTION } from "./common.ts";
 import type { Instrument, SynthInput } from "./types.ts";
@@ -17,6 +18,8 @@ import { PIANO_SET, pianoFile } from "../samples/vcsl.ts";
 
 const RING_SECONDS = 3.2;
 const DAMPER_SECONDS = 0.4;
+/** How fast a key struck again cuts the note still ringing on it (render.ts): short, but no click. */
+const RESTRIKE_SECONDS = 0.08;
 /**
  * Velocity layers: the highest velocity each plays. VCSL normalized the layers (and the pitches
  * vary by up to 10 dB), so a layer sets the timbre only: every sample is brought to the same
@@ -92,9 +95,10 @@ export const grandpiano: Instrument = {
   descriptor: {
     kind: "instrument",
     description:
-      "Recorded grand piano (a Steinway B): the real sound, for anything that should sound like a real piano. Rings about 3 s per note. Its samples download on first use (about 1.2 MB per note).",
+      "Recorded grand piano (a Steinway B): the real sound, for anything that should sound like a real piano. Rings about 3 s per note; striking the same key again on the same track cuts the note still ringing, as on a real piano. Its samples download on first use (about 1.2 MB per note).",
     pitched: true,
     sustained: false,
+    damper: { seconds: RESTRIKE_SECONDS },
     range: { low: "A0", high: "A7" },
     variants: [],
     transpose: 0,

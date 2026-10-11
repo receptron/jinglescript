@@ -1187,3 +1187,13 @@ Decided:
   base's damper; a stack has one only when every layer has. Only grandpiano has one; `piano`
   (synthesized) is unchanged. `a-grandpiano.json`'s golden hash changed (it re-strikes C5, E5,
   G5, C6); every other hash is unchanged. Not yet heard by the user.
+- 2026-10-11 — Codex reviewed PR #9: damping went by event order, so a strummed chord's voice
+  starting after a later note of the same key cut the wrong one. Fixed: cut points are worked
+  out from each voice's actual onset before synthesis (test added); the second review found
+  nothing. Merged.
+- 2026-10-11 — User heard the Étude Op.10 No.12 still off at bar 56 (≈1:26). Notes and rhythm
+  match the print (Krüger's piano-midi.de performance MIDI, CC BY-SA 3.0 DE, used only to flag
+  places). Fixed in the score: the softening of repeated chord notes (no longer needed with the
+  damper) is gone, which evens the chords and keeps them on one velocity layer, and bars 55–57
+  ease slightly into bar 57's accent. Not fixed: grandpiano ignores `len`, so notes ring through
+  printed rests (bars 55–56); a release from `len` is the user's call. The user: "よくなった".

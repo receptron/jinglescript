@@ -44,6 +44,10 @@ node src/cli.ts guide                  # how to write a score (for LLMs)
 node src/cli.ts schema                 # the JSON Schema (also in schema/jinglescript-1.json)
 ```
 
+`examples/piano/` holds nine full-length public-domain piano pieces (Debussy, Chopin, Liszt,
+Beethoven, Rachmaninoff, Schubert) written for `grandpiano` — what a 3–6 minute score looks like.
+They are in the repository only, not the npm package; see [examples/piano/README.md](examples/piano/README.md).
+
 ## Use it from Claude (MCP)
 
 `jinglescript mcp` is an MCP server with a single tool, **`manageJingleScript`**. Its `action`
@@ -396,4 +400,5 @@ time (`lyrics`). The animation reads cue times from it by name.
 
 ## Licence
 
-MIT
+MIT — except the score files in `examples/piano/`, which carry their own CC BY 4.0 or
+CC BY-SA 4.0 licence ([examples/piano/README.md](examples/piano/README.md)).

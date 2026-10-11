@@ -648,6 +648,11 @@ and C's C5 and D5 from 0.92 s) use `{ "seconds": … }` with the prototype's exa
 
 These examples double as the reference style the README shows an LLM: cues first, music on them.
 
+- `examples/piano/*.json` — nine full-length public-domain piano pieces on `grandpiano` (3–6
+  minutes each), not jingles: they show a long score. Kept out of `examples/` because the suite
+  renders every file there; `tests/examples-piano.test.ts` only parses them. Their own licences
+  (CC BY 4.0 / CC BY-SA 4.0) and sources are in `examples/piano/README.md`; not in the npm package.
+
 ## Reference prototype
 
 `reference/prototype/` (Python + numpy; run with `uv run --with numpy python -I <file>` — the
@@ -1163,3 +1168,8 @@ Decided:
 - 2026-10-10 — Both packages on npm at 0.7.0 (published by the user). Installed from the
   registry in a clean folder: a score with `author` and `copyright` checks, and its WAV carries
   the ICOP tag.
+- 2026-10-10 — PR #8: nine full-length public-domain piano pieces in `examples/piano/` (Debussy,
+  Chopin, Liszt, Beethoven, Rachmaninoff, Schubert), `grandpiano` only, each with `author` and a
+  CC BY 4.0 or CC BY-SA 4.0 `copyright`; sources and credits in `examples/piano/README.md`. The
+  suite parses them (`tests/examples-piano.test.ts`) but does not render them. README and the
+  Examples section now point to them, and README's licence names the exception.

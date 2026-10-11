@@ -295,6 +295,9 @@ function layeredDescriptor(parts: readonly Instrument[], description: string | u
   const tuning = pitchedOnes.find((d) => d.tuning !== undefined)?.tuning;
   // A stack with a sampled layer needs its samples loaded (loadSamples looks for this).
   const sampled = descriptors.find((d) => d.sampled !== undefined)?.sampled;
+  // Re-striking cuts the whole stacked note, so only a stack whose every layer has a damper has one.
+  const dampers = descriptors.flatMap((d) => (d.damper === undefined ? [] : [d.damper.seconds]));
+  const damperSeconds = dampers.length === descriptors.length ? Math.min(...dampers) : undefined;
   return {
     kind: descriptors.every((d) => d.kind === "sfx") ? "sfx" : "instrument",
     description: description ?? "Custom: several sounds layered.",
@@ -303,6 +306,7 @@ function layeredDescriptor(parts: readonly Instrument[], description: string | u
     ...(duration === undefined ? {} : { duration }),
     ...(descriptors.every((d) => d.transient === true) ? { transient: true } : {}),
     sustained: descriptors.some((d) => d.sustained),
+    ...(damperSeconds === undefined ? {} : { damper: { seconds: damperSeconds } }),
     range: pitched ? { low: NOTE_NAMES_BY_MIDI(low), high: NOTE_NAMES_BY_MIDI(high) } : null,
     variants: [],
     ...(tuning === undefined ? {} : { tuning }),

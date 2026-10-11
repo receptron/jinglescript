@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { blocksInstrument, builtinDefinition } from "../src/custom/instruments.ts";
+import { blocksInstrument, buildInstruments, builtinDefinition } from "../src/custom/instruments.ts";
 import { BlocksDefinitionSchema, DefinitionSchema, type BlocksDefinition } from "../src/custom/schema.ts";
 import { fft } from "../src/dsp/fft.ts";
 import { integratedLoudness } from "../src/dsp/loudness.ts";
@@ -485,5 +485,21 @@ describe("fuzz: random tweaks and layers of built-ins render cleanly", () => {
       expect(Math.abs(x[x.length - 1] ?? 1)).toBeLessThan(1e-4 * peak);
       expect(Math.abs(x.reduce((s, v) => s + v, 0) / x.length) / peak).toBeLessThan(0.005);
     }
+  });
+});
+
+describe("damper (a key struck again cuts its ringing note)", () => {
+  it("carries over from grandpiano to a tweak, and to a stack only when every layer has one", () => {
+    const { table, issues } = buildInstruments({
+      softer: { base: "grandpiano", gain: -3 },
+      doubled: { layers: [{ base: "grandpiano" }, { base: "grandpiano", transpose: 12, gain: -12 }] },
+      withBell: { layers: [{ base: "grandpiano" }, { base: "glockenspiel", gain: -12 }] },
+    });
+    expect(issues).toEqual([]);
+    expect(table.get("grandpiano")?.descriptor.damper).toBeDefined();
+    expect(table.get("softer")?.descriptor.damper).toEqual(table.get("grandpiano")?.descriptor.damper);
+    expect(table.get("doubled")?.descriptor.damper).toEqual(table.get("grandpiano")?.descriptor.damper);
+    expect(table.get("withBell")?.descriptor.damper).toBeUndefined();
+    expect(table.get("piano")?.descriptor.damper).toBeUndefined();
   });
 });

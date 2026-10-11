@@ -44,8 +44,9 @@ node src/cli.ts guide                  # how to write a score (for LLMs)
 node src/cli.ts schema                 # the JSON Schema (also in schema/jinglescript-1.json)
 ```
 
-`examples/piano/` holds nine full-length public-domain piano pieces (Debussy, Chopin, Liszt,
-Beethoven, Rachmaninoff, Schubert) written for `grandpiano` — what a 3–6 minute score looks like.
+`examples/piano/` holds fourteen full-length public-domain piano pieces (Debussy, Chopin, Liszt,
+Beethoven, Rachmaninoff, Schubert, Satie, Tchaikovsky) written for `grandpiano` — what a 2–7 minute
+score looks like.
 They are in the repository only, not the npm package; see [examples/piano/README.md](examples/piano/README.md).
 
 ## Use it from Claude (MCP)

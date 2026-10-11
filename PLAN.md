@@ -648,7 +648,7 @@ and C's C5 and D5 from 0.92 s) use `{ "seconds": … }` with the prototype's exa
 
 These examples double as the reference style the README shows an LLM: cues first, music on them.
 
-- `examples/piano/*.json` — nine full-length public-domain piano pieces on `grandpiano` (3–6
+- `examples/piano/*.json` — fourteen full-length public-domain piano pieces on `grandpiano` (2–7
   minutes each), not jingles: they show a long score. Kept out of `examples/` because the suite
   renders every file there; `tests/examples-piano.test.ts` only parses them. Their own licences
   (CC BY 4.0 / CC BY-SA 4.0) and sources are in `examples/piano/README.md`; not in the npm package.
@@ -1173,3 +1173,17 @@ Decided:
   CC BY 4.0 or CC BY-SA 4.0 `copyright`; sources and credits in `examples/piano/README.md`. The
   suite parses them (`tests/examples-piano.test.ts`) but does not render them. README and the
   Examples section now point to them, and README's licence names the exception.
+- 2026-10-11 — Five more pieces in `examples/piano/` (subagents, transcribed from public-domain
+  prints): La fille aux cheveux de lin, Moonlight III, the "Revolutionary" Étude, June:
+  Barcarolle, Gymnopédie No.1. After listening, the user found June and the Étude unnatural in
+  places. June had misreadings: they were found by diffing against a MIDI file that cannot be
+  copied (used only to flag places, as the credits say) and each was decided from the print. The
+  Étude's notes were right: the cause was `grandpiano` letting a re-struck key pile up copies of
+  the same sample.
+- 2026-10-11 — User: a key struck again on `grandpiano` stops the note still ringing on it.
+  Instruments may declare a `damper` (seconds); render.ts holds each key's last voice per track
+  and fades it out over that time from the new onset (80 ms for grandpiano), so repeats are
+  re-struck, not doubled. Two tracks are two pianos and do not damp each other. A tweak keeps its
+  base's damper; a stack has one only when every layer has. Only grandpiano has one; `piano`
+  (synthesized) is unchanged. `a-grandpiano.json`'s golden hash changed (it re-strikes C5, E5,
+  G5, C6); every other hash is unchanged. Not yet heard by the user.

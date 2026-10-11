@@ -1,5 +1,6 @@
 // Score → stereo audio + timing map.
 import { master, measureAudibleUntil, type MasterStats } from "./dsp/master.ts";
+import type { InstrumentTable } from "./custom/instruments.ts";
 import { expandScore, type NoteEvent } from "./events.ts";
 import type { Instrument } from "./instruments/index.ts";
 import { midiToFrequency, pitchToMidi } from "./pitch.ts";
@@ -42,13 +43,19 @@ interface Voice {
   samples: Float32Array;
 }
 
+/** The pitches an event plays, one voice each (a single unpitched voice when it has none). */
+const voicePitches = (event: NoteEvent): (string | undefined)[] => (event.pitches.length > 0 ? event.pitches : [undefined]);
+
+/** Where a voice of an event starts, in samples (a strum spreads a chord's voices). */
+const voiceStart = (event: NoteEvent, voice: number, sampleRate: number): number =>
+  secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate);
+
 /** What one event plays: a voice per pitch of its chord (one for unpitched sounds). */
 function synthesizeEvent(instrument: Instrument, event: NoteEvent, seed: number, sampleRate: number, samples: SampleSource): Voice[] {
-  const voices: (string | undefined)[] = event.pitches.length > 0 ? event.pitches : [undefined];
-  return voices.map((pitch, voice) => {
+  return voicePitches(event).map((pitch, voice) => {
     const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
     return {
-      start: secondsToSample(event.seconds + (event.strum?.offsets[voice] ?? 0), sampleRate),
+      start: voiceStart(event, voice, sampleRate),
       samples: instrument.synthesize({
         midi,
         frequency: midi === undefined ? undefined : midiToFrequency(midi + instrument.descriptor.transpose + event.detune / 100),
@@ -62,6 +69,46 @@ function synthesizeEvent(instrument: Instrument, event: NoteEvent, seed: number,
       }),
     };
   });
+}
+
+/**
+ * Where each voice of an instrument with a damper is cut, by `${event index}/${voice}`: the next
+ * onset of the same key on the same track, by actual onset (a strum can move a chord's voice past
+ * a later event's), and how many samples its fade takes. Voices that are never struck again are
+ * absent.
+ */
+function damperCuts(events: readonly NoteEvent[], instruments: InstrumentTable, sampleRate: number): Map<string, { at: number; fade: number }> {
+  const byKey = new Map<string, { id: string; start: number; fade: number }[]>();
+  events.forEach((event, index) => {
+    const damper = instruments.get(event.instrument)?.descriptor.damper;
+    if (damper === undefined) return;
+    voicePitches(event).forEach((pitch, voice) => {
+      const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
+      if (midi === undefined) return;
+      const key = `${event.track}/${event.instrument}/${midi}`;
+      const fade = Math.max(1, secondsToSample(damper.seconds, sampleRate));
+      byKey.set(key, [...(byKey.get(key) ?? []), { id: `${index}/${voice}`, start: voiceStart(event, voice, sampleRate), fade }]);
+    });
+  });
+  const cuts = new Map<string, { at: number; fade: number }>();
+  for (const strikes of byKey.values()) {
+    // Stable: strikes at the same sample keep score order, and the earlier is cut by the later.
+    const ordered = [...strikes].sort((a, b) => a.start - b.start);
+    ordered.forEach((strike, k) => {
+      const next = ordered[k + 1];
+      if (next !== undefined) cuts.set(strike.id, { at: next.start, fade: strike.fade });
+    });
+  }
+  return cuts;
+}
+
+/** Fade a voice out over `fade` samples from sample `at` (absolute), silent after it. */
+function damp(voice: Voice, at: number, fade: number): void {
+  const from = Math.max(0, at - voice.start);
+  for (let i = from; i < voice.samples.length; i++) {
+    const k = i - from;
+    voice.samples[i] = k < fade ? (voice.samples[i] ?? 0) * (1 - k / fade) : 0;
+  }
 }
 
 function mixEvent(voices: Voice[], event: NoteEvent, mix: [Float32Array, Float32Array]): void {
@@ -110,12 +157,17 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
   const length = secondsToSample(expanded.duration, sampleRate);
   const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
-  for (const event of expanded.events) {
+  const cuts = damperCuts(expanded.events, expanded.instruments, sampleRate);
+  expanded.events.forEach((event, index) => {
     const instrument = expanded.instruments.get(event.instrument);
-    if (instrument === undefined) continue;
+    if (instrument === undefined) return;
     const voices = synthesizeEvent(instrument, event, seed, sampleRate, options.samples ?? NO_SAMPLES);
+    voices.forEach((voice, k) => {
+      const cut = cuts.get(`${index}/${k}`);
+      if (cut !== undefined) damp(voice, cut.at, cut.fade);
+    });
     mixEvent(voices, event, score.tracks[event.track]?.reverb === false ? dry : wet);
-  }
+  });
   const { audio, stats } = master(wet, dry, {
     sampleRate,
     seed,

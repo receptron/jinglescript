@@ -176,6 +176,11 @@ describe("grandpiano renders from loaded samples only", () => {
         alone,
       ),
     ).toBeGreaterThan(0.1);
+    // By actual onset: a down-strum at 1 s puts its G4 at ~1.16 s, after a lone G4 at 1.05 s
+    // written later in the score. The lone G4 is the one cut; the chord sounds as if alone.
+    const chord = { at: { seconds: 1 }, pitch: ["C4", "E4", "G4"], strum: { pattern: "down", spread: 80 } };
+    const chordAlone = shape(dry([track([chord])]), 1.3, 1.9);
+    expect(distance(shape(dry([track([chord, { at: { seconds: 1.05 }, pitch: "G4" }])]), 1.3, 1.9), chordAlone)).toBeLessThan(0.01);
   });
 
   it("is bit-identical on every render", () => {

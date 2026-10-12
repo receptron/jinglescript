@@ -1245,3 +1245,10 @@ Decided:
   mark is at bar 1, so the other 245 stretches are the agent's, changing on each half-note beat
   where the accompaniment changes. Notes and timing unchanged. The user preferred both "after"
   renders.
+- 2026-10-12 — The same for Debussy's Arabesque No.1 and Moonlight I. Arabesque: `len` from the
+  written values of Mutopia's OHara edition (1,335 legato, 91 before a rest, 8 portato); neither
+  it nor the Durand 1904 print has Ped. marks, so all 176 stretches are the agent's, changing
+  with the harmony; the last E now stops at its written quarter. Moonlight I: `len` from Mutopia's
+  Holmes edition; the pedal follows the heading ("senza sordino"): down throughout, 132 stretches
+  changing with the harmony (change points the agent's). Notes and timing unchanged. The user
+  preferred both "after" renders.

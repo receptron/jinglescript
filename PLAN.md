@@ -1266,3 +1266,10 @@ Decided:
   D D as printed, "Not fast" at 76 BPM, 2,621 notes with written `len`, and a short pedal from
   each stride bass to its offbeat chord (the print has no Ped. marks). The B strain's "Repeat
   8va." is played an octave up in the right hand. README counts fifteen pieces. The user: good.
+- 2026-10-12 — The same for the Pathétique II: `len` from the written values of Mutopia's
+  Sawer/Ruiz-Alma edition (1,412 legato, 75 staccato, 68 portato, 56 before a rest; the
+  written-out turns and graces held to the next note). Neither it nor the Peters ca.1910 print
+  has Ped. marks, so all 249 stretches are the agent's: down throughout, changing with the
+  harmony and the bass (more often in chromatic passages), dry over the printed staccato
+  passages (bars 48–50 entirely). Notes and timing unchanged. The user preferred the "after"
+  render. All fifteen piano pieces now have `len` and pedal.

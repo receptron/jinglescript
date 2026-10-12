@@ -23,6 +23,7 @@ function instrumentLine(name: (typeof INSTRUMENT_NAMES)[number]): string {
     d.range ? `range ${d.range.low}–${d.range.high}${optional}` : "no pitch",
     d.transpose === 12 ? "sounds an octave above the written pitch" : "",
     d.sustained ? "sustained (holds for len)" : "",
+    d.damper ? "dampers: len releases the key, pedal holds it" : "",
     d.duration ? `len default ${d.duration.defaultSeconds} s` : "",
     d.variants.length > 0 ? `variants ${d.variants.join("/")}` : "",
     d.synthetic ? "sounds synthetic" : "",
@@ -112,7 +113,7 @@ export const NoteSchema = z
       })
       .optional()
       .describe(
-        'How long sustained instruments hold, and how long effects with a length (whoosh, riser, laser) last: a number of beats, or { "seconds": n } when the request gives seconds ("builds for 2 seconds" is { "seconds": 2 }). Struck and plucked instruments ring out and ignore it.',
+        'How long sustained instruments hold, and how long effects with a length (whoosh, riser, laser) last: a number of beats, or { "seconds": n } when the request gives seconds ("builds for 2 seconds" is { "seconds": 2 }). On instruments with dampers (grandpiano) it is how long the key is held: the note stops when it ends, unless the track\'s `pedal` is down then; leave it out to let the note ring. Other struck and plucked instruments ring out and ignore it.',
       ),
     pan: z.number().min(0).max(1).optional().describe("Overrides the track's pan for this note: 0 left, 0.5 centre, 1 right."),
     variant: z
@@ -136,6 +137,13 @@ export const NoteSchema = z
   })
   .describe("One note or chord (or one sound effect hit).");
 
+export const PedalSchema = z
+  .strictObject({
+    at: AtSchema.describe('When the pedal goes down: beats, { "seconds": n }, or a cue (as a note\'s `at`).'),
+    until: AtSchema.describe("When it lifts, after `at`. To change pedal, start the next span where this one ends."),
+  })
+  .describe("One stretch of sustain pedal.");
+
 export const TrackSchema = z
   .strictObject({
     instrument: z
@@ -148,6 +156,12 @@ export const TrackSchema = z
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
+    pedal: z
+      .array(PedalSchema)
+      .optional()
+      .describe(
+        "Sustain pedal, for instruments with dampers (grandpiano): stretches in time order that do not overlap. While it is down, notes whose `len` has ended ring on; when it lifts, they stop. Change pedal where the harmony changes, as the printed Ped. marks show. Notes without `len` ring out regardless. Two tracks of one piano (right and left hand) each need it.",
+      ),
   })
   .describe("One instrument's part. Use several tracks for several instruments, or for melody and bass on the same instrument.");
 

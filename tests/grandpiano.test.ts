@@ -7,6 +7,7 @@ import { resample } from "../src/dsp/resample.ts";
 import { integratedLoudness } from "../src/dsp/loudness.ts";
 import { grandPianoSample, layerFor, nearestSampled } from "../src/instruments/grandpiano.ts";
 import { INSTRUMENTS } from "../src/instruments/index.ts";
+import { expandScore } from "../src/events.ts";
 import { parseScore, render, samplesNeeded, SamplesNotLoadedError, toWav } from "../src/index.ts";
 import { midiToFrequency } from "../src/pitch.ts";
 import { createRng } from "../src/rng.ts";
@@ -181,6 +182,62 @@ describe("grandpiano renders from loaded samples only", () => {
     const chord = { at: { seconds: 1 }, pitch: ["C4", "E4", "G4"], strum: { pattern: "down", spread: 80 } };
     const chordAlone = shape(dry([track([chord])]), 1.3, 1.9);
     expect(distance(shape(dry([track([chord, { at: { seconds: 1.05 }, pitch: "G4" }])]), 1.3, 1.9), chordAlone)).toBeLessThan(0.01);
+  });
+
+  it("stops a note when its key is released (len), unless the pedal holds it until it lifts", () => {
+    const rms = (x: Float32Array, from: number, to: number) => {
+      const w = x.subarray(Math.round(from * RATE), Math.round(to * RATE));
+      return Math.sqrt(w.reduce((sum, v) => sum + v * v, 0) / w.length);
+    };
+    const play = (note: Record<string, unknown>, pedal?: unknown[]) =>
+      render(
+        parseScore({
+          format: "jinglescript/1",
+          tempo: 120,
+          length: { seconds: 3 },
+          // Quiet enough that loudness normalization never limits, so levels compare across renders.
+          master: { reverb: "none", fadeOut: 0, limiter: false, loudness: -30 },
+          tracks: [{ instrument: "grandpiano", reverb: false, notes: [{ at: 0, pitch: "C4", ...note }], ...(pedal === undefined ? {} : { pedal }) }],
+        }),
+        { samples: pianoFixture },
+      ).audio[0];
+    const ringing = play({});
+    // Held for one beat (0.5 s): silent once the 120 ms damper fade is over, ringing before.
+    const released = play({ len: 1 });
+    expect(rms(released, 0.1, 0.45)).toBeGreaterThan(0.2 * rms(ringing, 0.1, 0.45));
+    expect(rms(released, 0.65, 1.5)).toBe(0);
+    // The pedal down until 1.2 s keeps it ringing after the key is released, then lifts.
+    const pedalled = play({ len: 1 }, [{ at: 0, until: { seconds: 1.2 } }]);
+    expect(rms(pedalled, 0.7, 1.15)).toBeGreaterThan(0.2 * rms(ringing, 0.7, 1.15));
+    expect(rms(pedalled, 1.35, 2)).toBe(0);
+    // A pedal that goes down after the key is released does not bring the note back.
+    expect(rms(play({ len: 1 }, [{ at: 2, until: 4 }]), 0.65, 1.5)).toBe(0);
+    // Without len the note rings out, pedal or not.
+    expect(rms(play({}, [{ at: 0, until: 1 }]), 0.7, 1.5)).toBeGreaterThan(0.2 * rms(ringing, 0.7, 1.5));
+  });
+
+  it("holds each voice of a strummed chord its full len from its own onset", () => {
+    const score = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 2 },
+      master: { reverb: "none", fadeOut: 0, limiter: false, loudness: -30 },
+      tracks: [
+        {
+          instrument: "grandpiano",
+          reverb: false,
+          notes: [{ at: { seconds: 0.5 }, pitch: ["C4", "E4", "G4"], len: { seconds: 0.1 }, strum: { pattern: "down", spread: 80 } }],
+        },
+      ],
+    });
+    const last = expandScore(score).events[0]?.strum?.offsets.at(-1) ?? 0;
+    expect(last).toBeGreaterThan(0.12);
+    const audio = render(score, { samples: pianoFixture }).audio[0];
+    const peak = (from: number, to: number) => audio.subarray(Math.round(from * RATE), Math.round(to * RATE)).reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+    const g4 = 0.5 + last;
+    // Released 0.1 s after its own onset, then a 120 ms fade: sounding until then, silent after.
+    expect(peak(g4 + 0.14, g4 + 0.2)).toBeGreaterThan(0);
+    expect(peak(g4 + 0.23, 2)).toBe(0);
   });
 
   it("is bit-identical on every render", () => {

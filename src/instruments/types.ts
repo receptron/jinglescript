@@ -47,11 +47,14 @@ export interface InstrumentDescriptor {
   /** Sustained sounds hold for `len`; the others ring out on their own. */
   sustained: boolean;
   /**
-   * A key struck again on the same track stops the note of that pitch still ringing, fading it
-   * out over `seconds` from the new onset, as a piano's string is re-struck rather than doubled.
-   * Without it, every note rings out on its own and repeats pile up.
+   * Keys with dampers, as on a piano. A key struck again on the same track stops the note of that
+   * pitch still ringing, fading it out over `restrike` seconds from the new onset (the string is
+   * re-struck, not doubled). A note with a written `len` is released when it ends, unless the
+   * track's pedal is down then, and is faded out over `release` seconds from the release (or the
+   * pedal lifting). Notes without `len` ring out. Without a damper, every note rings out on its
+   * own and repeats pile up.
    */
-  damper?: { seconds: number };
+  damper?: { restrike: number; release: number };
   /** Lowest and highest pitch that renders cleanly; null for unpitched sounds. */
   range: { low: string; high: string } | null;
   /** The first is the default. */

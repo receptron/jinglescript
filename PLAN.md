@@ -1197,3 +1197,15 @@ Decided:
   damper) is gone, which evens the chords and keeps them on one velocity layer, and bars 55–57
   ease slightly into bar 57's accent. Not fixed: grandpiano ignores `len`, so notes ring through
   printed rests (bars 55–56); a release from `len` is the user's call. The user: "よくなった".
+- 2026-10-11 — User: grandpiano honours `len` and has a sustain pedal. A note with a written
+  `len` is released at its end (each strummed voice from its own onset) and the dampers fade it
+  out over 120 ms; a track's `pedal` (`[{ at, until }]`, in order, not overlapping) holds released
+  notes until it lifts. A pedal that goes down after a release does not bring a note back. Notes
+  without `len` ring out as before, so every golden hash is unchanged. Scores validate pedals
+  (unknown cue, before 0 s, `until` not after `at`, overlap, after the end, an instrument with no
+  dampers). MIDI writes the pedal as CC64 (pedal-up, then pedal-down, before note-offs at one
+  tick); a track with a pedal gets its own channel. Schema, guide and README updated. The Étude
+  Op.10 No.12 now has a `len` on every note and 91 pedal stretches on both hands, chosen by the
+  agent (the Peters print has no Ped. marks). Codex reviewed five times (strum release, shared
+  channels, event order at a tick, pedal before 0 s, collapsed stretches; all fixed with tests);
+  the fifth found nothing. The user: "よくなった".

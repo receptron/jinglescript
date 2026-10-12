@@ -291,3 +291,76 @@ describe("scoreToMidi", () => {
     }
   });
 });
+
+describe("sustain pedal", () => {
+  it("writes each stretch as controller 64 down and up, lifting before it goes down again", () => {
+    const score = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 4 },
+      tracks: [
+        {
+          instrument: "grandpiano",
+          notes: [{ at: 0, pitch: "C4", len: 1 }],
+          pedal: [
+            { at: 0, until: 2 },
+            { at: 2, until: 4 },
+          ],
+        },
+      ],
+    });
+    const midi = readMidi(scoreToMidi(score));
+    const pedal = (midi.tracks[1] ?? []).filter((e) => (e.status & 0xf0) === 0xb0 && e.data[0] === 64).map((e) => [e.tick / midi.ppq, e.data[1]]);
+    expect(pedal).toEqual([
+      [0, 127],
+      [2, 0],
+      [2, 127],
+      [4, 0],
+    ]);
+  });
+
+  it("puts the pedal down before a note-off at the same tick, so the key released then is held", () => {
+    const score = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 4 },
+      tracks: [{ instrument: "grandpiano", notes: [{ at: 0, pitch: "C4", len: 1 }], pedal: [{ at: 1, until: 4 }] }],
+    });
+    const midi = readMidi(scoreToMidi(score));
+    const atBeat1 = (midi.tracks[1] ?? []).filter((e) => e.tick === midi.ppq && e.meta === undefined).map((e) => e.status & 0xf0);
+    expect(atBeat1).toEqual([0xb0, 0x80]);
+  });
+
+  it("gives each track with a pedal a channel of its own, and says so when there are too many", () => {
+    const pianos = (count: number, pedalled: number) =>
+      parseScore({
+        format: "jinglescript/1",
+        tempo: 120,
+        length: { seconds: 20 },
+        tracks: Array.from({ length: count }, (_, k) => ({
+          instrument: "grandpiano",
+          notes: [{ at: k, pitch: "C4", len: 1 }],
+          ...(k < pedalled ? { pedal: [{ at: 0, until: 4 }] } : {}),
+        })),
+      });
+    // 20 pianos: 14 with a pedal on their own channels, the other 6 sharing one.
+    const channelsOf = (midi: ReturnType<typeof readMidi>) =>
+      midi.tracks.slice(1).map((events) => events.find((e) => (e.status & 0xf0) === 0x90)?.status ?? -1);
+    const shared = channelsOf(readMidi(scoreToMidi(pianos(20, 14))));
+    expect(new Set(shared.slice(0, 14)).size).toBe(14);
+    expect(new Set(shared.slice(14)).size).toBe(1);
+    expect(shared.slice(0, 14)).not.toContain(shared[14]);
+    expect(() => scoreToMidi(pianos(16, 15))).toThrow(/one per track with a pedal/);
+  });
+
+  it("leaves out a pedal stretch shorter than a tick, so the pedal never stays down", () => {
+    const score = parseScore({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 4 },
+      tracks: [{ instrument: "grandpiano", notes: [{ at: 0, pitch: "C4", len: 1 }], pedal: [{ at: 0, until: { seconds: 0.0001 } }] }],
+    });
+    const pedal = (readMidi(scoreToMidi(score)).tracks[1] ?? []).filter((e) => (e.status & 0xf0) === 0xb0);
+    expect(pedal).toEqual([]);
+  });
+});

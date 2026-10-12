@@ -3,7 +3,7 @@
 // per score track, General MIDI sounds for the built-ins, cues as markers and lyrics as lyric
 // events. Sound effects with no General MIDI equivalent (a whoosh, a laser) become markers named
 // after the effect, so their place is kept.
-import type { Expanded, NoteEvent } from "./events.ts";
+import type { Expanded, NoteEvent, PedalSpan } from "./events.ts";
 import { isInstrumentName, type InstrumentName } from "./instruments/index.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { expandOrThrow } from "./render.ts";
@@ -81,7 +81,7 @@ function resolveSound(name: string, score: Score, expanded: Expanded, seen: Read
 
 interface MidiEvent {
   tick: number;
-  /** Order among events on one tick: meta first, then note-offs, then note-ons. */
+  /** Order among events on one tick: meta first, then pedal up, pedal down, note-offs, note-ons. */
   order: number;
   bytes: number[];
 }
@@ -190,27 +190,49 @@ const MELODIC_CHANNELS = Array.from({ length: 16 }, (_, channel) => channel).fil
 /**
  * A channel per melodic track while they last. With more tracks than channels, tracks share by
  * program, since a program change holds for the whole channel; the built-ins use fewer programs
- * than there are channels.
+ * than there are channels. A track with a pedal always gets a channel of its own: the sustain pedal
+ * holds for the whole channel, and players order events of different tracks at one tick as they
+ * please.
  */
-function assignChannels(sounds: readonly GmSound[]): (number | undefined)[] {
-  const melodic = sounds.flatMap((sound, track) => ("program" in sound ? [{ track, program: sound.program }] : []));
+function assignChannels(sounds: readonly GmSound[], pedals: readonly (readonly PedalSpan[])[]): (number | undefined)[] {
+  const melodic = sounds.flatMap((sound, track) =>
+    "program" in sound ? [{ track, group: (pedals[track] ?? []).length > 0 ? `pedal/${track}` : `program/${sound.program}` }] : [],
+  );
   const channels: (number | undefined)[] = sounds.map((sound) => ("drum" in sound ? DRUM_CHANNEL : undefined));
+  const groups = [...new Set(melodic.map(({ group }) => group))];
+  if (groups.length > MELODIC_CHANNELS.length) {
+    throw new JingleScriptError([
+      {
+        path: "tracks",
+        message: `MIDI has ${MELODIC_CHANNELS.length} melodic channels; this score needs ${groups.length} (one per sound, and one per track with a pedal).`,
+        hint: "Use fewer instruments, or fewer tracks with a pedal.",
+      },
+    ]);
+  }
   if (melodic.length <= MELODIC_CHANNELS.length) {
     melodic.forEach(({ track }, i) => (channels[track] = MELODIC_CHANNELS[i]));
     return channels;
   }
-  const programs = [...new Set(melodic.map(({ program }) => program))];
-  if (programs.length > MELODIC_CHANNELS.length) {
-    throw new JingleScriptError([
-      {
-        path: "tracks",
-        message: `MIDI has ${MELODIC_CHANNELS.length} melodic channels; this score needs ${programs.length} different sounds.`,
-        hint: "Use fewer instruments.",
-      },
-    ]);
-  }
-  for (const { track, program } of melodic) channels[track] = MELODIC_CHANNELS[programs.indexOf(program)];
+  for (const { track, group } of melodic) channels[track] = MELODIC_CHANNELS[groups.indexOf(group)];
   return channels;
+}
+
+/**
+ * Sustain pedal (controller 64). At one tick a change of pedal lifts it before putting it down, and
+ * the pedal goes down before note-offs (order 1): a key released as the pedal goes down is held, as
+ * in the audio.
+ */
+function pedalEvents(spans: readonly PedalSpan[], channel: number, toTick: (seconds: number) => number, end: number): MidiEvent[] {
+  return spans.flatMap((span) => {
+    const down = toTick(span.down);
+    const up = Math.min(toTick(span.up), end);
+    // A stretch shorter than a tick would lift before it goes down, leaving the pedal down.
+    if (up <= down) return [];
+    return [
+      { tick: down, order: 0.8, bytes: [0xb0 | channel, 64, 127] },
+      { tick: up, order: 0.6, bytes: [0xb0 | channel, 64, 0] },
+    ];
+  });
 }
 
 /** The first track: copyright (the standard puts it first), name, tempo and a marker per cue. */
@@ -232,7 +254,10 @@ export function scoreToMidi(score: Score): Uint8Array {
   const end = toTick(expanded.duration);
   const syllables = expanded.lyrics.flatMap((line) => line.syllables.map((syllable) => ({ track: line.track, ...syllable })));
   const resolved = score.tracks.map((track) => resolveSound(track.instrument, score, expanded));
-  const channels = assignChannels(resolved.map(({ sound }) => sound));
+  const channels = assignChannels(
+    resolved.map(({ sound }) => sound),
+    expanded.pedals,
+  );
   const played = score.tracks.map((_, index): Played[] => {
     const { sound, shift, delay } = resolved[index] ?? { sound: { marker: true }, shift: 0, delay: 0 };
     if ("marker" in sound) return [];
@@ -263,6 +288,7 @@ export function scoreToMidi(score: Score): Uint8Array {
         events.push({ tick: note.on, order: 2, bytes: [0x90 | channel, note.key, note.velocity] });
         events.push({ tick: note.off, order: 1, bytes: [0x80 | channel, note.key, 0] });
       }
+      events.push(...pedalEvents(expanded.pedals[index] ?? [], channel, toTick, end));
     }
     events.push(...syllables.filter((syllable) => syllable.track === index).map((syllable) => text(toTick(syllable.seconds), 0x05, syllable.text)));
     return trackChunk(events, end);

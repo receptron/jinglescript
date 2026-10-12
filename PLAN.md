@@ -1237,3 +1237,11 @@ Decided:
   (mostly one per bass note), 28 the agent's (beats the print leaves bare, and the final lift).
   The cadenza keeps Mutopia's single pedal through the run (not checked against the Kullak scan).
   Notes and timing unchanged. The user preferred the "after" render.
+- 2026-10-12 — The same for June: Barcarolle and Schubert's Impromptu D.899 No.3. June: no
+  Mutopia edition, so `len` comes from the transcription's bar/beat grid capped by what the
+  Schirmer 1909 scan shows (1,201 legato, 235 before a rest, 69 staccato); all 97 pedal
+  stretches follow its Ped./* marks, and bars printed without pedal stay dry. Schubert: `len` from
+  the written values of Mutopia's Raynaud edition (B&H 1888), 18 portato half notes; its only Ped.
+  mark is at bar 1, so the other 245 stretches are the agent's, changing on each half-note beat
+  where the accompaniment changes. Notes and timing unchanged. The user preferred both "after"
+  renders.

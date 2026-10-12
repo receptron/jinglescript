@@ -1231,3 +1231,9 @@ Decided:
   the Agitato, the staccato bells and the eighth-chord passages dry. Notes and timing unchanged.
   grandpiano still rings at most 3.2 s, so the opening octave and the final chord stop there
   whatever their `len`. The user preferred the "after" render.
+- 2026-10-12 — The same for Chopin's Nocturne Op.9 No.2: `len` from the written values of
+  Mutopia's Rinaldi edition (988 legato, 125 staccato, 100 portato; ornaments, trills and the
+  cadenza held to the next note), and 100 pedal stretches on both hands: 72 from its Ped. marks
+  (mostly one per bass note), 28 the agent's (beats the print leaves bare, and the final lift).
+  The cadenza keeps Mutopia's single pedal through the run (not checked against the Kullak scan).
+  Notes and timing unchanged. The user preferred the "after" render.

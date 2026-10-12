@@ -154,3 +154,38 @@ describe("API for LLMs", () => {
     }
   });
 });
+
+describe("pedal", () => {
+  const piano = (pedal: unknown[], instrument = "grandpiano") =>
+    errorsOf({
+      format: "jinglescript/1",
+      tempo: 120,
+      length: { seconds: 4 },
+      cues: { hit: { seconds: 1 } },
+      tracks: [{ instrument, notes: [{ at: 0, pitch: "C4", len: 1 }], pedal }],
+    });
+
+  it("accepts stretches in time order, touching where the pedal changes", () => {
+    expect(
+      piano([
+        { at: 0, until: 2 },
+        { at: 2, until: "hit+2" },
+        { at: { seconds: 3 }, until: { seconds: 4 } },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("says what is wrong with a pedal, and where", () => {
+    expect(piano([{ at: 0, until: 2 }], "marimba")).toMatchObject([{ path: "tracks[0].pedal", message: expect.stringContaining("no dampers") }]);
+    expect(piano([{ at: 2, until: 2 }])).toMatchObject([{ path: "tracks[0].pedal[0].until", message: expect.stringContaining("not after") }]);
+    expect(
+      piano([
+        { at: 0, until: 3 },
+        { at: 2, until: 4 },
+      ]),
+    ).toMatchObject([{ path: "tracks[0].pedal[1].at", message: expect.stringContaining("before the previous") }]);
+    expect(piano([{ at: 0, until: 9 }])).toMatchObject([{ path: "tracks[0].pedal[0].until", message: expect.stringContaining("after the end") }]);
+    expect(piano([{ at: "drop", until: 2 }])).toMatchObject([{ path: "tracks[0].pedal[0].at" }]);
+    expect(piano([{ at: "hit-3", until: 2 }])).toMatchObject([{ path: "tracks[0].pedal[0].at", message: expect.stringContaining("before 0 s") }]);
+  });
+});

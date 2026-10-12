@@ -45,12 +45,23 @@ export interface NoteEvent {
   hold: number;
   /** When an effect with a length ends, seconds (undefined for everything else). */
   end: number | undefined;
+  /**
+   * When the key is released, seconds: onset plus a written `len` (undefined without one, and for
+   * effects with a length). Only instruments with dampers act on it.
+   */
+  release: number | undefined;
   variant: string | undefined;
   detune: number;
   /** The note's syllable (on its first event only). */
   lyric: string | undefined;
   /** A line of lyrics ends after this syllable (first event only). */
   lineEnd: boolean;
+}
+
+/** The sustain pedal down from `down` until `up`, seconds. */
+export interface PedalSpan {
+  down: number;
+  up: number;
 }
 
 export interface Expanded {
@@ -63,6 +74,8 @@ export interface Expanded {
   instruments: InstrumentTable;
   /** Lyric lines of every track, sorted by start; empty when the score has no lyrics. */
   lyrics: LyricLine[];
+  /** Each track's sustain pedal, by track index: stretches in seconds, in time order. */
+  pedals: PedalSpan[][];
   issues: Issue[];
 }
 
@@ -259,6 +272,11 @@ interface Placed {
   stroke: Stroke;
 }
 
+/** When a note's key is released: onset plus its written `len` (none for effects with a length). */
+function releaseOf(note: Note, placed: Placed, seconds: number, tempo: number): number | undefined {
+  return placed.length === undefined && note.len !== undefined ? seconds + lenSeconds(note.len, tempo) : undefined;
+}
+
 function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Placed): NoteEvent {
   const { score, trackIndex, noteIndex } = ctx;
   const track = score.tracks[trackIndex];
@@ -269,14 +287,15 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     placed.stroke.direction === undefined
       ? undefined
       : voiceStrum(pitches.length, placed.stroke.direction, strumSpread(note), pinned, streamRng(score.seed, "strum", trackIndex, noteIndex, placed.index));
+  // Looseness never moves a note before the start.
+  const seconds = Math.max(0, placed.seconds + humanize / 1000 + (strum?.shift ?? 0));
   return {
     track: trackIndex,
     note: noteIndex,
     repeat: placed.index,
     instrument: track?.instrument ?? "marimba",
     nominal: placed.seconds,
-    // Looseness never moves a note before the start.
-    seconds: Math.max(0, placed.seconds + humanize / 1000 + (strum?.shift ?? 0)),
+    seconds,
     cue: placed.onCue,
     pitches,
     chord: note.chord,
@@ -289,6 +308,7 @@ function noteEvent(note: Note, ctx: NoteContext, pitches: string[], placed: Plac
     gainDb: track?.gain ?? 0,
     hold: placed.length ?? (note.len === undefined ? Number.NaN : lenSeconds(note.len, score.tempo)),
     end: placed.length === undefined ? undefined : Math.max(0, placed.seconds) + placed.length,
+    release: releaseOf(note, placed, seconds, score.tempo),
     variant: variantAt(note, placed.index),
     detune: note.detune ?? 0,
     ...lyricOf(note, placed.index),
@@ -385,6 +405,68 @@ function unknownInstrumentIssue(name: string, trackIndex: number, definitions: S
   };
 }
 
+/** A track's pedal in seconds, and what keeps it from making sense. */
+function expandPedal(
+  track: ScoreData["tracks"][number],
+  trackIndex: number,
+  descriptor: InstrumentDescriptor,
+  ctx: { tempo: number; cues: Record<string, number>; duration: number },
+): { spans: PedalSpan[]; issues: Issue[] } {
+  const marks = track.pedal ?? [];
+  if (marks.length === 0) return { spans: [], issues: [] };
+  if (descriptor.damper === undefined) {
+    return {
+      spans: [],
+      issues: [
+        {
+          path: ["tracks", trackIndex, "pedal"],
+          message: `"${track.instrument}" has no dampers, so a pedal does nothing: its notes ring out anyway.`,
+          hint: 'Remove "pedal", or play the track on grandpiano.',
+        },
+      ],
+    };
+  }
+  const spans: PedalSpan[] = [];
+  const issues: Issue[] = [];
+  marks.forEach((mark, k) => {
+    const path: IssuePath = ["tracks", trackIndex, "pedal", k];
+    const down = resolveAt(mark.at, ctx.tempo, ctx.cues);
+    const up = resolveAt(mark.until, ctx.tempo, ctx.cues);
+    if (!down.ok) issues.push(unknownCueIssue([...path, "at"], down.unknownCue, ctx.cues));
+    if (!up.ok) issues.push(unknownCueIssue([...path, "until"], up.unknownCue, ctx.cues));
+    if (!down.ok || !up.ok) return;
+    const previous = spans.at(-1);
+    if (down.seconds < -EPSILON) {
+      issues.push({
+        path: [...path, "at"],
+        message: `The pedal goes down before 0 s (${down.seconds.toFixed(3)} s).`,
+        hint: "Move it later or reduce the negative offset.",
+      });
+    } else if (up.seconds <= down.seconds + EPSILON) {
+      issues.push({
+        path: [...path, "until"],
+        message: `The pedal lifts at ${up.seconds.toFixed(3)} s, not after it goes down (${down.seconds.toFixed(3)} s).`,
+        hint: "`until` is when the pedal lifts; make it later than `at`.",
+      });
+    } else if (previous !== undefined && down.seconds < previous.up - EPSILON) {
+      issues.push({
+        path: [...path, "at"],
+        message: `This pedal goes down at ${down.seconds.toFixed(3)} s, before the previous one lifts (${previous.up.toFixed(3)} s).`,
+        hint: "List the stretches in time order without overlap; to change pedal, start the next where the last ends.",
+      });
+    } else if (up.seconds > ctx.duration + EPSILON) {
+      issues.push({
+        path: [...path, "until"],
+        message: `The pedal lifts at ${up.seconds.toFixed(3)} s, after the end (${ctx.duration.toFixed(3)} s).`,
+        hint: "Lift it by the end, or make `length` longer.",
+      });
+    } else {
+      spans.push({ down: down.seconds, up: up.seconds });
+    }
+  });
+  return { spans, issues };
+}
+
 export function expandScore(score: ScoreData): Expanded {
   const cues: Record<string, number> = {};
   for (const [name, time] of Object.entries(score.cues)) cues[name] = timeToSeconds(time, score.tempo);
@@ -401,12 +483,16 @@ export function expandScore(score: ScoreData): Expanded {
     }
   }
   const events: NoteEvent[] = [];
+  const pedals: PedalSpan[][] = score.tracks.map(() => []);
   score.tracks.forEach((track, trackIndex) => {
     const instrument = instruments.get(track.instrument);
     if (instrument === undefined) {
       issues.push(unknownInstrumentIssue(track.instrument, trackIndex, score.instruments));
       return;
     }
+    const pedal = expandPedal(track, trackIndex, instrument.descriptor, { tempo: score.tempo, cues, duration });
+    pedals[trackIndex] = pedal.spans;
+    issues.push(...pedal.issues);
     track.notes.forEach((note, noteIndex) => {
       const expanded = expandNote(note, { score, descriptor: instrument.descriptor, cues, duration, trackIndex, noteIndex });
       events.push(...expanded.events);
@@ -417,5 +503,5 @@ export function expandScore(score: ScoreData): Expanded {
   events.sort((a, b) => a.seconds - b.seconds || a.track - b.track || a.note - b.note || a.repeat - b.repeat);
   const lyrics = buildLyrics(events, duration);
   issues.push(...lyrics.issues);
-  return { tempo: score.tempo, duration, cues, events, instruments, lyrics: lyrics.lines, issues };
+  return { tempo: score.tempo, duration, cues, events, instruments, lyrics: lyrics.lines, pedals, issues };
 }

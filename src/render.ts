@@ -1,7 +1,6 @@
 // Score → stereo audio + timing map.
 import { master, measureAudibleUntil, type MasterStats } from "./dsp/master.ts";
-import type { InstrumentTable } from "./custom/instruments.ts";
-import { expandScore, type NoteEvent } from "./events.ts";
+import { expandScore, type Expanded, type NoteEvent, type PedalSpan } from "./events.ts";
 import type { Instrument } from "./instruments/index.ts";
 import { midiToFrequency, pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
@@ -71,32 +70,52 @@ function synthesizeEvent(instrument: Instrument, event: NoteEvent, seed: number,
   });
 }
 
+/** Seconds two times may differ by and still count as the same. */
+const EPSILON = 1e-9;
+
+/** When a key released at `release` stops sounding: then, or when the pedal holding it lifts. */
+function dampedAt(release: number, pedal: readonly PedalSpan[]): number {
+  const held = pedal.find((span) => span.down <= release + EPSILON && release < span.up - EPSILON);
+  return held === undefined ? release : held.up;
+}
+
 /**
- * Where each voice of an instrument with a damper is cut, by `${event index}/${voice}`: the next
- * onset of the same key on the same track, by actual onset (a strum can move a chord's voice past
- * a later event's), and how many samples its fade takes. Voices that are never struck again are
+ * Where each voice of an instrument with a damper is cut, by `${event index}/${voice}`, and over how
+ * many samples it fades: at the next onset of the same key on the same track (by actual onset — a
+ * strum can move a chord's voice past a later event's), or where its key is released (a written
+ * `len`), held on by the track's pedal until it lifts, whichever is first. Voices never cut are
  * absent.
  */
-function damperCuts(events: readonly NoteEvent[], instruments: InstrumentTable, sampleRate: number): Map<string, { at: number; fade: number }> {
-  const byKey = new Map<string, { id: string; start: number; fade: number }[]>();
-  events.forEach((event, index) => {
-    const damper = instruments.get(event.instrument)?.descriptor.damper;
+function damperCuts(expanded: Expanded, sampleRate: number): Map<string, { at: number; fade: number }> {
+  const byKey = new Map<string, { id: string; start: number; restrike: number }[]>();
+  const cuts = new Map<string, { at: number; fade: number }>();
+  expanded.events.forEach((event, index) => {
+    const damper = expanded.instruments.get(event.instrument)?.descriptor.damper;
     if (damper === undefined) return;
     voicePitches(event).forEach((pitch, voice) => {
+      // A strum spreads the onsets; each voice is held its full `len` from its own.
+      const release = event.release === undefined ? undefined : event.release + (event.strum?.offsets[voice] ?? 0);
+      const released = release === undefined ? undefined : dampedAt(release, expanded.pedals[event.track] ?? []);
       const midi = pitch === undefined ? undefined : pitchToMidi(pitch);
       if (midi === undefined) return;
+      const id = `${index}/${voice}`;
+      const start = voiceStart(event, voice, sampleRate);
       const key = `${event.track}/${event.instrument}/${midi}`;
-      const fade = Math.max(1, secondsToSample(damper.seconds, sampleRate));
-      byKey.set(key, [...(byKey.get(key) ?? []), { id: `${index}/${voice}`, start: voiceStart(event, voice, sampleRate), fade }]);
+      byKey.set(key, [...(byKey.get(key) ?? []), { id, start, restrike: Math.max(1, secondsToSample(damper.restrike, sampleRate)) }]);
+      if (released !== undefined) {
+        cuts.set(id, { at: Math.max(start, secondsToSample(released, sampleRate)), fade: Math.max(1, secondsToSample(damper.release, sampleRate)) });
+      }
     });
   });
-  const cuts = new Map<string, { at: number; fade: number }>();
   for (const strikes of byKey.values()) {
     // Stable: strikes at the same sample keep score order, and the earlier is cut by the later.
-    const ordered = [...strikes].sort((a, b) => a.start - b.start);
+    const ordered = [...strikes].sort((x, y) => x.start - y.start);
     ordered.forEach((strike, k) => {
       const next = ordered[k + 1];
-      if (next !== undefined) cuts.set(strike.id, { at: next.start, fade: strike.fade });
+      const released = cuts.get(strike.id);
+      if (next !== undefined && (released === undefined || next.start < released.at)) {
+        cuts.set(strike.id, { at: next.start, fade: strike.restrike });
+      }
     });
   }
   return cuts;
@@ -157,7 +176,7 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
   const length = secondsToSample(expanded.duration, sampleRate);
   const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
-  const cuts = damperCuts(expanded.events, expanded.instruments, sampleRate);
+  const cuts = damperCuts(expanded, sampleRate);
   expanded.events.forEach((event, index) => {
     const instrument = expanded.instruments.get(event.instrument);
     if (instrument === undefined) return;

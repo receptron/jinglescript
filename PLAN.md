@@ -1209,3 +1209,18 @@ Decided:
   agent (the Peters print has no Ped. marks). Codex reviewed five times (strum release, shared
   channels, event order at a tick, pedal before 0 s, collapsed stretches; all fixed with tests);
   the fifth found nothing. The user: "よくなった".
+- 2026-10-11 — Moonlight III gets a `len` on every note (written values from Mutopia's
+  Berners/Winterberger source: 4,937 legato, 1,415 staccato at half, 87 portato at 0.75, 99
+  before a rest) and 170 pedal stretches on both hands: 28 from the source's Ped. marks (not
+  checked against the Cappi 1802 print, which IMSLP would not serve to a script), 142 chosen by
+  the agent. Notes and timing unchanged. The user compared before and after: "After is CLEARLY
+  better."
+- 2026-10-11 — The same for the Fantaisie-Impromptu and La Campanella. Fantaisie: `len` from
+  the written values of Mutopia's Lederfein edition (Scholtz), 231 pedal stretches on both hands,
+  all from its Ped. marks except the last lift. La Campanella: no machine-readable edition, so
+  `len` comes from the JSON's beat grid capped by the note values and articulation read from the
+  Augener scan (IMSLP #36690); its Ped. marks (last three pages only) are followed, the rest
+  (short pedals on the bass in staccato sections, harmony changes in legato ones) is the agent's
+  choice, and passages printed staccato or after a * stay dry. Notes and timing unchanged. Bar 112
+  of the Fantaisie has E3 where Mutopia has C#3; the user: leave it. The user preferred both
+  "after" renders.

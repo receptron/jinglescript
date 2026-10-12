@@ -1224,3 +1224,10 @@ Decided:
   choice, and passages printed staccato or after a * stay dry. Notes and timing unchanged. Bar 112
   of the Fantaisie has E3 where Mutopia has C#3; the user: leave it. The user preferred both
   "after" renders.
+- 2026-10-12 — The same for Rachmaninoff's Prelude Op.3 No.2: `len` from the written values of
+  Mutopia's Kostandy edition (its LilyPond MIDI, articulations from the .ly: 1,423 legato, 225
+  before a rest, 42 staccato bells), and 158 pedal stretches on both hands, all the agent's
+  choice (neither Mutopia nor the Bosworth/UE print has Ped. marks): a change per beat through
+  the Agitato, the staccato bells and the eighth-chord passages dry. Notes and timing unchanged.
+  grandpiano still rings at most 3.2 s, so the opening octave and the final chord stop there
+  whatever their `len`. The user preferred the "after" render.

@@ -1252,3 +1252,17 @@ Decided:
   Holmes edition; the pedal follows the heading ("senza sordino"): down throughout, 132 stretches
   changing with the harmony (change points the agent's). Notes and timing unchanged. The user
   preferred both "after" renders.
+- 2026-10-12 — The same for Clair de lune, Gymnopédie No.1 and La fille aux cheveux de lin.
+  Clair de lune and the Gymnopédie: `len` from the written values of their Mutopia editions
+  (OHara, Robertson); La fille: no Mutopia edition, so every written value was read from the
+  Durand 1910 scan through the transcription's bar/beat map (20 portato in bar 35). None of the
+  three prints has Ped. marks, so all pedalling is the agent's: down throughout, changing with
+  the harmony (Clair de lune 155 stretches, La fille 90), and per bar from the bass for the
+  Gymnopédie (82). Notes and timing unchanged. The user preferred all three "after" renders. All
+  fourteen pieces now have `len` and pedal.
+- 2026-10-12 — User: add The Entertainer. `examples/piano/the-entertainer.json` (subagent): notes
+  from Mutopia-2016/11/25-263 (public domain, from the 1902 original), checked bar by bar against
+  the John Stark & Son 1902 first edition (IMSLP #02607); Intro, A A, B B, A, C C, interlude,
+  D D as printed, "Not fast" at 76 BPM, 2,621 notes with written `len`, and a short pedal from
+  each stride bass to its offbeat chord (the print has no Ped. marks). The B strain's "Repeat
+  8va." is played an octave up in the right hand. README counts fifteen pieces. The user: good.

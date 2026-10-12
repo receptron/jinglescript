@@ -32,6 +32,7 @@ these takes minutes. `tests/examples-piano.test.ts` only parses them.
 | `rachmaninoff-prelude-op3-2.json` | Prelude in C-sharp minor, Op.3 No.2 ("The Bells of Moscow") | Sergei Rachmaninoff | 3:29 | CC BY-SA 4.0 |
 | `revolutionary-etude.json` | Étude in C minor, Op.10 No.12 ("Revolutionary") | Frédéric Chopin | 2:26 | CC BY 4.0 |
 | `schubert-impromptu-op90-3.json` | Impromptu in G-flat major, D.899 (Op.90) No.3 | Franz Schubert | 6:17 | CC BY 4.0 |
+| `the-entertainer.json` | The Entertainer: A Rag Time Two Step | Scott Joplin | 4:03 | CC BY 4.0 |
 
 ## Licence
 
@@ -73,3 +74,5 @@ These score files are **not** covered by the repository's MIT licence. Each carr
   Source: C.F. Peters, Leipzig, n.d. [1880?], ed. Herrmann Scholtz, plate 6209 (Sämtliche Pianoforte-Werke, Band II, pp.436–39), public domain — IMSLP #37119
 - **Impromptu in G-flat major, D.899 (Op.90) No.3** — Music: Franz Schubert (public domain). Notes converted from the Mutopia Project edition by Ph. Raynaud (public domain dedication), typeset from Breitkopf & Härtel 1888; checked against the B&H 1888 Gesamtausgabe print (IMSLP #39751).
   Source: Franz Schubert's Werke, Serie XI No.2, Breitkopf & Härtel, Leipzig 1888, plate F.S. 109, public domain — IMSLP #39751
+- **The Entertainer: A Rag Time Two Step** — Music: Scott Joplin (public domain). Notes converted from the Mutopia Project edition by Chris Sawer, overhauled by Simon Albrecht (Mutopia-2016/11/25-263, public domain dedication), typeset from a reproduction of the original 1902 edition; checked bar by bar against the John Stark & Son 1902 first edition (Library of Congress scan, IMSLP #02607), with the repeats written out as printed (first and second endings; the B strain's repeat played an octave higher in the right hand, as its "Repeat 8va." asks). No other edition, MIDI file or recording was consulted.
+  Source: John Stark & Son, St. Louis, 1902, plate 10-4 (first edition), public domain — IMSLP #02607

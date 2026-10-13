@@ -1342,3 +1342,11 @@ Decided:
   the CLI; the smoke script checks the installed CLI prints the tarball's version.
 - 2026-10-14 — User: render in the browser with no backend, then a playground on GitHub Pages
   (M10, #14, #15). Started with the `jinglescript/browser` entry.
+- 2026-10-14 — Browser `loadSamples` (M10 part 2). GitHub's raw server answers a CORS preflight
+  with 403, and headless Chrome sends one for a ranged request, so the browser fetches VCSL through
+  jsDelivr's GitHub mirror (`cdn.jsdelivr.net/gh/sgossner/VCSL@<commit>/`, 206 with the same
+  bytes). Recorded effects come from `sfxBaseUrl` (default: the package on jsDelivr, pinned by
+  `PACKAGE_VERSION`, now a constant in `src/version.ts` that a test keeps equal to package.json).
+  Fetch-and-check (`src/samples/fetch-sample.ts`, WebCrypto SHA-256) and the piano table are shared
+  with the Node loader. Renders with the browser loader are PCM-identical to Node's for
+  `recorded-effects.json` and `a-grandpiano.json`.

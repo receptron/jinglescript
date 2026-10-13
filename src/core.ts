@@ -10,6 +10,7 @@ export { TimingSchema, TIMING_FORMAT } from "./timing.ts";
 export type { TimingMap, TimingNote, TimingLyricLine } from "./timing.ts";
 export type { MasterStats } from "./dsp/master.ts";
 export { SamplesNotLoadedError } from "./samples/source.ts";
+export { SampleDownloadError } from "./samples/fetch-sample.ts";
 export type { SampleSource, SampleData } from "./samples/source.ts";
 export { scoreToMidi, MIDI_MIME_TYPE } from "./midi.ts";
 export { toWav } from "./wav.ts";

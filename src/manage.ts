@@ -7,7 +7,8 @@ import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PA
 import { renderToFiles } from "./output.ts";
 import { MIDI_MIME_TYPE, scoreToMidi } from "./midi.ts";
 import { render, type RenderResult } from "./render.ts";
-import { SampleDownloadError, loadSamples } from "./samples/load.ts";
+import { SampleDownloadError } from "./samples/fetch-sample.ts";
+import { loadSamples } from "./samples/load.ts";
 import { checkScore, parseScore, type Score } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { toWav } from "./wav.ts";

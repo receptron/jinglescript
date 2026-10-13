@@ -21,6 +21,7 @@ import { isSchemaPart } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
 import { SampleDownloadError } from "./samples/load.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
+import { packageVersion } from "./version.ts";
 import { WAV_BITS } from "./wav.ts";
 
 const USAGE = `Usage:
@@ -32,7 +33,8 @@ const USAGE = `Usage:
   jinglescript instruments [name] [--json]    list instruments and sound effects
   jinglescript demo <instrument> [-o <dir>]   render a sound across its range (or its variants)
   jinglescript mcp [--out <dir>]              MCP server over stdio: one tool, manageJingleScript
-                                              (renders go to <dir>, default out/jinglescript)`;
+                                              (renders go to <dir>, default out/jinglescript)
+  jinglescript --version                      print the installed version`;
 
 const { positionals, values: args } = parseArgs({
   allowPositionals: true,
@@ -43,6 +45,7 @@ const { positionals, values: args } = parseArgs({
     bits: { type: "string" },
     json: { type: "boolean" },
     help: { type: "boolean", short: "h" },
+    version: { type: "boolean", short: "v" },
   },
 });
 
@@ -159,7 +162,9 @@ function instrumentsCommand(name: string | undefined): void {
 
 async function main(): Promise<void> {
   const [command, target] = positionals;
-  if (args.help || command === undefined) {
+  if (args.version) {
+    console.log(packageVersion());
+  } else if (args.help || command === undefined) {
     console.log(USAGE);
   } else if (command === "render") {
     await renderCommand(target);

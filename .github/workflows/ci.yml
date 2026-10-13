@@ -29,19 +29,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
-      - run: npm ci
+          cache: yarn
+      - run: yarn install --frozen-lockfile
       # Prettier first: a formatting slip is the cheapest failure to read.
       - name: Format
-        run: npm run format:check
+        run: yarn format:check
       - name: Lint
-        run: npm run lint
+        run: yarn lint
       # Covers src, tests, scripts, examples and eval. Needed on its own because vitest strips
       # types rather than checking them.
       - name: Typecheck
-        run: npm run typecheck
+        run: yarn typecheck
       - name: Build
-        run: npm run build
+        run: yarn build
 
   # Rendering must be bit-identical on every machine (golden PCM hashes), so the tests run on
   # both platforms the CLI is used on and on the Node versions we support. No ffmpeg: tests that
@@ -68,10 +68,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
-      - run: npm ci
+          cache: yarn
+      # Yarn 1 refuses a package whose engines exclude this Node (npm only warns). Some dev tools
+      # (@eslint/js) want 22.13+, and this job runs none of them on the oldest Node.
+      - run: yarn install --frozen-lockfile ${{ matrix.node == '22.12.0' && '--ignore-engines' || '' }}
       - name: Test
-        run: npm test
+        run: yarn test
 
   # Verifies the published package actually works: scripts/smoke.sh packs the exact tarball
   # (prepack builds dist/), installs it into an empty folder and renders through the CLI (WAV and
@@ -94,10 +96,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
+          cache: yarn
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
-      - run: npm ci
+      - run: yarn install --frozen-lockfile
+      # npm packs (and publishes): it reads no lockfile, and the tarball is what `npm install` gets.
       - name: Pack
         run: npm pack --pack-destination "$RUNNER_TEMP"
       - uses: actions/setup-node@v6
@@ -122,16 +125,16 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: npm
+          cache: yarn
           cache-dependency-path: |
-            package-lock.json
-            gui-plugin/package-lock.json
-      - run: npm ci
+            yarn.lock
+            gui-plugin/yarn.lock
+      - run: yarn install --frozen-lockfile
         working-directory: .
       # The plugin's declarations import the library's types from its dist/.
-      - run: npm run build
+      - run: yarn build
         working-directory: .
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run build
+      - run: yarn install --frozen-lockfile
+      - run: yarn typecheck
+      - run: yarn test
+      - run: yarn build

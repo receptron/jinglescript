@@ -39,7 +39,7 @@ The package requires Node ≥ 22.12. Running from a clone, as below, runs the Ty
 directly and needs Node ≥ 22.18 (or use `npx jinglescript …` with the package):
 
 ```sh
-npm install
+yarn install
 node src/cli.ts check examples/hatena-marumo-a.json
 node src/cli.ts render examples/hatena-marumo-a.json -o out/opening.wav
 #   writes out/opening.wav and out/opening.timing.json

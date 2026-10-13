@@ -708,9 +708,9 @@ this project.
 Mirror `../avatarscript` (read its `CLAUDE.md`, `package.json`, `tsconfig*.json`,
 `eslint.config.js`, `.github/workflows/ci.yml`):
 
-- TypeScript, ESM, Node ≥ 22, **npm** (package-lock.json), MIT licence, `author: receptron`.
+- TypeScript, ESM, Node ≥ 22, **yarn 1** (yarn.lock; npm until 2026-10-13), MIT licence, `author: receptron`.
 - zod for every untyped input; no `as` casts or `!` (lint errors); `Record<Union, …>` tables.
-- ESLint with every rule an error; Prettier; `npm run format / lint / typecheck / test`.
+- ESLint with every rule an error; Prettier; `yarn format / lint / typecheck / test`.
 - `tsconfig.json` includes `src`, `tests`, `scripts`, `examples` and `eval`.
 - vitest; **tests run without network or ffmpeg** (skip MP3 tests when ffmpeg is absent, but
   never fail for it); golden tests compare a hash of rendered PCM for each example at a fixed seed.
@@ -1316,3 +1316,9 @@ Decided:
 - 2026-10-13 — Example `recorded-effects.json` ("Game night"): footsteps on wood, a door creaking
   open and shut, dice shaken and thrown, a ding with a marimba answer, and a toast of glasses;
   9 s, −14.0 LUFS. Added to the PR at the user's request.
+- 2026-10-13 — Switched from npm to yarn 1 at the user's request (package-lock.json and yarn.lock
+  must not both exist). yarn.lock in the root and in gui-plugin/, made by a fresh `yarn install`
+  (patch versions moved, e.g. vitest 5.0.3 → 5.0.4; golden hashes unchanged). Yarn 1 skips peer
+  dependencies, so `vite` (vitest's peer) is now a devDependency; gui-plugin uses `link:..` for the
+  library (yarn's `file:` copies). CI installs with `yarn install --frozen-lockfile`; packing and
+  publishing stay `npm pack` / `npm publish`.

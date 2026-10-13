@@ -40,13 +40,14 @@
     "README.md",
     "LICENSE"
   ],
+  "packageManager": "yarn@1.22.22",
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
     "jinglescript": "node src/cli.ts",
     "build": "node scripts/build.ts",
-    "prepack": "npm run build",
+    "prepack": "yarn build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --cache --cache-strategy content",
@@ -71,6 +72,7 @@
     "prettier": "^3.9.9",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
   }
 }

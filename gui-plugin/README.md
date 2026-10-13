@@ -35,10 +35,10 @@ The library is a peer dependency (the host's server runs the tool), so a host in
 ## Development
 
 ```sh
-npm install
-npm run typecheck   # vue-tsc, against the library's source
-npm test            # vitest, against the library's source
-npm run build       # dist/: index.js (Node), vue.js + style.css (browser)
-npm run definition  # regenerate src/definition.json from the library's zod schema
-npm run demo-data && npm run demo   # a page with the player for three examples
+yarn install
+yarn typecheck   # vue-tsc, against the library's source
+yarn test        # vitest, against the library's source
+yarn build       # dist/: index.js (Node), vue.js + style.css (browser)
+yarn definition  # regenerate src/definition.json from the library's zod schema
+yarn demo-data && yarn demo   # a page with the player for three examples
 ```

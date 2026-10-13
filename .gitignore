@@ -9,6 +9,8 @@ out/
 !samples/sfx/*.wav
 .DS_Store
 *.tgz
+# yarn.lock is the lockfile (CLAUDE.md)
+package-lock.json
 .eslintcache
 __pycache__/
 # local MulmoTerminal agent config (machine-specific paths)

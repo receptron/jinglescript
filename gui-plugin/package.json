@@ -41,6 +41,7 @@
     "README.md",
     "LICENSE"
   ],
+  "packageManager": "yarn@1.22.22",
   "scripts": {
     "definition": "node scripts/write-definition.ts",
     "build": "vite build && vue-tsc -p tsconfig.build.json --emitDeclarationOnly",
@@ -48,7 +49,7 @@
     "test": "vitest run",
     "demo": "vite demo --config vitest.config.ts",
     "demo-data": "node scripts/write-demo-data.ts",
-    "prepack": "npm run build"
+    "prepack": "yarn build"
   },
   "peerDependencies": {
     "gui-chat-protocol": "^2.3.0",
@@ -59,7 +60,7 @@
     "@types/node": "^26.6.4",
     "@vitejs/plugin-vue": "^6.0.9",
     "gui-chat-protocol": "^2.3.0",
-    "jinglescript": "file:..",
+    "jinglescript": "link:..",
     "typescript": "~6.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.3",

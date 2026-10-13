@@ -23,3 +23,5 @@ export type { SchemaPart, InstrumentInfo } from "./llm.ts";
 export { INSTRUMENT_NAMES } from "./instruments/index.ts";
 export type { InstrumentName, InstrumentDescriptor } from "./instruments/index.ts";
 export { demoScore } from "./demo.ts";
+export { toPlayerData, wavPlayerAudio } from "./player.ts";
+export type { PlayerData, PlayerAudio } from "./player.ts";

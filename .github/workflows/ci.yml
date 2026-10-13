@@ -69,7 +69,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: yarn
-      - run: yarn install --frozen-lockfile
+      # Yarn 1 refuses a package whose engines exclude this Node (npm only warns). Some dev tools
+      # (@eslint/js) want 22.13+, and this job runs none of them on the oldest Node.
+      - run: yarn install --frozen-lockfile ${{ matrix.node == '22.12.0' && '--ignore-engines' || '' }}
       - name: Test
         run: yarn test
 

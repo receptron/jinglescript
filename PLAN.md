@@ -832,6 +832,15 @@ byte for byte (golden hashes hold), the lyrics requests in the evaluation pass, 
 watched the karaoke view play. **Done** (2026-10-08): the user listened to `out/lyrics/` and
 watched the karaoke view on the plugin demo page.
 
+### M10 — In the browser (#14, #15)
+Render with no server. (1) A `jinglescript/browser` entry: the Node-free part of the library
+(`src/core.ts`, shared with the Node entry), with a test that walks its import graph and fails on
+any `node:` import. (2) A browser `loadSamples`: the grand piano from VCSL (same pinned URLs,
+ranges and SHA-256 as the Node loader) and the recorded effects from a base URL, cached in the
+browser's Cache API. (3) A playground on GitHub Pages built on (1) and (2). **Done when** the
+playground renders the synthesized, recorded-effect and grandpiano examples in a real browser with
+the same PCM as Node.
+
 ### M8 — Jingle + animation tool (later)
 Grow JingleScript into a tool that writes the jingle and the animation synced to it from one
 request, on the cue vocabulary ([Toward a jingle + animation tool](#toward-a-jingle--animation-tool)).
@@ -1331,3 +1340,5 @@ Decided:
 - 2026-10-13 — User: the CLI needs `--version`. `jinglescript --version` (and `-v`) prints the
   package version, read by `src/version.ts`, which the MCP server's handshake now shares. A test runs
   the CLI; the smoke script checks the installed CLI prints the tarball's version.
+- 2026-10-14 — User: render in the browser with no backend, then a playground on GitHub Pages
+  (M10, #14, #15). Started with the `jinglescript/browser` entry.

@@ -1322,3 +1322,8 @@ Decided:
   dependencies, so `vite` (vitest's peer) is now a devDependency; gui-plugin uses `link:..` for the
   library (yarn's `file:` copies). CI installs with `yarn install --frozen-lockfile`; packing and
   publishing stay `npm pack` / `npm publish`.
+- 2026-10-13 — Both packages on npm at 0.8.0 (published by the user; the plugin's peer is
+  `jinglescript@^0.8.0`). 0.8.0 adds the recorded sound effects, grandpiano `len` and sustain
+  pedal, and the piano examples. Installed from the registry in a clean folder: all 28 files of
+  `samples/sfx/` are there, `recorded-effects.json` checks and renders to WAV and MP3, and the WAV
+  is bit-identical to the repository's render; the library and the plugin's server entry load.

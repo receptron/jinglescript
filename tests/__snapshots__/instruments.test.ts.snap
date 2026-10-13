@@ -42,6 +42,8 @@ exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudn
 
 exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"9728dc6ab9793c3fb82c2630bd040c468ae24fea67b8d91aa4bb35629a8e2408"`;
 
+exports[`every shipped example > recorded-effects.json renders cleanly at the loudness target (or says why not) 1`] = `"f14968b5b95248d14be6e5bc18c8457153ce573fe5345acca82189d59a58aee9"`;
+
 exports[`every shipped example > riser-reveal.json renders cleanly at the loudness target (or says why not) 1`] = `"5d96c97a933ed5e30b8e54ce6569bf566aaa6823cc06df5b236ea2c27b3de414"`;
 
 exports[`every shipped example > tap-dance.json renders cleanly at the loudness target (or says why not) 1`] = `"05e28155bc5966e705bf8076249cb86b4a4b04539d81c0d773a68dbbb1751205"`;

@@ -111,7 +111,7 @@ is the start of the sound, so an animation frame on it lines up.
 | Effect | Variants (first = default) | Notes |
 |---|---|---|
 | clock | tick, tock | \`"variant": ["tick", "tock"]\` with \`repeat\` for a ticking clock |
-| footsteps | left, right | \`"variant": ["left", "right"]\`, \`repeat\` every 0.5–1 beat to walk |
+| footsteps | left, right, carpet, concrete, snow, wood | \`"variant": ["left", "right"]\`, \`repeat\` every 0.5–1 beat to walk; the surfaces are recorded steps (\`"variant": "wood"\` with \`repeat\`) |
 | heels | left, right | high-heel steps; walk the same way |
 | knock | door, table | "knock-knock": two notes about half a beat apart |
 | tapdance | toe, heel, shuffle | |
@@ -121,6 +121,15 @@ is the start of the sound, so an animation frame on it lines up.
 | riser | noise, tone | builds into a hit: \`{ "end": "hit", "len": { "seconds": 2 } }\` (default 2 s) |
 | impact | soft, hard | the boom a reveal lands on |
 | pop | — | optional \`pitch\` = starting pitch (default about E6); things appearing, text popping in |
+| ding | — | recorded: a struck bell; a correct answer, a reveal |
+| glass | — | recorded: glasses clinking, a toast |
+| metal | — | recorded: a light metal clang |
+| punch | hit, soft | recorded: a punch or slap; "soft" is a thud onto a cushion |
+| book | flip, place | recorded: a page turned; a book set down |
+| door | close, creak | recorded: "creak" swells in over about 0.8 s; for knocking use knock |
+| dice | throw, die, shake | recorded: dice thrown, one die, dice rattled (1.5 s) |
+| cards | place, fan | recorded: "place" slides the card first, so it lands 0.1–0.15 s after the note |
+| cloth | — | recorded: clothes rustling |
 
 - \`end\` (instead of \`at\`) places an effect with a length by when it **finishes** — a riser or
   whoosh that stops exactly on the cut. \`len\` is beats, or \`{ "seconds": n }\` when the request
@@ -132,6 +141,8 @@ is the start of the sound, so an animation frame on it lines up.
 - Short impulses (ticks, steps, taps, knocks) peak like an instrument note; other effects are as
   loud as instruments at the same velocity; put them under the music with track
   \`gain\` (-4 to -8 dB) unless they are the point.
+- The recorded effects play real recordings; a variant with two recordings alternates between
+  them at random (seeded), so a repeat does not sound the same every time.
 - Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
   target (the renderer reports it).
 

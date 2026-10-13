@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { samplesNeeded } from "../render.ts";
 import type { Score } from "../score.ts";
+import { isBundledKey, loadBundledSamples } from "./bundled.ts";
 import { PIANO_CATALOG } from "./piano-catalog.ts";
 import { sampleKey, type SampleData, type SampleSource } from "./source.ts";
 import { PIANO_DIR, PIANO_SET, pianoFile, PREFIX_SECONDS, vcslUrl, type CatalogEntry } from "./vcsl.ts";
@@ -119,7 +120,8 @@ export async function loadRemoteSamples(samples: readonly RemoteSample[], option
 
 /**
  * The recorded samples `score` plays (none when it uses no sampled instrument), ready for
- * `render(score, { samples })`. Downloads what is not cached yet.
+ * `render(score, { samples })`. The recorded sound effects are read from the package; the grand
+ * piano's samples are downloaded when they are not cached yet.
  */
 export async function loadSamples(score: Score, options: LoadSamplesOptions = {}): Promise<SampleSource> {
   const keys = samplesNeeded(score, { seed: options.seed });
@@ -127,5 +129,7 @@ export async function loadSamples(score: Score, options: LoadSamplesOptions = {}
     const sample = PIANO_SAMPLES.get(key);
     return sample === undefined ? [] : [sample];
   });
-  return loadRemoteSamples(samples, options);
+  const remote = await loadRemoteSamples(samples, options);
+  const bundled = await loadBundledSamples(keys.filter(isBundledKey));
+  return { get: (key) => bundled.get(key) ?? remote.get(key) };
 }

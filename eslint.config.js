@@ -103,8 +103,8 @@ export default [
   },
   {
     // These run tools the user installs and that are found on PATH by design — ffmpeg to encode
-    // MP3/OGG (and ffprobe to check them in tests), npx to build — which have no portable absolute path.
-    files: ["src/encode.ts", "scripts/build.ts", "tests/encode.test.ts"],
+    // MP3/OGG and to decode the recorded effects' sources (and ffprobe to check them in tests), npx to build — which have no portable absolute path.
+    files: ["src/encode.ts", "scripts/build.ts", "scripts/import-sfx.ts", "tests/encode.test.ts"],
     rules: {
       "sonarjs/no-os-command-from-path": "off",
     },

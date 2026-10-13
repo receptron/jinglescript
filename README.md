@@ -8,19 +8,24 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
                                            └──► timing.json (cues, beats, note onsets, lyrics)
 ```
 
-- Everything is synthesized in code — except `grandpiano`, which plays recordings of a real grand
-  piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL) (CC0, public
-  domain). Those samples are not in the package: the first render that uses `grandpiano` downloads
-  the notes it plays (about 1.2 MB each) into `~/.cache/jinglescript` (`JINGLESCRIPT_CACHE`
-  overrides it). Everything else needs no samples and no network. What you render is yours to use.
+- Everything is synthesized in code — except two things that play recordings. `grandpiano` plays a
+  real grand piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)
+  (CC0, public domain). Those samples are not in the package: the first render that uses
+  `grandpiano` downloads the notes it plays (about 1.2 MB each) into `~/.cache/jinglescript`
+  (`JINGLESCRIPT_CACHE` overrides it). The recorded sound effects (ding, glass, metal, punch, book,
+  door, dice, cards, cloth, and the footstep surfaces) are CC0 recordings by
+  [Kenney](https://kenney.nl) that ship in the package (`samples/sfx/`, 1.2 MB; sources and licences
+  in [samples/sfx/SOURCES.md](samples/sfx/SOURCES.md)). Everything else needs no samples and no
+  network. What you render is yours to use.
 - Deterministic: the same score and seed give bit-identical audio on every machine.
 - Cues are named moments (`"hit": { "seconds": 1.5 }`); notes are placed on them, and the timing map
   reports them, so an animation reads `cues.hit` instead of hard-coding a time.
 
 **Status: early (0.x).** Twelve instruments (marimba, xylophone, glockenspiel, vibraphone, music
 box, piano, grandpiano (sampled), organ, ukulele, piccolo and trumpet — both synthetic-sounding —
-and clap) and eleven
-sound effects (clock, footsteps, heels, tapdance, knock, pistol, laser, whoosh, riser, impact, pop).
+and clap) and twenty sound effects: eleven synthesized (clock, footsteps, heels, tapdance, knock,
+pistol, laser, whoosh, riser, impact, pop) and nine recorded (ding, glass, metal, punch, book,
+door, dice, cards, cloth), plus recorded surfaces for footsteps.
 Chords by name (`"chord": "G7"`) and tab-style strums (`"strum": "D-DU-UDU"`). An MCP server and a
 GUI Chat Protocol plugin with a player view. Custom instruments are planned.
 
@@ -232,7 +237,7 @@ is the start of the sound, so an animation frame on it lines up.
 | Effect | Variants (first = default) | Notes |
 |---|---|---|
 | clock | tick, tock | `"variant": ["tick", "tock"]` with `repeat` for a ticking clock |
-| footsteps | left, right | `"variant": ["left", "right"]`, `repeat` every 0.5–1 beat to walk |
+| footsteps | left, right, carpet, concrete, snow, wood | `"variant": ["left", "right"]`, `repeat` every 0.5–1 beat to walk; the surfaces are recorded steps (`"variant": "wood"` with `repeat`) |
 | heels | left, right | high-heel steps; walk the same way |
 | knock | door, table | "knock-knock": two notes about half a beat apart |
 | tapdance | toe, heel, shuffle | |
@@ -242,6 +247,15 @@ is the start of the sound, so an animation frame on it lines up.
 | riser | noise, tone | builds into a hit: `{ "end": "hit", "len": { "seconds": 2 } }` (default 2 s) |
 | impact | soft, hard | the boom a reveal lands on |
 | pop | — | optional `pitch` = starting pitch (default about E6); things appearing, text popping in |
+| ding | — | recorded: a struck bell; a correct answer, a reveal |
+| glass | — | recorded: glasses clinking, a toast |
+| metal | — | recorded: a light metal clang |
+| punch | hit, soft | recorded: a punch or slap; "soft" is a thud onto a cushion |
+| book | flip, place | recorded: a page turned; a book set down |
+| door | close, creak | recorded: "creak" swells in over about 0.8 s; for knocking use knock |
+| dice | throw, die, shake | recorded: dice thrown, one die, dice rattled (1.5 s) |
+| cards | place, fan | recorded: "place" slides the card first, so it lands 0.1–0.15 s after the note |
+| cloth | — | recorded: clothes rustling |
 
 - `end` (instead of `at`) places an effect with a length by when it **finishes** — a riser or
   whoosh that stops exactly on the cut. `len` is beats, or `{ "seconds": n }` when the request
@@ -253,6 +267,8 @@ is the start of the sound, so an animation frame on it lines up.
 - Short impulses (ticks, steps, taps, knocks) peak like an instrument note; other effects are as
   loud as instruments at the same velocity; put them under the music with track
   `gain` (-4 to -8 dB) unless they are the point.
+- The recorded effects play real recordings; a variant with two recordings alternates between
+  them at random (seeded), so a repeat does not sound the same every time.
 - Big impacts are very peaky; a jingle with one may come out a little quieter than the loudness
   target (the renderer reports it).
 

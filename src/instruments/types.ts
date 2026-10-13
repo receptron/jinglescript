@@ -66,11 +66,12 @@ export interface InstrumentDescriptor {
   /** True when the model is known to sound synthetic rather than like the real thing. */
   synthetic: boolean;
   /**
-   * Plays recordings rather than a model: where they come from and their licence. They are
-   * downloaded on first use (about a MB per note) and cached. Custom instruments built on a
-   * sampled one keep it: loadSamples() synthesizes only the notes of instruments that have it.
+   * Plays recordings rather than a model: where they come from, their licence, and whether they
+   * ship with the package (`bundled`, the recorded sound effects) or are downloaded on first use
+   * (about a MB per note) and cached. Custom instruments built on a sampled one keep it:
+   * loadSamples() synthesizes only the notes of instruments that have it.
    */
-  sampled?: { source: string; licence: string };
+  sampled?: { source: string; licence: string; bundled: boolean };
 }
 
 export interface Instrument {

@@ -49,6 +49,15 @@ const GM: Record<InstrumentName, GmSound> = {
   whoosh: { marker: true },
   riser: { marker: true },
   pop: { marker: true },
+  glass: { marker: true },
+  ding: { program: 14, key: 72 },
+  metal: { marker: true },
+  punch: { marker: true },
+  book: { marker: true },
+  door: { marker: true },
+  dice: { marker: true },
+  cards: { marker: true },
+  cloth: { marker: true },
 };
 
 interface Resolved {

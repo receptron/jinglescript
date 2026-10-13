@@ -2,16 +2,21 @@
 // strange" — it was a drum, not a foot. A step is noise, not a tone: the heel strikes (a short
 // noise burst coloured by the floor's low resonance, with a tiny contact click), the toe follows
 // a few tens of ms later, more softly, and the sole scuffs. "left" and "right" differ slightly,
-// and each step varies a little (seeded), so a walk is not one sample repeated.
+// and each step varies a little (seeded), so a walk is not one sample repeated. The surface
+// variants ("carpet", "concrete", "snow", "wood") are recordings instead (src/sounds/recorded.ts).
 import { bandpass, biquadFilter, highpass, lowpass } from "../dsp/biquad.ts";
 import { buffer, finish } from "../instruments/common.ts";
 import type { Instrument, SynthInput } from "../instruments/types.ts";
 import type { Rng } from "../rng.ts";
+import { RECORDED_EFFECTS } from "./recorded-catalog.ts";
+import { playRecorded, RECORDED_SOURCE } from "./recorded.ts";
 import { addNoise, pickVariant, vary } from "./shared.ts";
 import * as dmath from "../dsp/math.ts";
 
 const VARIANTS = ["left", "right"] as const;
 type Variant = (typeof VARIANTS)[number];
+const SURFACES = RECORDED_EFFECTS.footsteps;
+const isSurface = (variant: string | undefined): variant is keyof typeof SURFACES => Object.keys(SURFACES).some((s) => s === variant);
 
 export interface FootTone {
   /** The floor's resonance under the heel, Hz. */
@@ -61,14 +66,18 @@ export const footsteps: Instrument = {
   descriptor: {
     kind: "sfx",
     description:
-      'Footsteps (sound effect): heel, toe and scuff of an ordinary shoe. Variants "left" (default) and "right"; walk with "variant": ["left", "right"] and `repeat` every 0.5–1 beat.',
+      'Footsteps (sound effect): heel, toe and scuff of an ordinary shoe. Variants "left" (default) and "right"; walk with "variant": ["left", "right"] and `repeat` every 0.5–1 beat. Variants "carpet", "concrete", "snow" and "wood" are recorded steps on that surface (one recording each, two for "wood"), e.g. "variant": "wood" with `repeat`.',
     pitched: false,
     transient: true,
     sustained: false,
     range: null,
-    variants: VARIANTS,
+    variants: [...VARIANTS, ...Object.keys(SURFACES)],
     transpose: 0,
     synthetic: false,
+    sampled: RECORDED_SOURCE,
   },
-  synthesize: (input) => footstep(input, FOOT_TONE, LEVEL_DB[pickVariant(VARIANTS, input.variant)]),
+  synthesize: (input) =>
+    isSurface(input.variant)
+      ? playRecorded("footsteps", SURFACES[input.variant], input)
+      : footstep(input, FOOT_TONE, LEVEL_DB[pickVariant(VARIANTS, input.variant)]),
 };

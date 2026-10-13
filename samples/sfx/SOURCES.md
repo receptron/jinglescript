@@ -1,0 +1,37 @@
+# Recorded sound effects
+
+CC0 1.0 recordings by Kenney (www.kenney.nl), from the Impact Sounds, RPG Audio and Casino Audio packs,
+taken from the copy in github.com/receptron/mulmocast-media (soundeffects/, which records where each
+pack was downloaded). Each pack's licence file is here as `LICENSE-<pack>.txt`.
+
+Made by `node scripts/import-sfx.ts <soundeffects dir>`: decoded with ffmpeg to mono at
+48000 Hz, high-passed at 20 Hz, trimmed to start on the onset and end where the sound has died away, normalized
+to a −1 dBFS peak, stored as 16-bit WAV. Which effect variant plays which file is in
+src/sounds/recorded-catalog.ts.
+
+| File | Source (in soundeffects/) | Length |
+|---|---|---|
+| `glass-clink.wav` | `kenney/impact-sounds/impactGlass_medium_001.ogg` | 0.43 s |
+| `bell-ding.wav` | `kenney/impact-sounds/impactBell_heavy_003.ogg` | 0.64 s |
+| `metal-clang.wav` | `kenney/impact-sounds/impactMetal_light_003.ogg` | 0.40 s |
+| `punch-hit.wav` | `kenney/impact-sounds/impactPunch_heavy_001.ogg` | 0.50 s |
+| `punch-soft.wav` | `kenney/impact-sounds/impactSoft_heavy_001.ogg` | 0.55 s |
+| `book-flip.wav` | `kenney/rpg-audio/bookFlip2.ogg` | 0.40 s |
+| `book-place.wav` | `kenney/rpg-audio/bookPlace1.ogg` | 0.25 s |
+| `door-close-1.wav` | `kenney/rpg-audio/doorClose_1.ogg` | 0.66 s |
+| `door-close-2.wav` | `kenney/rpg-audio/doorClose_3.ogg` | 0.69 s |
+| `door-creak.wav` | `kenney/rpg-audio/creak2.ogg` | 0.82 s |
+| `dice-throw-1.wav` | `kenney/casino-audio/dice-throw-1.ogg` | 0.60 s |
+| `dice-throw-2.wav` | `kenney/casino-audio/dice-throw-2.ogg` | 0.38 s |
+| `die-throw.wav` | `kenney/casino-audio/die-throw-3.ogg` | 0.66 s |
+| `dice-shake.wav` | `kenney/casino-audio/dice-shake-3.ogg` | 1.51 s |
+| `card-place-1.wav` | `kenney/casino-audio/card-place-2.ogg` | 0.41 s |
+| `card-place-2.wav` | `kenney/casino-audio/card-place-3.ogg` | 0.59 s |
+| `card-fan.wav` | `kenney/casino-audio/card-fan-1.ogg` | 0.69 s |
+| `cloth-1.wav` | `kenney/rpg-audio/cloth1.ogg` | 0.58 s |
+| `cloth-2.wav` | `kenney/rpg-audio/cloth2.ogg` | 0.35 s |
+| `footstep-carpet.wav` | `kenney/impact-sounds/footstep_carpet_003.ogg` | 0.10 s |
+| `footstep-concrete.wav` | `kenney/impact-sounds/footstep_concrete_001.ogg` | 0.09 s |
+| `footstep-snow.wav` | `kenney/impact-sounds/footstep_snow_003.ogg` | 0.20 s |
+| `footstep-wood-1.wav` | `kenney/impact-sounds/footstep_wood_001.ogg` | 0.10 s |
+| `footstep-wood-2.wav` | `kenney/impact-sounds/footstep_wood_002.ogg` | 0.10 s |

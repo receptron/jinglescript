@@ -5,6 +5,8 @@ out/
 *.wav
 *.mp3
 *.ogg
+# ...except the CC0 recordings of the recorded sound effects (samples/sfx/SOURCES.md)
+!samples/sfx/*.wav
 .DS_Store
 *.tgz
 .eslintcache

@@ -1313,3 +1313,6 @@ Decided:
   knock does. Five recordings swell in (creak, card fan and place, cloth, book place): audible
   at once but late to reach their peak — cards land 0.1–0.15 s after the note. Waiting for the
   user to listen to `out/sfx-recorded/`.
+- 2026-10-13 — Example `recorded-effects.json` ("Game night"): footsteps on wood, a door creaking
+  open and shut, dice shaken and thrown, a ding with a marimba answer, and a toast of glasses;
+  9 s, −14.0 LUFS. Added to the PR at the user's request.

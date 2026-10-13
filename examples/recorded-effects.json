@@ -1,0 +1,57 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Game night: footsteps, a door, dice, a win and a toast",
+  "tempo": 120,
+  "length": { "seconds": 9 },
+  "cues": {
+    "door": { "seconds": 2 },
+    "dice": { "seconds": 4 },
+    "throw": { "seconds": 5.5 },
+    "win": { "seconds": 6.2 },
+    "toast": { "seconds": 7.6 }
+  },
+  "tracks": [
+    {
+      "instrument": "footsteps",
+      "reverb": false,
+      "gain": -2,
+      "notes": [{ "at": 0, "variant": "wood", "vel": 0.8, "repeat": { "every": 1, "until": "door-1" } }]
+    },
+    {
+      "instrument": "door",
+      "notes": [
+        { "at": "door", "variant": "creak", "vel": 0.8 },
+        { "at": "door+2", "variant": "close", "vel": 0.9 }
+      ]
+    },
+    {
+      "instrument": "dice",
+      "reverb": false,
+      "notes": [
+        { "at": "dice", "variant": "shake", "vel": 0.8 },
+        { "at": "throw", "variant": "throw" }
+      ]
+    },
+    {
+      "instrument": "ding",
+      "notes": [{ "at": "win" }]
+    },
+    {
+      "instrument": "marimba",
+      "notes": [
+        { "at": "win", "pitch": ["C4", "E4", "G4", "C5"], "vel": 0.9 },
+        { "at": "win+0.5", "pitch": "E5", "vel": 0.8 },
+        { "at": "win+1", "pitch": "G5", "vel": 0.8 },
+        { "at": "win+1.5", "pitch": ["C5", "E5", "G5", "C6"], "vel": 1 }
+      ]
+    },
+    {
+      "instrument": "glass",
+      "notes": [
+        { "at": "toast", "vel": 0.9 },
+        { "at": "toast+0.3", "vel": 0.7 }
+      ]
+    }
+  ]
+}

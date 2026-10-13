@@ -4,6 +4,7 @@
 // a recording goes through (choice of sample and layer, resampling, normalization) and, being
 // synthesized deterministically, give golden hashes that hold on every machine.
 import { INSTRUMENTS } from "../src/instruments/index.ts";
+import { bundledKeys, loadBundledSamples } from "../src/samples/bundled.ts";
 import { midiToFrequency, pitchToMidi } from "../src/pitch.ts";
 import { createRng } from "../src/rng.ts";
 import { PIANO_CATALOG } from "../src/samples/piano-catalog.ts";
@@ -36,3 +37,9 @@ export const pianoFixture: SampleSource = {
     return data;
   },
 };
+
+/** The recorded sound effects, read from samples/sfx/ (they are in the repo, so no stand-ins are needed). */
+const bundled = await loadBundledSamples(bundledKeys());
+
+/** Everything a test render may need: the piano stand-ins and the real bundled recordings. */
+export const fixtureSamples: SampleSource = { get: (key) => bundled.get(key) ?? pianoFixture.get(key) };

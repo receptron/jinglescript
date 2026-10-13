@@ -1,0 +1,79 @@
+// node scripts/import-sfx.ts <soundeffects dir>: converts the CC0 recordings listed in
+// src/sounds/recorded-catalog.ts into samples/sfx/<file>.wav. <soundeffects dir> is a checkout of
+// github.com/receptron/mulmocast-media's soundeffects/ folder. Needs ffmpeg; run it only when the
+// catalog changes, and commit the WAVs.
+//
+// Each recording is decoded to mono at SFX_SAMPLE_RATE, high-passed at 20 Hz (some carry a slow
+// drift before the sound that would otherwise count as its onset), trimmed so it starts on its onset (the
+// timing map's `t` is where the sound is heard) and ends where it has died away, and normalized to
+// a −1 dBFS peak. The engine sets the playing level; this only makes good use of 16 bits.
+import { execFileSync } from "node:child_process";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { allTakes, SFX_SAMPLE_RATE } from "../src/sounds/recorded-catalog.ts";
+import { toWav } from "../src/wav.ts";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const out = join(root, "samples", "sfx");
+const source = process.argv[2];
+if (source === undefined) throw new Error("Usage: node scripts/import-sfx.ts <path to mulmocast-media/soundeffects>");
+
+/** Where the sound starts: first sample above this share of the peak, less a little lead-in. */
+const ONSET_THRESHOLD = 0.03;
+const LEAD_IN_SECONDS = 0.001;
+/** Where it has died away: last sample above this share of the peak (−60 dB), plus a little tail. */
+const END_THRESHOLD = 0.001;
+const TAIL_SECONDS = 0.02;
+const PEAK = 10 ** (-1 / 20);
+
+function decode(file: string): Float32Array {
+  const raw = execFileSync("ffmpeg", ["-v", "error", "-i", file, "-ac", "1", "-ar", String(SFX_SAMPLE_RATE), "-af", "highpass=f=20", "-f", "f32le", "-"], {
+    maxBuffer: 1 << 28,
+  });
+  return new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4).slice();
+}
+
+function prepare(x: Float32Array): Float32Array {
+  const peak = x.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  if (peak === 0) throw new Error("silent recording");
+  const first = x.findIndex((v) => Math.abs(v) >= ONSET_THRESHOLD * peak);
+  let last = x.length - 1;
+  while (last > first && Math.abs(x[last] ?? 0) < END_THRESHOLD * peak) last--;
+  const start = Math.max(0, first - Math.round(LEAD_IN_SECONDS * SFX_SAMPLE_RATE));
+  const end = Math.min(x.length, last + 1 + Math.round(TAIL_SECONDS * SFX_SAMPLE_RATE));
+  return x.slice(start, end).map((v) => (v / peak) * PEAK);
+}
+
+await mkdir(out, { recursive: true });
+const lines: string[] = [];
+for (const take of allTakes()) {
+  const x = prepare(decode(join(source, take.source)));
+  await writeFile(join(out, `${take.file}.wav`), toWav([x], SFX_SAMPLE_RATE, 16));
+  lines.push(`| \`${take.file}.wav\` | \`${take.source}\` | ${(x.length / SFX_SAMPLE_RATE).toFixed(2)} s |`);
+  console.log(`${take.file}.wav  ${(x.length / SFX_SAMPLE_RATE).toFixed(2)} s`);
+}
+// Each pack's own licence file, as the collection keeps it next to the sounds.
+const packs = [...new Set(allTakes().map((t) => dirname(t.source)))];
+for (const pack of packs) await copyFile(join(source, pack, "License.txt"), join(out, `LICENSE-${pack.replaceAll("/", "-")}.txt`));
+await writeFile(
+  join(out, "SOURCES.md"),
+  [
+    "# Recorded sound effects",
+    "",
+    "CC0 1.0 recordings by Kenney (www.kenney.nl), from the Impact Sounds, RPG Audio and Casino Audio packs,",
+    "taken from the copy in github.com/receptron/mulmocast-media (soundeffects/, which records where each",
+    "pack was downloaded). Each pack's licence file is here as `LICENSE-<pack>.txt`.",
+    "",
+    "Made by `node scripts/import-sfx.ts <soundeffects dir>`: decoded with ffmpeg to mono at",
+    `${SFX_SAMPLE_RATE} Hz, high-passed at 20 Hz, trimmed to start on the onset and end where the sound has died away, normalized`,
+    "to a −1 dBFS peak, stored as 16-bit WAV. Which effect variant plays which file is in",
+    "src/sounds/recorded-catalog.ts.",
+    "",
+    "| File | Source (in soundeffects/) | Length |",
+    "|---|---|---|",
+    ...lines,
+    "",
+  ].join("\n"),
+);
+console.log(`wrote ${lines.length} files to samples/sfx/`);

@@ -106,7 +106,7 @@ export const grandpiano: Instrument = {
     variants: [],
     transpose: 0,
     synthetic: false,
-    sampled: { source: "Versilian Community Sample Library (VCSL), github.com/sgossner/VCSL", licence: "CC0 1.0 (public domain)" },
+    sampled: { source: "Versilian Community Sample Library (VCSL), github.com/sgossner/VCSL", licence: "CC0 1.0 (public domain)", bundled: false },
   },
   synthesize,
 };

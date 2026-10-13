@@ -1,0 +1,106 @@
+// Recorded sound effects: CC0 recordings shipped in samples/sfx/ (src/sounds/recorded-catalog.ts
+// says which plays what). A note plays its variant's recording — one of its takes, chosen by the
+// note's seeded stream — read at the render's sample rate, DC-blocked, and brought to the level
+// every impulse-like effect peaks at: a C5 marimba note at full velocity. Like the synthesized
+// effects they start on their onset (the WAVs are trimmed so), so the timing map's `t` is where
+// the sound is heard.
+import { finish, MAX_PARTIAL_FRACTION } from "../instruments/common.ts";
+import type { Instrument, SynthInput } from "../instruments/types.ts";
+import { biquadFilter, highpass } from "../dsp/biquad.ts";
+import { resample, TRANSITION } from "../dsp/resample.ts";
+import { NO_SAMPLES, sampleKey, SamplesNotLoadedError, type SampleData } from "../samples/source.ts";
+import { RECORDED_EFFECTS, SFX_SET, type RecordedEffectName, type RecordedTake, type RecordedVariants } from "./recorded-catalog.ts";
+import { vary } from "./shared.ts";
+
+/** Peak of a C5 marimba note at full velocity, at 48 kHz: what impulse-like effects peak at. */
+const TARGET_PEAK = 1.4338;
+/** Below the lowest sound in the recordings: rumble and any DC offset. */
+const HIGHPASS_HZ = 20;
+const END_FADE_SECONDS = 0.01;
+
+export const RECORDED_SOURCE = {
+  source: "Kenney (kenney.nl) Impact Sounds, RPG Audio and Casino Audio, via github.com/receptron/mulmocast-media",
+  licence: "CC0 1.0 (public domain)",
+  bundled: true,
+} as const;
+
+/** The recording at the render's sample rate (band-limited when it has to be resampled). */
+function atRate(sample: SampleData, sampleRate: number): Float32Array {
+  if (sample.sampleRate === sampleRate) return Float32Array.from(sample.data);
+  const step = sample.sampleRate / sampleRate;
+  const limitHz = sampleRate * MAX_PARTIAL_FRACTION - (TRANSITION * sample.sampleRate) / 2;
+  const cutoff = Math.min(0.5 - TRANSITION / 2, limitHz / sample.sampleRate);
+  return resample(sample.data, step, cutoff, Math.max(1, Math.round(sample.data.length / step)));
+}
+
+/** One take of `takes`, chosen by the note's stream (only drawn when there is a choice). */
+function chooseTake(takes: readonly [RecordedTake, ...RecordedTake[]], input: SynthInput): RecordedTake {
+  if (takes.length === 1) return takes[0];
+  return takes[Math.min(takes.length - 1, Math.floor(input.rng.next() * takes.length))] ?? takes[0];
+}
+
+/** Plays one of `takes`; `name` is the effect, for the error when its recordings were not loaded. */
+export function playRecorded(name: string, takes: readonly [RecordedTake, ...RecordedTake[]], input: SynthInput): Float32Array {
+  const { sampleRate } = input;
+  const key = sampleKey(SFX_SET, chooseTake(takes, input).file);
+  const sample = (input.samples ?? NO_SAMPLES).get(key);
+  if (sample === undefined) throw new SamplesNotLoadedError(name, key);
+  const clean = Float32Array.from(biquadFilter(atRate(sample, sampleRate), highpass(HIGHPASS_HZ, Math.SQRT1_2, sampleRate)));
+  const peak = clean.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  const gain = peak === 0 ? 0 : (vary(input.velocity, 0.05, input.rng) * TARGET_PEAK) / peak;
+  return finish(clean, { attack: 0.0005, endFade: END_FADE_SECONDS, gain }, sampleRate);
+}
+
+/** The variant a note asks for, or the first (the default). */
+function takesFor(variants: RecordedVariants, variant: string | undefined): readonly [RecordedTake, ...RecordedTake[]] | undefined {
+  const names = Object.keys(variants);
+  return variants[names.find((v) => v === variant) ?? names[0] ?? ""];
+}
+
+function recordedEffect(name: Exclude<RecordedEffectName, "footsteps">, description: string): Instrument {
+  const variants: RecordedVariants = RECORDED_EFFECTS[name];
+  const names = Object.keys(variants);
+  return {
+    descriptor: {
+      kind: "sfx",
+      description,
+      pitched: false,
+      transient: true,
+      sustained: false,
+      range: null,
+      variants: names.length > 1 ? names : [],
+      transpose: 0,
+      synthetic: false,
+      sampled: RECORDED_SOURCE,
+    },
+    synthesize(input) {
+      const takes = takesFor(variants, input.variant);
+      if (takes === undefined) throw new Error(`"${name}" has no recordings`);
+      return playRecorded(name, takes, input);
+    },
+  };
+}
+
+const RECORDED = "(recorded sound effect)";
+
+export const glass = recordedEffect("glass", `Glass clink ${RECORDED}: two glasses touching, a toast, a glass set down.`);
+export const ding = recordedEffect("ding", `Struck bell ${RECORDED}: a single "ding" — a hotel desk bell, a correct answer, a reveal.`);
+export const metal = recordedEffect("metal", `Light metal clang ${RECORDED}: a pan or a metal object knocked.`);
+export const punch = recordedEffect(
+  "punch",
+  `Punch or slap ${RECORDED}. Variants "hit" (default: a heavy punch) and "soft" (a soft thud, a fall onto a cushion).`,
+);
+export const book = recordedEffect("book", `Book ${RECORDED}. Variants "flip" (default: a page turned) and "place" (a book set down on a table).`);
+export const door = recordedEffect(
+  "door",
+  `Door ${RECORDED}. Variants "close" (default: a door shut, two takes) and "creak" (a slow creaking hinge, about 0.8 s, swelling in). For knocking use "knock".`,
+);
+export const dice = recordedEffect(
+  "dice",
+  `Dice ${RECORDED}. Variants "throw" (default: dice thrown onto a table, two takes), "die" (a single die) and "shake" (dice rattled in a hand, 1.5 s).`,
+);
+export const cards = recordedEffect(
+  "cards",
+  `Playing cards ${RECORDED}. Variants "place" (default: a card slid and laid down, two takes; the card lands 0.1–0.15 s after the note) and "fan" (a hand of cards fanned out, about 0.7 s).`,
+);
+export const cloth = recordedEffect("cloth", `Cloth rustle ${RECORDED}: clothes moving, a coat put on (two takes).`);

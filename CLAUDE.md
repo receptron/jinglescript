@@ -30,9 +30,12 @@ same conventions; when in doubt about setup, look at how it does it.
 - **The timing map is computed, never measured** — except `audibleUntil`, which is measured on the
   final output. Its shape is the public contract video tools sync to; changing it is a breaking
   change.
-- **No third-party audio in the repo** — no samples, loops or reference recordings. Rendered
-  output goes to `out/` (git-ignored). The jingle analysed during prototyping belongs to another
-  of the user's brands and must never be added.
+- **No third-party audio in the repo** — no samples, loops or reference recordings, with one
+  exception the user approved (2026-10-13): CC0 recordings used as sound effects, in
+  `samples/sfx/` as WAV, each with its pack's licence file and a row in `SOURCES.md`, made by
+  `scripts/import-sfx.ts` from the catalog in `src/sounds/recorded-catalog.ts`. Only recordings
+  the user picked by listening go there. Rendered output goes to `out/` (git-ignored). The jingle
+  analysed during prototyping belongs to another of the user's brands and must never be added.
 - **`reference/prototype/` is provenance, not code.** Port its sound (mode ratios, decays,
   envelopes, levels) faithfully; don't port its structure, don't import it, don't edit it.
 - **An instrument or sound effect ships only when it renders cleanly across its stated range and

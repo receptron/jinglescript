@@ -39,7 +39,7 @@ fi
 # Library
 cat > lib.mjs <<'JS'
 import { readFile, writeFile } from "node:fs/promises";
-import { parseScore, render, toWav, getSchema, checkScore } from "jinglescript";
+import { parseScore, render, toWav, getSchema, checkScore, loadSamples } from "jinglescript";
 const score = parseScore(JSON.parse(await readFile("score.json", "utf8")));
 const { audio, sampleRate, timing } = render(score);
 await writeFile("out/lib.wav", toWav(audio, sampleRate));
@@ -49,6 +49,11 @@ console.log("library rendered", timing.duration, "s");
 const lyrics = render(parseScore(JSON.parse(await readFile("lyrics.json", "utf8")))).timing.lyrics;
 if (lyrics?.map((l) => l.text).join("/") !== "ハテナマルモ/はじまるよ！") throw new Error("lyrics missing from the timing map");
 console.log("library lyrics", lyrics.length, "lines");
+// The recorded sound effects are read from the installed package (samples/sfx/), never downloaded.
+const sfx = parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 2 }, tracks: [{ instrument: "door", notes: [{ at: 0 }] }] });
+const sfxAudio = render(sfx, { samples: await loadSamples(sfx, { download: false }) }).audio[0];
+if (!sfxAudio.some((v) => Math.abs(v) > 0.01)) throw new Error("recorded effect is silent");
+console.log("library recorded effect: ok");
 JS
 node lib.mjs
 

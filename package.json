@@ -36,6 +36,7 @@
   "files": [
     "dist",
     "schema",
+    "samples",
     "README.md",
     "LICENSE"
   ],

@@ -107,10 +107,12 @@ structure.
   trumpet, voice) cannot be made convincing by small synthesis models. v1 offers synthetic
   versions and says so; real samples are an optional later milestone ([M5](#m5--sampled-instruments-optional)).
 - Real-time playback, MIDI input devices, a GUI.
-- Recorded Foley. Sound effects are synthesized like the instruments, in styles from cartoon to
-  clean/modern; where a style matters an effect offers it as a `variant`. Effects that cannot be
-  made convincing by synthesis are labelled synthetic, like piccolo and trumpet; recorded effects
-  could only come through an optional sample milestone like M5, and never into the repo.
+- A recorded Foley library. Sound effects are synthesized like the instruments, in styles from
+  cartoon to clean/modern; where a style matters an effect offers it as a `variant`. Effects that
+  cannot be made convincing by synthesis are labelled synthetic, like piccolo and trumpet. The
+  exception is a small set of CC0 recordings the user picked by ear for sounds synthesis does
+  badly (glass, doors, dice, cards…), shipped in `samples/sfx/`
+  ([Recorded sound effects](#recorded-sound-effects)).
 - Rendering the animation. v1 produces the cues and timing map the animation is built on; the
   animation itself is a later step ([M8](#m8--jingle--animation-tool-later)).
 
@@ -432,6 +434,30 @@ animation frame on `t` lines up with the sound; an effect must not have silent p
 Effects pass the same quality checks as instruments (variants and pitch range included); the laser
 sweep must stay alias-free across its range.
 
+### Recorded sound effects
+
+Sounds synthesis does badly — glass, a bell, metal, a punch, a book, a door, dice, cards, cloth,
+footsteps on a given surface — play CC0 recordings instead. Added 2026-10-13: the user listened to
+194 candidate takes from the CC0 collection in `receptron/mulmocast-media` (`soundeffects/`, all
+Kenney packs) on a review page and picked 24; the rule against third-party audio in the repo was
+relaxed for exactly this (CC0, recorded rather than generated, small).
+
+- `src/sounds/recorded-catalog.ts` is the one list of which recording each effect variant plays;
+  `scripts/import-sfx.ts <soundeffects dir>` turns it into `samples/sfx/*.wav` (ffmpeg: mono,
+  48 kHz, 20 Hz high-pass, trimmed to start on the onset, −1 dBFS peak, 16-bit), copies each
+  pack's licence and writes `samples/sfx/SOURCES.md`. The WAVs are committed and ship in the npm
+  package (about 1.2 MB); `loadSamples()` reads them from the package, never the network.
+- Effects `ding`, `glass`, `metal`, `punch` (hit, soft), `book` (flip, place), `door` (close,
+  creak), `dice` (throw, die, shake), `cards` (place, fan), `cloth`; and recorded surface
+  variants of `footsteps` (carpet, concrete, snow, wood) beside its synthesized left/right.
+  (`bell` was taken: the authoring guide's custom-instrument example uses that name.)
+- A variant with several takes plays one chosen by the note's seeded stream. Every recording is
+  balanced like the other impulse-like effects (peaks like a C5 marimba note at full velocity).
+- Some recordings swell in rather than start on a hit: `door` creak, `cards` fan and place
+  (a card is slid, landing 0.1–0.15 s after the note), `cloth`, `book` place. They are audible at
+  once (−30 dB of their peak within 3 ms, tested) but reach a quarter of their peak later than
+  the 5 ms the synthesized effects are held to; the guide says so for cards.
+
 ### Custom instruments
 
 A score may define its own instruments and effects in a top-level `instruments` object. There
@@ -672,8 +698,10 @@ the prototype uses global state, non-seeded paths in places, and peak normalisat
 loudness. Keep `reference/` in the repo as provenance (it is MIT like the rest), and do not
 import it.
 
-Do **not** add any third-party audio to the repo. In particular, the jingle the user analysed while
-prototyping belongs to another of their brands; it is not part of this project.
+Do **not** add any third-party audio to the repo, except the CC0 recordings of the recorded sound
+effects in `samples/sfx/` ([Recorded sound effects](#recorded-sound-effects)). In particular, the
+jingle the user analysed while prototyping belongs to another of their brands; it is not part of
+this project.
 
 ## Project setup
 
@@ -1273,3 +1301,15 @@ Decided:
   harmony and the bass (more often in chromatic passages), dry over the printed staccato
   passages (bars 48–50 entirely). Notes and timing unchanged. The user preferred the "after"
   render. All fifteen piano pieces now have `len` and pedal.
+- 2026-10-13 — User: add recorded sound effects. They listened to 194 CC0 takes from
+  `receptron/mulmocast-media` (`soundeffects/`, Kenney packs) on a review page and picked 24, and
+  relaxed the no-third-party-audio rule for CC0 recordings (CLAUDE.md, [Recorded sound
+  effects](#recorded-sound-effects)). `samples/sfx/` (24 WAVs, 1.2 MB, licences, SOURCES.md) from
+  `scripts/import-sfx.ts`; nine new effects (`ding`, `glass`, `metal`, `punch`, `book`, `door`,
+  `dice`, `cards`, `cloth`) and recorded surface variants of `footsteps`; `loadSamples()` reads
+  them from the package (the pack smoke test renders one from the installed tarball). Quality
+  checks pass on every variant at 48 and 44.1 kHz; peaks within ±1 dB of a C5 marimba note.
+  Rendered alone they come out at −18 to −24 LUFS with 6 dB of limiting, as the synthesized
+  knock does. Five recordings swell in (creak, card fan and place, cloth, book place): audible
+  at once but late to reach their peak — cards land 0.1–0.15 s after the note. Waiting for the
+  user to listen to `out/sfx-recorded/`.

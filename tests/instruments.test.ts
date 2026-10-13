@@ -8,7 +8,7 @@ import { MAX_PARTIAL_FRACTION } from "../src/instruments/common.ts";
 import { parseScore, render } from "../src/index.ts";
 import { midiToFrequency, pitchToMidi } from "../src/pitch.ts";
 import { createRng } from "../src/rng.ts";
-import { pianoFixture } from "./sample-fixture.ts";
+import { fixtureSamples } from "./sample-fixture.ts";
 
 const RATE = 48000;
 const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE, hold = 1, variant?: string, seed = 7) => {
@@ -17,7 +17,7 @@ const note = (name: InstrumentName, midi: number | undefined, sampleRate = RATE,
   // Effects with a length are tested at their default length.
   const length = descriptor.duration?.defaultSeconds ?? hold;
   // Sampled instruments play stand-ins for their recordings (tests/sample-fixture.ts).
-  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold: length, variant, sampleRate, rng: createRng(seed), samples: pianoFixture });
+  return INSTRUMENTS[name].synthesize({ midi, frequency, velocity: 1, hold: length, variant, sampleRate, rng: createRng(seed), samples: fixtureSamples });
 };
 /** Tonal sounds, whose partials must stay clear of Nyquist. Noise is not "aliasing". */
 const tonal = (name: InstrumentName): boolean => INSTRUMENTS[name].descriptor.pitched || INSTRUMENTS[name].descriptor.pitchOptional === true;
@@ -147,7 +147,11 @@ describe.each(INSTRUMENT_NAMES)("%s (quality checks without ears)", (name) => {
       for (const variant of variantsOf(name)) {
         const x = note(name, undefined, RATE, 1, variant);
         const peak = peakOf(x);
-        expect(x.findIndex((v) => Math.abs(v) >= 0.25 * peak)).toBeLessThan(0.005 * RATE);
+        // A recording may swell in (a creak, a card slid before it lands): it must be audible at
+        // once (−30 dB of its peak within 3 ms), not reach a quarter of its peak.
+        const recorded = descriptor.sampled?.bundled === true && x.findIndex((v) => Math.abs(v) >= 0.25 * peak) >= 0.005 * RATE;
+        const threshold = recorded ? 10 ** (-30 / 20) : 0.25;
+        expect(x.findIndex((v) => Math.abs(v) >= threshold * peak)).toBeLessThan((recorded ? 0.003 : 0.005) * RATE);
       }
     },
   );
@@ -178,7 +182,7 @@ describe("every shipped example", () => {
 
   it.each(files)("%s renders cleanly at the loudness target (or says why not)", (file) => {
     const score = parseScore(JSON.parse(readFileSync(new URL(file, dir), "utf8")));
-    const { audio, stats, timing } = render(score, { samples: pianoFixture });
+    const { audio, stats, timing } = render(score, { samples: fixtureSamples });
     expect(audio.every((channel) => channel.every(Number.isFinite))).toBe(true);
     expect(truePeak(audio)).toBeLessThanOrEqual(-1.5);
     if (!stats.limitedByPeak) expect(Math.abs(integratedLoudness(audio, RATE) - score.master.loudness)).toBeLessThanOrEqual(0.5);

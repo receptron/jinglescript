@@ -146,17 +146,13 @@ function instrumentsCommand(name: string | undefined): void {
     console.log(JSON.stringify(all, null, 2));
     return;
   }
+  const recorded = (i: (typeof all)[number]): string => {
+    if (i.sampled === undefined) return "";
+    return i.sampled.bundled ? "recorded" : "recorded samples, downloaded on first use";
+  };
   for (const i of all) {
     const range = i.range ? `${i.range.low}–${i.range.high}` : "unpitched";
-    const traits = [
-      i.kind,
-      range,
-      i.sustained ? "sustained" : "rings out",
-      i.synthetic ? "synthetic-sounding" : "",
-      i.sampled ? "recorded samples, downloaded on first use" : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
+    const traits = [i.kind, range, i.sustained ? "sustained" : "rings out", i.synthetic ? "synthetic-sounding" : "", recorded(i)].filter(Boolean).join(", ");
     console.log(`${i.name} (${traits})\n  ${i.description}`);
   }
 }

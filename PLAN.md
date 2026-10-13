@@ -589,6 +589,7 @@ npx jinglescript schema [part]        # print the JSON Schema (for LLM prompts)
 npx jinglescript guide                # print the authoring guide for LLMs
 npx jinglescript mcp [--out <dir>]    # MCP server over stdio (see below)
 npx jinglescript demo marimba -o out/ # render the instrument across its range (or an effect's variants)
+npx jinglescript --version            # the installed version (also -v)
 ```
 
 48 kHz stereo by default (`--rate 44100` allowed). The CLI is a thin wrapper over the library.
@@ -1327,3 +1328,6 @@ Decided:
   pedal, and the piano examples. Installed from the registry in a clean folder: all 28 files of
   `samples/sfx/` are there, `recorded-effects.json` checks and renders to WAV and MP3, and the WAV
   is bit-identical to the repository's render; the library and the plugin's server entry load.
+- 2026-10-13 — User: the CLI needs `--version`. `jinglescript --version` (and `-v`) prints the
+  package version, read by `src/version.ts`, which the MCP server's handshake now shares. A test runs
+  the CLI; the smoke script checks the installed CLI prints the tarball's version.

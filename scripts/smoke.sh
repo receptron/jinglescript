@@ -28,6 +28,10 @@ cp "$REPO/examples/hatena-marumo-a.json" score.json
 cp "$REPO/examples/lyrics-hatena.json" lyrics.json
 
 # CLI
+WANT="$(node -p 'require("./node_modules/jinglescript/package.json").version')"
+GOT="$(node_modules/.bin/jinglescript --version)"
+[ "$GOT" = "$WANT" ] || { echo "--version printed '$GOT', expected '$WANT'"; exit 1; }
+echo "--version: ok ($GOT)"
 node_modules/.bin/jinglescript check score.json
 node_modules/.bin/jinglescript render score.json -o out/cli.wav
 if command -v ffmpeg >/dev/null; then

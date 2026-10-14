@@ -1365,3 +1365,9 @@ Decided:
   Buck Bunny (CC BY 3.0, downloaded into `out/`, never committed), cues measured from 24 fps frame
   sheets, rendered and mixed with one ffmpeg command; frames at the four bonk cues show the nut on
   the bunny's head. `tests/docs.test.ts` keeps the score checking with those cue times.
+- 2026-10-14 — User: captions and telops, starting with ffmpeg + ASS (no feature in the library).
+  `docs/video/captions.ts` (pure) writes ASS from a timing map: karaoke lines that fill per syllable
+  (`\kf`, cumulative rounding so a line's fills add up) and telops that pop in on cues;
+  `make-captions.ts` is its command line. Docs step 7. Burned in on the Big Buck Bunny clip and on
+  `lyrics-hatena` over a plain background; frames show each telop on its cue and the karaoke fill
+  advancing with the syllables. tsconfig now includes `docs`.

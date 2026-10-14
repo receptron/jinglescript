@@ -15,5 +15,5 @@
     // examples and the eval import the package by name, as users do; type-check them against the source
     "paths": { "jinglescript": ["./src/index.ts"] }
   },
-  "include": ["src", "tests", "scripts", "examples", "eval"]
+  "include": ["src", "tests", "scripts", "examples", "eval", "docs"]
 }

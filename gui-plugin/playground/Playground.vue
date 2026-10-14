@@ -13,6 +13,8 @@ const GROUPS = ["Examples", "Piano classics"] as const;
 const LONG_PIECE_SECONDS = 60;
 
 let worker = startWorker();
+/** The worker reported an error and may never answer: the next render starts a fresh one. */
+let workerFailed = false;
 const selected = ref(DEFAULT_EXAMPLE);
 /** The player's title when the score has none: the example's name, until the score is edited. */
 const fallbackName = ref(DEFAULT_EXAMPLE);
@@ -60,6 +62,7 @@ function renderScore(): void {
   if (busy.value) return;
   const score = parseSource();
   if (score === undefined) return;
+  if (workerFailed) replaceWorker(); // it can fail before any render is posted, and would then never reply
   busy.value = true;
   status.value = "Rendering…";
   problems.value = [];
@@ -126,18 +129,27 @@ function startWorker(): Worker {
   const started = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
   started.addEventListener("message", (event: MessageEvent<RenderReply>) => onReply(event.data));
   // A worker that cannot load (a stale tab after a redeploy) or a reply that cannot be read sends no message.
-  started.addEventListener("error", (event) => fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`));
+  started.addEventListener("error", (event) => {
+    workerFailed = true;
+    fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`);
+  });
   started.addEventListener("messageerror", () => fail("The renderer's answer could not be read. Reload the page."));
   return started;
 }
 
-/** Render is synchronous inside the worker, so stopping it means replacing the worker. */
-function stop(): void {
+function replaceWorker(): void {
   worker.terminate();
   worker = startWorker();
+  workerFailed = false;
+}
+
+/** Render is synchronous inside the worker, so stopping it means replacing the worker. */
+function stop(): void {
+  replaceWorker();
   renderId++;
   fail("Stopped.");
 }
+
 onMounted(() => void pick(DEFAULT_EXAMPLE));
 onBeforeUnmount(() => {
   worker.terminate();

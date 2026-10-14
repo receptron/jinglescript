@@ -3,27 +3,26 @@
 // browser entry, and play it in the GUI plugin's player view.
 import type { ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData, ScoreProblem } from "jinglescript/browser";
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import View from "../src/vue/View.vue";
 import { DEFAULT_EXAMPLE, EXAMPLES } from "./examples.ts";
 import type { RenderReply, RenderRequest } from "./messages.ts";
 
 const REPO_URL = "https://github.com/receptron/jinglescript";
 const GROUPS = ["Examples", "Piano classics"] as const;
+const LONG_PIECE_SECONDS = 60;
 
-const worker = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
+let worker = startWorker();
 const selected = ref(DEFAULT_EXAMPLE);
+/** The player's title when the score has none: the example's name, until the score is edited. */
+const fallbackName = ref(DEFAULT_EXAMPLE);
 const source = ref("");
 const busy = ref(false);
 const status = ref("");
 const problems = ref<{ kind: "error" | "warning"; problem: ScoreProblem }[]>([]);
 const result = ref<ToolResultComplete<PlayerData> | undefined>();
+const timingUrl = ref<string | undefined>();
 let renderId = 0;
-
-const timingUrl = computed(() => {
-  const timing = result.value?.data?.timing;
-  return timing ? URL.createObjectURL(new Blob([JSON.stringify(timing, null, 2)], { type: "application/json" })) : undefined;
-});
 
 const timingSummary = computed(() => {
   const timing = result.value?.data?.timing;
@@ -31,6 +30,21 @@ const timingSummary = computed(() => {
   const { tempo, duration, cues, audibleUntil } = timing;
   return JSON.stringify({ tempo, duration, audibleUntil, cues, beats: `${timing.beats.length} beats`, notes: `${timing.notes.length} notes` }, null, 2);
 });
+
+/** Drops the shown render and frees the object URLs its audio and timing.json were served from. */
+function clearResult(): void {
+  const audio = result.value?.data?.audio;
+  if (audio?.startsWith("blob:")) URL.revokeObjectURL(audio);
+  if (timingUrl.value) URL.revokeObjectURL(timingUrl.value);
+  result.value = undefined;
+  timingUrl.value = undefined;
+}
+
+function fail(message: string): void {
+  busy.value = false;
+  clearResult(); // a stale render next to the problem would look like its result
+  status.value = message;
+}
 
 function parseSource(): unknown {
   try {
@@ -47,13 +61,18 @@ function renderScore(): void {
   busy.value = true;
   status.value = "Rendering…";
   problems.value = [];
-  const request: RenderRequest = { id: ++renderId, score, name: selected.value || "score", sfxBaseUrl: new URL("sfx/", document.baseURI).href };
+  const request: RenderRequest = { id: ++renderId, score, name: fallbackName.value, sfxBaseUrl: new URL("sfx/", document.baseURI).href };
   worker.postMessage(request);
 }
 
 function onDone(reply: Extract<RenderReply, { kind: "done" }>): void {
-  const { player, warnings, downloads, ms } = reply;
+  const { warnings, downloads, ms } = reply;
+  clearResult();
+  // The audio arrives as bytes and is served from an object URL: a data URI of a long piece would be
+  // copied as a string several times over.
+  const player = { ...reply.player, audio: URL.createObjectURL(new Blob([reply.wav], { type: reply.player.mimeType })) };
   result.value = { toolName: "manageJingleScript", uuid: String(reply.id), message: player.title, title: player.title, data: player };
+  timingUrl.value = URL.createObjectURL(new Blob([JSON.stringify(player.timing, null, 2)], { type: "application/json" }));
   problems.value = warnings.map((problem) => ({ kind: "warning", problem }));
   const fetched = downloads > 0 ? `, ${downloads} sample${downloads === 1 ? "" : "s"} downloaded` : "";
   status.value = `Rendered ${player.duration.toFixed(1)} s in ${ms} ms${fetched}, ${player.loudness} LUFS.`;
@@ -65,20 +84,31 @@ function onReply(reply: RenderReply): void {
     status.value = `Downloading samples (${reply.count}): ${reply.file}`;
     return;
   }
+  if (reply.kind === "rendering") {
+    const long = reply.seconds > LONG_PIECE_SECONDS ? " A long piece takes minutes; Stop cancels it." : "";
+    status.value = `Rendering ${reply.seconds.toFixed(1)} s of audio…${long}`;
+    return;
+  }
   busy.value = false;
   if (reply.kind === "done") return onDone(reply);
-  result.value = undefined; // a stale render next to the errors would look like their result
-  if (reply.kind === "invalid") {
-    problems.value = reply.errors.map((problem) => ({ kind: "error", problem }));
-    status.value = "The score has errors; fix them and render again.";
-  } else status.value = `Render failed: ${reply.message}`;
+  if (reply.kind === "failed") return fail(`Render failed: ${reply.message}`);
+  fail("The score has errors; fix them and render again.");
+  problems.value = reply.errors.map((problem) => ({ kind: "error", problem }));
 }
 
 async function pick(name: string): Promise<void> {
   const example = EXAMPLES.find((e) => e.name === name);
   if (!example) return;
+  const previous = selected.value;
   selected.value = name;
-  source.value = JSON.stringify(await example.load(), null, 2);
+  try {
+    source.value = JSON.stringify(await example.load(), null, 2);
+  } catch (error) {
+    selected.value = previous; // the editor still holds the previous score
+    status.value = `Could not load the example ${name}: ${error instanceof Error ? error.message : String(error)}. Reload the page.`;
+    return;
+  }
+  fallbackName.value = name;
   renderScore();
 }
 
@@ -90,10 +120,27 @@ function onKey(event: KeyboardEvent): void {
   if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) renderScore();
 }
 
-worker.addEventListener("message", (event: MessageEvent<RenderReply>) => onReply(event.data));
-watch(timingUrl, (_, previous) => previous && URL.revokeObjectURL(previous));
+function startWorker(): Worker {
+  const started = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
+  started.addEventListener("message", (event: MessageEvent<RenderReply>) => onReply(event.data));
+  // A worker that cannot load (a stale tab after a redeploy) or a reply that cannot be read sends no message.
+  started.addEventListener("error", (event) => fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`));
+  started.addEventListener("messageerror", () => fail("The renderer's answer could not be read. Reload the page."));
+  return started;
+}
+
+/** Render is synchronous inside the worker, so stopping it means replacing the worker. */
+function stop(): void {
+  worker.terminate();
+  worker = startWorker();
+  renderId++;
+  fail("Stopped.");
+}
 onMounted(() => void pick(DEFAULT_EXAMPLE));
-onBeforeUnmount(() => worker.terminate());
+onBeforeUnmount(() => {
+  worker.terminate();
+  clearResult();
+});
 </script>
 
 <template>
@@ -135,6 +182,14 @@ onBeforeUnmount(() => worker.terminate());
           >
             Render
           </button>
+          <button
+            v-if="busy"
+            type="button"
+            class="rounded border border-slate-400 px-4 py-1 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-800"
+            @click="stop"
+          >
+            Stop
+          </button>
         </div>
         <textarea
           v-model="source"
@@ -142,6 +197,7 @@ onBeforeUnmount(() => worker.terminate());
           spellcheck="false"
           class="h-[60vh] w-full resize-y rounded border border-slate-300 bg-white p-3 font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-900"
           @keydown="onKey"
+          @input="fallbackName = 'score'"
         ></textarea>
       </section>
 

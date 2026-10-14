@@ -12,6 +12,9 @@ export interface RenderRequest {
 
 export type RenderReply =
   | { id: number; kind: "downloading"; file: string; count: number }
+  /** Samples are loaded; rendering `seconds` of audio, which for a long piece takes minutes. */
+  | { id: number; kind: "rendering"; seconds: number }
   | { id: number; kind: "invalid"; errors: ScoreProblem[] }
-  | { id: number; kind: "done"; player: PlayerData; warnings: ScoreProblem[]; downloads: number; ms: number }
+  /** `player.audio` is empty: the WAV comes as `wav` (transferred, not copied). */
+  | { id: number; kind: "done"; player: PlayerData; wav: ArrayBuffer; warnings: ScoreProblem[]; downloads: number; ms: number }
   | { id: number; kind: "failed"; message: string };

@@ -1,8 +1,8 @@
 // Renders off the page's thread: a long piano piece takes seconds, and the page stays responsive.
-import { checkScore, loadSamples, parseScore, render, toPlayerData } from "jinglescript/browser";
+import { checkScore, loadSamples, parseScore, render, tagsOf, toPlayerData, toWav } from "jinglescript/browser";
 import type { RenderReply, RenderRequest } from "./messages.ts";
 
-const reply = (message: RenderReply): void => self.postMessage(message);
+const reply = (message: RenderReply): void => self.postMessage(message, { transfer: message.kind === "done" ? [message.wav] : [] });
 
 async function renderRequest({ id, score: input, name, sfxBaseUrl }: RenderRequest): Promise<RenderReply> {
   const check = checkScore(input);
@@ -14,8 +14,11 @@ async function renderRequest({ id, score: input, name, sfxBaseUrl }: RenderReque
     sfxBaseUrl,
     onDownload: (file) => reply({ id, kind: "downloading", file, count: ++downloads }),
   });
-  const player = toPlayerData(score, render(score, { samples }), name);
-  return { id, kind: "done", player, warnings: check.warnings, downloads, ms: Math.round(performance.now() - started) };
+  reply({ id, kind: "rendering", seconds: check.duration ?? 0 });
+  const result = render(score, { samples });
+  const wav = toWav(result.audio, result.sampleRate, 16, tagsOf(score));
+  const player = toPlayerData(score, result, name, { audio: "", mimeType: "audio/wav" });
+  return { id, kind: "done", player, wav: wav.buffer, warnings: check.warnings, downloads, ms: Math.round(performance.now() - started) };
 }
 
 self.addEventListener("message", (event: MessageEvent<RenderRequest>) => {

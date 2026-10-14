@@ -61,6 +61,20 @@ console.log("library recorded effect: ok");
 JS
 node lib.mjs
 
+# The browser entry resolves from the installed package and renders the same audio.
+cat > browser.mjs <<'JS'
+import { readFile } from "node:fs/promises";
+import * as browser from "jinglescript/browser";
+import * as node from "jinglescript";
+const input = JSON.parse(await readFile("score.json", "utf8"));
+const a = browser.render(browser.parseScore(input)).audio[0];
+const b = node.render(node.parseScore(input)).audio[0];
+if (a.length !== b.length || a.some((v, i) => v !== b[i])) throw new Error("jinglescript/browser renders differently");
+if ("loadSamples" in browser && browser.loadSamples === node.loadSamples) throw new Error("jinglescript/browser exports the Node loader");
+console.log("browser entry: ok");
+JS
+node browser.mjs
+
 # MCP: initialize, list tools, render — over stdio, as a client would.
 cat > mcp.mjs <<'JS'
 import { spawn } from "node:child_process";

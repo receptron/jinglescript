@@ -122,6 +122,25 @@ For LLMs and agents: `getSchema(part?)`, `getAuthoringGuide()`, `listInstruments
 `getInstrument(name)` and `checkScore(json)` (never throws; returns errors with JSON paths and
 hints, plus the resolved cue times).
 
+### In the browser
+
+`jinglescript/browser` is the same library without the parts that need Node (files, ffmpeg, the
+MCP tool): parse and check, `render`, `toWav`, `scoreToMidi`, the timing map, and the API for LLMs.
+It renders in the page, with no server, to the same bit-identical audio.
+
+```ts
+import { parseScore, render, toWav } from "jinglescript/browser";
+
+const { audio, sampleRate, timing } = render(parseScore(json));
+const context = new AudioContext({ sampleRate });
+const buffer = context.createBuffer(2, audio[0].length, sampleRate);
+audio.forEach((channel, i) => buffer.copyToChannel(channel, i));
+// play `buffer`, or offer toWav(audio, sampleRate) as a download
+```
+
+The browser entry has no sample loader yet: a score that plays `grandpiano` or a recorded sound
+effect throws `SamplesNotLoadedError`. Audio is WAV only (MP3 and OGG need ffmpeg).
+
 ## How to write a jingle
 
 This section is the authoring guide an LLM gets from `jinglescript guide`, `getAuthoringGuide()`

@@ -90,6 +90,23 @@ Claude Desktop (`claude_desktop_config.json`):
 
 Then ask for a jingle in a sentence ("a 5-second ukulele opening that lands on a hit at 1.5 s").
 
+## Use it from Claude Code (skill)
+
+`skills/jinglescript/SKILL.md` is a Claude Code skill that needs no MCP setup: it reads the
+guide, writes the score to `jingles/<name>.json`, runs `npx -y jinglescript check` until it
+passes, and renders with `npx -y jinglescript render`. Install it for yourself:
+
+```sh
+mkdir -p ~/.claude/skills/jinglescript
+curl -fsSL https://raw.githubusercontent.com/receptron/jinglescript/main/skills/jinglescript/SKILL.md \
+  -o ~/.claude/skills/jinglescript/SKILL.md
+```
+
+(or copy it into a project's `.claude/skills/jinglescript/`). Then ask Claude Code for a jingle.
+The skill runs the latest published `jinglescript` through npx, as the MCP setup above does; to stay
+on one version, replace `npx -y jinglescript` in it with `npx -y jinglescript@<version>`, and install
+the file from that release's tag instead of `main`.
+
 ## Hear it in a GUI chat (GUI Chat Protocol)
 
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,

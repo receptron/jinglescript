@@ -1356,3 +1356,6 @@ Decided:
   on push to main; CI builds it on every PR. PlayerData is now built in `src/player.ts` (Node-free;
   `manage()` uses it, with byte-identical output). Checked in headless Chrome: five examples render,
   including the recorded effects and grandpiano, at phone width and in dark mode, with no console error.
+- 2026-10-14 — User: run it with npx from a skill (#22). `skills/jinglescript/SKILL.md`: guide,
+  score in a `.json` file, `check` until it passes, `render`, report cues; README says how to
+  install it. A test keeps every `npx -y jinglescript <command>` in it a real CLI command.

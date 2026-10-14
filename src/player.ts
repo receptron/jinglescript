@@ -1,5 +1,6 @@
 // PlayerData: what a player view (the GUI plugin's, the playground's) needs to play a rendered
 // jingle and show its timing. Built here, with no Node built-in, so the browser builds the same.
+import { MIME_TYPES } from "./audio-format.ts";
 import { MIDI_MIME_TYPE, scoreToMidi } from "./midi.ts";
 import type { RenderResult } from "./render.ts";
 import type { Score } from "./score.ts";
@@ -34,7 +35,6 @@ export interface PlayerAudio {
 
 const PEAK_SLICES = 600;
 const BASE64_CHUNK = 0x8000;
-export const WAV_MIME_TYPE = "audio/wav";
 
 function peaksOf(audio: readonly Float32Array[]): number[] {
   const length = audio[0]?.length ?? 0;
@@ -57,10 +57,11 @@ export function dataUri(mimeType: string, bytes: Uint8Array): string {
 
 /** The render as a 16-bit WAV data URI, tagged with the score's title, author and copyright. */
 export function wavPlayerAudio(result: RenderResult, score: Score): PlayerAudio {
-  return { audio: dataUri(WAV_MIME_TYPE, toWav(result.audio, result.sampleRate, 16, tagsOf(score))), mimeType: WAV_MIME_TYPE };
+  return { audio: dataUri(MIME_TYPES.wav, toWav(result.audio, result.sampleRate, 16, tagsOf(score))), mimeType: MIME_TYPES.wav };
 }
 
-const round1 = (x: number): number => Math.round(x * 10) / 10;
+/** One decimal, as loudness is reported to the LLM and in the view. */
+export const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** PlayerData for a render of `score`, with `audio` embedded (WAV unless the caller encoded something smaller). */
 export function toPlayerData(score: Score, result: RenderResult, title: string, audio: PlayerAudio = wavPlayerAudio(result, score)): PlayerData {

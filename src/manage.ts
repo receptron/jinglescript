@@ -2,10 +2,11 @@
 // The MCP server wraps it (text and files); the GUI Chat Protocol plugin wraps it (a ToolResult
 // whose `data` a player view renders). Each action calls one library function.
 import { z } from "zod";
-import { AUDIO_FORMATS, encodeAudioBytes, FfmpegMissingError, MIME_TYPES } from "./encode.ts";
+import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
+import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
-import { dataUri, toPlayerData, wavPlayerAudio, type PlayerAudio, type PlayerData } from "./player.ts";
+import { dataUri, round1, toPlayerData, wavPlayerAudio, type PlayerAudio, type PlayerData } from "./player.ts";
 import { render, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
@@ -163,7 +164,6 @@ async function scoreOf(input: ManageInput, options: ManageOptions): Promise<{ ok
     return failed(`${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}.`);
   }
 }
-const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** The timing map without its per-beat, per-note and per-syllable lists, which are long and rarely needed by the LLM. */
 function timingSummary(timing: TimingMap, trackCount: number, fullTimingAt: string) {

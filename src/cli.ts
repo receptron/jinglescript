@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import { parseArgs } from "node:util";
 import { demoScore } from "./demo.ts";
-import { AUDIO_FORMATS, FfmpegMissingError, isAudioFormat } from "./encode.ts";
+import { AUDIO_FORMATS, isAudioFormat } from "./audio-format.ts";
+import { FfmpegMissingError } from "./encode.ts";
 import { isInstrumentName } from "./instruments/index.ts";
 import {
   checkScore,

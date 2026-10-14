@@ -23,7 +23,7 @@ function infoChunk(tags: AudioTags): Uint8Array {
   return new Uint8Array([...encoder.encode("LIST"), ...u32(4 + parts.length), ...encoder.encode("INFO"), ...parts]);
 }
 
-export function toWav(audio: readonly Float32Array[], sampleRate: number, bits: WavBits = 24, tags: AudioTags = {}): Uint8Array {
+export function toWav(audio: readonly Float32Array[], sampleRate: number, bits: WavBits = 24, tags: AudioTags = {}): Uint8Array<ArrayBuffer> {
   const channels = audio.length;
   const frames = audio[0]?.length ?? 0;
   const bytesPerSample = bits / 8;

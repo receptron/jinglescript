@@ -127,13 +127,16 @@ function onKey(event: KeyboardEvent): void {
 
 function startWorker(): Worker {
   const started = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
-  started.addEventListener("message", (event: MessageEvent<RenderReply>) => onReply(event.data));
+  // Only the current worker may change the page: a replaced one can still have events in flight.
+  const current = (): boolean => started === worker;
+  started.addEventListener("message", (event: MessageEvent<RenderReply>) => current() && onReply(event.data));
   // A worker that cannot load (a stale tab after a redeploy) or a reply that cannot be read sends no message.
   started.addEventListener("error", (event) => {
+    if (!current()) return;
     workerFailed = true;
     fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`);
   });
-  started.addEventListener("messageerror", () => fail("The renderer's answer could not be read. Reload the page."));
+  started.addEventListener("messageerror", () => current() && fail("The renderer's answer could not be read. Reload the page."));
   return started;
 }
 

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { assSubtitles, assTime, TelopsSchema } from "../docs/video/captions.ts";
+import { assSubtitles, assTime, literal, TelopsSchema } from "../docs/video/captions.ts";
 import { checkScore, parseScore, render } from "../src/index.ts";
 
 const json = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -60,9 +60,18 @@ describe("docs/video/captions.ts", () => {
     ]);
   });
 
-  it("shows braces and backslashes literally instead of as ASS commands", () => {
-    const [line] = dialogues(assSubtitles({ ...timing, lyrics: undefined }, [{ at: 0, text: "{\\b1}a", hold: 1 }], font));
-    expect(line?.endsWith("\\{\\\\b1\\}a")).toBe(true);
+  // What libass shows was checked by rendering: these come out as typed, and a newline breaks the line.
+  it("keeps ASS commands and braces from acting, and turns a newline into a line break", () => {
+    const wj = "\u2060";
+    expect(literal("{\\b1}A \\N B \\h C \\\\ D")).toBe(`\\{\\${wj}b1\\}A \\${wj}N B \\${wj}h C \\${wj}\\${wj} D`);
+    expect(literal("one\ntwo\r\nthree\rfour")).toBe("one\\Ntwo\\Nthree\\Nfour");
+    expect(literal("ハテナ")).toBe("ハテナ");
+  });
+
+  it("writes every event on one line of the file, whatever the text holds", () => {
+    const ass = assSubtitles({ ...timing, lyrics: undefined }, [{ at: 0, text: "a\nb\r\nc", hold: 1 }], font);
+    const events = ass.slice(ass.indexOf("[Events]")).trim().split("\n").slice(2);
+    expect(events.every((line) => line.startsWith("Dialogue: "))).toBe(true);
   });
 
   it("names the cues when a telop's cue does not exist", () => {

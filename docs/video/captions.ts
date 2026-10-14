@@ -35,8 +35,16 @@ export function assTime(seconds: number): string {
   return `${Math.floor(cs / 360000)}:${pad(Math.floor(cs / 6000) % 60)}:${pad(Math.floor(cs / 100) % 60)}.${pad(cs % 100)}`;
 }
 
-/** Text as ASS shows it literally: braces would start an override block, a backslash an escape. */
-const literal = (text: string): string => text.replace(/[{}\\]/g, (c) => `\\${c}`);
+// libass has no escape for a backslash: `\N`, `\h` and `\n` act even after another backslash. A
+// word joiner (invisible, no break) after each one keeps it from starting a command.
+const WORD_JOINER = "\u2060";
+
+/** Text as ASS shows it: commands and braces literally, and a newline in the text as a line break. */
+export const literal = (text: string): string =>
+  text
+    .split(/\r\n|\r|\n/)
+    .map((line) => line.replaceAll("\\", `\\${WORD_JOINER}`).replace(/[{}]/g, (brace) => `\\${brace}`))
+    .join("\\N");
 
 function header(options: CaptionOptions): string {
   // Colours are &HAABBGGRR. Karaoke fills from the secondary (white) to the primary (yellow) colour.

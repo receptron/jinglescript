@@ -1,6 +1,6 @@
 // Which errors the CLI reports as a one-line message instead of a stack trace: the ones a user (or
 // an LLM driving `npx jinglescript`) can fix. Anything else is a bug and keeps its stack.
-import { FfmpegMissingError } from "./encode.ts";
+import { FfmpegMissingError, FfmpegWriteError } from "./encode.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { JingleScriptError } from "./score.ts";
 
@@ -35,7 +35,9 @@ export function fileProblem(error: unknown): string | undefined {
 /** The message to print for `error`, or undefined when it should be thrown with its stack. */
 export function userFacingMessage(error: unknown): string | undefined {
   if (!(error instanceof Error)) return undefined;
-  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError || error instanceof SampleDownloadError) return error.message;
+  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError || error instanceof FfmpegWriteError || error instanceof SampleDownloadError) {
+    return error.message;
+  }
   const code = codeOf(error);
   if (code.startsWith("ERR_PARSE_ARGS_")) return `${error.message}\n${USAGE_HINT}`;
   const problem = fileProblem(error);

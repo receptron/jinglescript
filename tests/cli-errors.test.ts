@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { mkdir, readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { describe, expect, it } from "vitest";
 import { fileProblem, userFacingMessage } from "../src/cli-errors.ts";
-import { FfmpegMissingError } from "../src/encode.ts";
+import { ffmpegAvailable, FfmpegMissingError, FfmpegWriteError } from "../src/encode.ts";
 import { JingleScriptError } from "../src/score.ts";
 import { SampleDownloadError } from "../src/samples/fetch-sample.ts";
 
@@ -27,6 +28,7 @@ describe("userFacingMessage", () => {
   it("passes on the library's own user errors", () => {
     expect(userFacingMessage(new JingleScriptError([{ path: "tempo", message: "bad" }]))).toMatch(/tempo: bad/);
     expect(userFacingMessage(new FfmpegMissingError("mp3"))).toMatch(/ffmpeg/);
+    expect(userFacingMessage(new FfmpegWriteError("out/x.mp3", "Is a directory"))).toBe("ffmpeg could not write out/x.mp3: Is a directory");
     expect(userFacingMessage(new SampleDownloadError("offline"))).toBe("offline");
   });
 
@@ -78,6 +80,19 @@ describe("the CLI on mistakes a user can fix", () => {
     const { status, stderr } = run(...args);
     expect(status).toBe(1);
     expect(stderr).toMatch(message);
+    expect(stderr.split("\n").filter((line) => line.trimStart().startsWith("at "))).toEqual([]);
+  });
+});
+
+// MP3 and OGG are written by ffmpeg, so a bad output path fails there rather than in Node's fs.
+const hasFfmpeg = await ffmpegAvailable();
+describe.runIf(hasFfmpeg)("the CLI on a bad MP3/OGG output path (ffmpeg present)", () => {
+  const folder = new URL("../out/cli-errors-test/", import.meta.url).pathname;
+  it.each(["mp3", "ogg"])("an existing folder named x.%s prints ffmpeg's reason, not a stack trace", (format) => {
+    mkdirSync(`${folder}x.${format}`, { recursive: true });
+    const { status, stderr } = run("render", example, "-o", `${folder}x.${format}`);
+    expect(status).toBe(1);
+    expect(stderr).toMatch(new RegExp(`ffmpeg could not write .*x\\.${format}: `));
     expect(stderr.split("\n").filter((line) => line.trimStart().startsWith("at "))).toEqual([]);
   });
 });

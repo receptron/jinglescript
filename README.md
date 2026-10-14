@@ -103,6 +103,9 @@ curl -fsSL https://raw.githubusercontent.com/receptron/jinglescript/main/skills/
 ```
 
 (or copy it into a project's `.claude/skills/jinglescript/`). Then ask Claude Code for a jingle.
+The skill runs the latest published `jinglescript` through npx, as the MCP setup above does; to stay
+on one version, replace `npx -y jinglescript` in it with `npx -y jinglescript@<version>`, and install
+the file from that release's tag instead of `main`.
 
 ## Hear it in a GUI chat (GUI Chat Protocol)
 

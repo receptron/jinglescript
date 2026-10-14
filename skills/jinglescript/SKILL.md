@@ -17,8 +17,10 @@ note happens. You write the score; the CLI checks and renders it. Everything run
    `npx -y jinglescript instruments` (and `npx -y jinglescript instruments <name>` for one).
 2. **Turn the request into cues.** Every moment the user names (a logo, a hit, a cut, a voice-over
    start) becomes a cue in seconds. Ask only if the request gives no length at all.
-3. **Write the score to a file**: `jingles/<short-name>.json` in the user's project, unless they
-   name another place. Fill `author` / `copyright` only with what the user gave; never invent them.
+3. **Write the score to a file**: `jingles/<short-name>.json` in the user's project (create `jingles/`
+   if needed), unless they name another place. Pick a `<short-name>` whose `.json`, `.mp3`, `.wav`
+   and `.timing.json` do not exist yet; ask before overwriting any file you did not write in this
+   session. Fill `author` / `copyright` only with what the user gave; never invent them.
 4. **Check until it passes**: `npx -y jinglescript check jingles/<short-name>.json`.
    Fix every error it prints (each has a JSON path and a hint), then check again. Do not render a
    score that fails the check.
@@ -27,7 +29,8 @@ note happens. You write the score; the CLI checks and renders it. Everything run
    written next to the audio as `<short-name>.timing.json`.
 6. **Report**: the audio file, the timing file, and each cue's time (the check prints them), plus
    the loudness line the render prints. Then ask the user to listen. You cannot hear the result:
-   do not describe how it sounds, and change the score from what they say.
+   do not describe how it sounds. Change the score only on the user's listening feedback, then
+   check and render again to the same files.
 
 ## Notes
 

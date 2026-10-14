@@ -56,6 +56,8 @@ function parseSource(): unknown {
 }
 
 function renderScore(): void {
+  // The worker renders one request at a time: a second one would queue behind a long render. Stop first.
+  if (busy.value) return;
   const score = parseSource();
   if (score === undefined) return;
   busy.value = true;
@@ -98,7 +100,7 @@ function onReply(reply: RenderReply): void {
 
 async function pick(name: string): Promise<void> {
   const example = EXAMPLES.find((e) => e.name === name);
-  if (!example) return;
+  if (!example || busy.value) return;
   const previous = selected.value;
   selected.value = name;
   try {

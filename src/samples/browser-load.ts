@@ -29,7 +29,7 @@ export interface BrowserLoadSamplesOptions {
   sfxBaseUrl?: string;
   /** Folder URL (ending in "/") of the VCSL repository at the pinned commit. Default: jsDelivr's mirror. */
   pianoBaseUrl?: string;
-  /** Cache API name the samples are kept under, or false to fetch every time. Default: "jinglescript". */
+  /** Cache API name the checksummed samples (the piano's) are kept under, or false. Default: "jinglescript". */
   cache?: string | false;
   /** Replaces the page's `caches` (for tests, or a cache of your own). */
   caches?: SampleCacheStorage;
@@ -85,7 +85,10 @@ async function toCache(cache: SampleCache | undefined, sample: BrowserSample, by
   }
 }
 
-async function loadOne(sample: BrowserSample, cache: SampleCache | undefined, options: BrowserLoadSamplesOptions): Promise<SampleData> {
+async function loadOne(sample: BrowserSample, pageCache: SampleCache | undefined, options: BrowserLoadSamplesOptions): Promise<SampleData> {
+  // Only a sample with a checksum is kept: a cached file without one could not be told from an older
+  // version at the same URL, so those are left to the browser's HTTP cache.
+  const cache = sample.sha256 === undefined ? undefined : pageCache;
   let bytes = await fromCache(cache, sample);
   if (bytes === undefined) {
     options.onDownload?.(sample.file, sample.bytes);

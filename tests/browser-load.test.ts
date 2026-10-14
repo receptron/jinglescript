@@ -105,6 +105,19 @@ describe("browser loadSamples", () => {
     expect(source.get(ranged.key)).toBeDefined();
   });
 
+  it("keeps no sample without a checksum (an older file at the same URL would look current)", async () => {
+    const { caches, entries } = memoryCaches();
+    const unchecked: BrowserSample = { key: "sfx/test", file: "test.wav", url: "https://example.invalid/sfx/test.wav" };
+    const server = serving(wav, 200);
+    await loadBrowserSamples([unchecked], { caches, fetch: server.fetch });
+    await loadBrowserSamples([unchecked], { caches, fetch: server.fetch });
+    expect(server.calls).toEqual([
+      { url: unchecked.url, range: null },
+      { url: unchecked.url, range: null },
+    ]);
+    expect(entries.size).toBe(0);
+  });
+
   it("reports HTTP and network errors with the URL", async () => {
     await expect(loadBrowserSamples([ranged], { cache: false, fetch: serving(new Uint8Array(), 404).fetch })).rejects.toThrow(/test\.wav: HTTP 404/);
     const offline: typeof globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));

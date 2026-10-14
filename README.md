@@ -140,14 +140,15 @@ audio.forEach((channel, i) => buffer.copyToChannel(channel, i));
 // play `buffer`, or offer toWav(audio, sampleRate) as a download
 ```
 
-The browser's `loadSamples` fetches what the score plays and keeps it in the page's Cache API:
+The browser's `loadSamples` fetches what the score plays:
 
 - `grandpiano`: the first 4.5 s of each VCSL recording it plays, through jsDelivr's GitHub mirror
   (GitHub's raw server refuses a browser's ranged request), checked against the same SHA-256 as in
-  Node.
+  Node, and kept in the page's Cache API (`cache`), so a piece is downloaded once.
 - Recorded sound effects: from `sfxBaseUrl`, by default this version of the package on jsDelivr
   (`https://cdn.jsdelivr.net/npm/jinglescript@<version>/samples/sfx/`). Serve `samples/sfx/` yourself
-  and pass its URL to keep the page off the CDN.
+  and pass its URL to keep the page off the CDN. These have no checksum, so they are left to the
+  browser's HTTP cache.
 
 Options: `sfxBaseUrl`, `pianoBaseUrl`, `cache` (a Cache API name, or `false`), `onDownload`,
 `seed`, `fetch`. Audio is WAV only (MP3 and OGG need ffmpeg).

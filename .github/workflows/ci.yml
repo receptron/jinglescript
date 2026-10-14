@@ -110,9 +110,9 @@ jobs:
         run: SMOKE_TARBALL="$(ls "$RUNNER_TEMP"/jinglescript-*.tgz)" scripts/smoke.sh
 
   # The GUI Chat Protocol plugin (gui-plugin/): its own package, typechecked against the library's
-  # source, tested, and built.
+  # source, tested, and built, with the playground it hosts.
   gui-plugin:
-    name: GUI plugin (typecheck, test, build)
+    name: GUI plugin (typecheck, test, build, playground)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -138,3 +138,5 @@ jobs:
       - run: yarn typecheck
       - run: yarn test
       - run: yarn build
+      # The GitHub Pages playground: the library's browser entry and the player view, bundled for a page.
+      - run: yarn playground:build

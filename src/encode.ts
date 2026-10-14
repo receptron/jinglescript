@@ -4,9 +4,7 @@
 import { spawn } from "node:child_process";
 import { toWav } from "./wav.ts";
 import { TAG_KEYS, type AudioTags, type TagKey } from "./tags.ts";
-
-export const AUDIO_FORMATS = ["wav", "mp3", "ogg"] as const;
-export type AudioFormat = (typeof AUDIO_FORMATS)[number];
+import type { AudioFormat } from "./audio-format.ts";
 
 const CODEC: Record<Exclude<AudioFormat, "wav">, string[]> = {
   // VBR around 190 kbit/s: transparent for jingles, small enough for the web.
@@ -29,10 +27,6 @@ export class FfmpegMissingError extends Error {
     super(`${format.toUpperCase()} needs ffmpeg on the PATH (macOS: brew install ffmpeg; Debian/Ubuntu: apt install ffmpeg). WAV works without it.`);
     this.name = "FfmpegMissingError";
   }
-}
-
-export function isAudioFormat(name: string): name is AudioFormat {
-  return AUDIO_FORMATS.some((f) => f === name);
 }
 
 function run(args: string[], input?: Uint8Array): Promise<{ code: number | null; stderr: string; stdout: Uint8Array; missing: boolean }> {
@@ -76,7 +70,6 @@ export async function encodeAudio(
 }
 
 const CONTAINER: Record<Exclude<AudioFormat, "wav">, string> = { mp3: "mp3", ogg: "ogg" };
-export const MIME_TYPES: Record<AudioFormat, string> = { wav: "audio/wav", mp3: "audio/mpeg", ogg: "audio/ogg" };
 
 /** MP3 or OGG bytes in memory (for embedding in a page or a data URI). */
 export async function encodeAudioBytes(

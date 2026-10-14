@@ -41,4 +41,6 @@ yarn test        # vitest, against the library's source
 yarn build       # dist/: index.js (Node), vue.js + style.css (browser)
 yarn definition  # regenerate src/definition.json from the library's zod schema
 yarn demo-data && yarn demo   # a page with the player for three examples
+yarn playground                # the GitHub Pages playground, rendering in the browser
+yarn playground:build          # ../out/playground: what the Pages workflow deploys
 ```

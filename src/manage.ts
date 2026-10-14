@@ -2,17 +2,17 @@
 // The MCP server wraps it (text and files); the GUI Chat Protocol plugin wraps it (a ToolResult
 // whose `data` a player view renders). Each action calls one library function.
 import { z } from "zod";
-import { AUDIO_FORMATS, encodeAudioBytes, FfmpegMissingError, MIME_TYPES, type AudioFormat } from "./encode.ts";
+import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
+import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
-import { MIDI_MIME_TYPE, scoreToMidi } from "./midi.ts";
+import { dataUri, round1, toPlayerData, wavPlayerAudio, type PlayerAudio, type PlayerData } from "./player.ts";
 import { render, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
 import { checkScore, parseScore, type Score } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
-import { toWav } from "./wav.ts";
-import { tagsOf, type AudioTags } from "./tags.ts";
+import { tagsOf } from "./tags.ts";
 
 export const MANAGE_TOOL = "manageJingleScript";
 export const MANAGE_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore"] as const;
@@ -102,25 +102,6 @@ export const ManageInputSchema = z
 
 export type ManageInput = z.infer<typeof ManageInputSchema>;
 
-/** What a player view needs to play a rendered jingle and show its timing. */
-export interface PlayerData {
-  title: string;
-  /** The audio as a data URI. */
-  audio: string;
-  mimeType: string;
-  duration: number;
-  /** Peak level per slice of the audio, 0–1, for drawing the waveform. */
-  peaks: number[];
-  timing: TimingMap;
-  /** Instrument per track, in order. */
-  tracks: string[];
-  loudness: number;
-  /** The score that was rendered, with its defaults filled in. */
-  score: Score;
-  /** The score as a Standard MIDI File, as a data URI. */
-  midi: string;
-}
-
 export interface ManageResult {
   /** For the LLM. */
   text: string;
@@ -141,32 +122,14 @@ export interface ManageOptions {
   player?: boolean;
 }
 
-const PEAK_SLICES = 600;
-
-function peaksOf(audio: readonly Float32Array[]): number[] {
-  const length = audio[0]?.length ?? 0;
-  const size = Math.max(1, Math.ceil(length / PEAK_SLICES));
-  const peaks: number[] = [];
-  for (let start = 0; start < length; start += size) {
-    let peak = 0;
-    for (const channel of audio) for (let i = start; i < Math.min(length, start + size); i++) peak = Math.max(peak, Math.abs(channel[i] ?? 0));
-    peaks.push(Math.round(peak * 1000) / 1000);
-  }
-  return peaks;
-}
-
 /** MP3 when ffmpeg is there (small), otherwise 16-bit WAV. */
-async function embeddedAudio(result: RenderResult, tags: AudioTags): Promise<{ audio: string; mimeType: string }> {
-  let format: AudioFormat = "mp3";
-  let bytes: Uint8Array;
+async function embeddedAudio(result: RenderResult, score: Score): Promise<PlayerAudio> {
   try {
-    bytes = await encodeAudioBytes(result.audio, result.sampleRate, "mp3", tags);
+    return { audio: dataUri(MIME_TYPES.mp3, await encodeAudioBytes(result.audio, result.sampleRate, "mp3", tagsOf(score))), mimeType: MIME_TYPES.mp3 };
   } catch (error) {
     if (!(error instanceof FfmpegMissingError)) throw error;
-    format = "wav";
-    bytes = toWav(result.audio, result.sampleRate, 16, tags);
+    return wavPlayerAudio(result, score);
   }
-  return { audio: `data:${MIME_TYPES[format]};base64,${Buffer.from(bytes).toString("base64")}`, mimeType: MIME_TYPES[format] };
 }
 
 function parseMaybeJson(score: unknown): unknown {
@@ -201,7 +164,6 @@ async function scoreOf(input: ManageInput, options: ManageOptions): Promise<{ ok
     return failed(`${path} is not valid JSON: ${error instanceof Error ? error.message : String(error)}.`);
   }
 }
-const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** The timing map without its per-beat, per-note and per-syllable lists, which are long and rarely needed by the LLM. */
 function timingSummary(timing: TimingMap, trackCount: number, fullTimingAt: string) {
@@ -248,17 +210,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     timing: input.includeTiming ? result.timing : timingSummary(result.timing, score.tracks.length, fullTimingAt),
   };
   if (!options.player) return { text: json(summary), isError: false };
-  const player: PlayerData = {
-    title: score.title ?? stem,
-    ...(await embeddedAudio(result, tagsOf(score))),
-    duration: result.timing.duration,
-    peaks: peaksOf(result.audio),
-    timing: result.timing,
-    tracks: score.tracks.map((t) => t.name ?? t.instrument),
-    loudness: round1(result.stats.loudness),
-    score,
-    midi: `data:${MIDI_MIME_TYPE};base64,${Buffer.from(scoreToMidi(score)).toString("base64")}`,
-  };
+  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score));
   return { text: json(summary), isError: false, player };
 }
 

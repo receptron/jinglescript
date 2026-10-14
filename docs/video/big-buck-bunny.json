@@ -1,0 +1,57 @@
+{
+  "$schema": "../../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Big Buck Bunny: walk and bonks",
+  "tempo": 120,
+  "length": { "seconds": 9.5 },
+  "seed": 1,
+  "cues": {
+    "cut": { "seconds": 5.5 },
+    "bonk1": { "seconds": 6.625 },
+    "bonk2": { "seconds": 7.25 },
+    "bonk3": { "seconds": 7.583 },
+    "bonk4": { "seconds": 7.833 }
+  },
+  "tracks": [
+    {
+      "instrument": "xylophone",
+      "name": "jingle",
+      "gain": -6,
+      "notes": [
+        { "at": 0, "pitch": "C5", "vel": 0.7 },
+        { "at": 0.5, "pitch": "E5", "vel": 0.7 },
+        { "at": 1, "pitch": "G5", "vel": 0.9 },
+        { "at": "bonk4+1", "pitch": "G5", "vel": 0.7 },
+        { "at": "bonk4+1.5", "pitch": "F#5", "vel": 0.6 },
+        { "at": "bonk4+2", "pitch": "F5", "vel": 0.5 }
+      ]
+    },
+    {
+      "instrument": "footsteps",
+      "name": "steps",
+      "notes": [
+        { "at": { "seconds": 0.5 }, "variant": "carpet", "vel": 0.9 },
+        { "at": { "seconds": 1.0 }, "variant": "carpet", "vel": 0.85 },
+        { "at": { "seconds": 1.5 }, "variant": "carpet", "vel": 0.8 },
+        { "at": { "seconds": 2.0 }, "variant": "carpet", "vel": 0.7 },
+        { "at": { "seconds": 2.5 }, "variant": "carpet", "vel": 0.6 },
+        { "at": { "seconds": 3.0 }, "variant": "carpet", "vel": 0.5 },
+        { "at": { "seconds": 3.5 }, "variant": "carpet", "vel": 0.45 },
+        { "at": { "seconds": 4.0 }, "variant": "carpet", "vel": 0.4 },
+        { "at": { "seconds": 4.5 }, "variant": "carpet", "vel": 0.35 },
+        { "at": { "seconds": 5.0 }, "variant": "carpet", "vel": 0.3 }
+      ]
+    },
+    { "instrument": "whoosh", "name": "cut", "notes": [{ "end": "cut", "variant": "fast", "vel": 0.6 }] },
+    {
+      "instrument": "knock",
+      "name": "bonks",
+      "notes": [
+        { "at": "bonk1", "variant": "table", "vel": 0.9 },
+        { "at": "bonk2", "variant": "table", "vel": 0.8 },
+        { "at": "bonk3", "variant": "table", "vel": 0.85 }
+      ]
+    },
+    { "instrument": "metal", "name": "gachan", "notes": [{ "at": "bonk4", "vel": 1 }] }
+  ]
+}

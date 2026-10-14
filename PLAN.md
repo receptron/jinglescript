@@ -1359,3 +1359,9 @@ Decided:
 - 2026-10-14 — User: run it with npx from a skill (#22). `skills/jinglescript/SKILL.md`: guide,
   score in a `.json` file, `check` until it passes, `render`, report cues; README says how to
   install it. A test keeps every `npx -y jinglescript <command>` in it a real CLI command.
+
+- 2026-10-14 — User: show how to put effects and a jingle on a real video, as docs (no new
+  feature). `docs/video-sound-effects.md` with `docs/video/big-buck-bunny.json`: two shots of Big
+  Buck Bunny (CC BY 3.0, downloaded into `out/`, never committed), cues measured from 24 fps frame
+  sheets, rendered and mixed with one ffmpeg command; frames at the four bonk cues show the nut on
+  the bunny's head. `tests/docs.test.ts` keeps the score checking with those cue times.

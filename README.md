@@ -107,6 +107,12 @@ The skill runs the latest published `jinglescript` through npx, as the MCP setup
 on one version, replace `npx -y jinglescript` in it with `npx -y jinglescript@<version>`, and install
 the file from that release's tag instead of `main`.
 
+## Put it on a video
+
+[docs/video-sound-effects.md](docs/video-sound-effects.md) walks through adding footsteps, bonks and
+a jingle to two shots of *Big Buck Bunny* (CC BY) with ffmpeg: find the moments, name them as cues,
+render, mix, and check the frames line up.
+
 ## Hear it in a GUI chat (GUI Chat Protocol)
 
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,

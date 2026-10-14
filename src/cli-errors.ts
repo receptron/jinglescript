@@ -20,6 +20,8 @@ const FILE_PROBLEMS: Readonly<Record<string, string>> = {
   ENOENT: "no such file or folder",
   EISDIR: "is a folder, not a file",
   ENOTDIR: "a part of the path is not a folder",
+  // mkdir of an output folder that is already a file
+  EEXIST: "is a file, not a folder",
   EACCES: "permission denied",
   EPERM: "operation not permitted",
   EROFS: "read-only file system",

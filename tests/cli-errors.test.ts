@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { describe, expect, it } from "vitest";
 import { fileProblem, userFacingMessage } from "../src/cli-errors.ts";
@@ -44,6 +44,8 @@ describe("userFacingMessage", () => {
     expect(fileProblem(folderRead)).toBe("is a folder, not a file");
     expect(userFacingMessage(folderRead)).toBeUndefined();
     expect(fileProblem(new Error("not a file error"))).toBeUndefined();
+    const intoFile = await thrownBy(() => mkdir(new URL("../examples/hatena-marumo-a.json", import.meta.url), { recursive: true }));
+    expect(userFacingMessage(intoFile)).toMatch(/hatena-marumo-a\.json: is a file, not a folder\.$/);
   });
 
   it("leaves everything else to be thrown with its stack", () => {
@@ -68,10 +70,9 @@ describe("the CLI on mistakes a user can fix", () => {
     [["--seed"], /argument missing/],
     [["check", "no-such-file.json"], /no-such-file\.json: no such file or folder\./],
     [["check", new URL("../examples", import.meta.url).pathname], /is a folder, not a file/],
-    [
-      ["render", example, "-o", "/no-such-folder-for-jinglescript/x.wav"],
-      /no-such-folder-for-jinglescript: (no such file or folder|read-only file system|permission denied)\./,
-    ],
+    // An output path through an existing file fails the same way on every machine and user.
+    [["render", example, "-o", `${example}/x.wav`], /hatena-marumo-a\.json: is a file, not a folder\./],
+    [["render", example, "-o", `${example}/sub/x.wav`], /hatena-marumo-a\.json\/sub: a part of the path is not a folder\./],
   ];
   it.each(cases)("%j prints a message, not a stack trace, and exits 1", (args, message) => {
     const { status, stderr } = run(...args);

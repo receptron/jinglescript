@@ -5,22 +5,11 @@ import { basename, dirname, extname } from "node:path";
 import { parseArgs } from "node:util";
 import { demoScore } from "./demo.ts";
 import { AUDIO_FORMATS, isAudioFormat } from "./audio-format.ts";
-import { FfmpegMissingError } from "./encode.ts";
+import { fileProblem, userFacingMessage } from "./cli-errors.ts";
 import { isInstrumentName } from "./instruments/index.ts";
-import {
-  checkScore,
-  formatProblem,
-  getAuthoringGuide,
-  getInstrument,
-  getSchema,
-  JingleScriptError,
-  listInstruments,
-  parseScore,
-  SCHEMA_PARTS,
-} from "./index.ts";
+import { checkScore, formatProblem, getAuthoringGuide, getInstrument, getSchema, listInstruments, parseScore, SCHEMA_PARTS } from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
-import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
 import { packageVersion } from "./version.ts";
 import { WAV_BITS } from "./wav.ts";
@@ -37,27 +26,48 @@ const USAGE = `Usage:
                                               (renders go to <dir>, default out/jinglescript)
   jinglescript --version                      print the installed version`;
 
-const { positionals, values: args } = parseArgs({
-  allowPositionals: true,
-  options: {
-    out: { type: "string", short: "o" },
-    seed: { type: "string" },
-    rate: { type: "string" },
-    bits: { type: "string" },
-    json: { type: "boolean" },
-    help: { type: "boolean", short: "h" },
-    version: { type: "boolean", short: "v" },
-  },
-});
-
 function fail(message: string): never {
   console.error(message);
   process.exit(1);
 }
 
+/** Reports `error` as a message when the user can fix it; otherwise rethrows it with its stack. */
+function failOrThrow(error: unknown): never {
+  const message = userFacingMessage(error);
+  if (message !== undefined) fail(message);
+  throw error;
+}
+
+function parseCli() {
+  try {
+    return parseArgs({
+      allowPositionals: true,
+      options: {
+        out: { type: "string", short: "o" },
+        seed: { type: "string" },
+        rate: { type: "string" },
+        bits: { type: "string" },
+        json: { type: "boolean" },
+        help: { type: "boolean", short: "h" },
+        version: { type: "boolean", short: "v" },
+      },
+    });
+  } catch (error) {
+    return failOrThrow(error);
+  }
+}
+
+const { positionals, values: args } = parseCli();
+
 async function readJson(file: string | undefined): Promise<unknown> {
   if (file === undefined) fail(`Missing score file.\n\n${USAGE}`);
-  const text = await readFile(file, "utf8");
+  let text: string;
+  try {
+    text = await readFile(file, "utf8");
+  } catch (error) {
+    const problem = fileProblem(error);
+    return problem === undefined ? failOrThrow(error) : fail(`${file}: ${problem}.`);
+  }
   try {
     const data: unknown = JSON.parse(text);
     return data;
@@ -193,7 +203,5 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  // Problems the user can fix are reported as messages, not stack traces.
-  if (error instanceof JingleScriptError || error instanceof FfmpegMissingError || error instanceof SampleDownloadError) fail(error.message);
-  throw error;
+  failOrThrow(error);
 }

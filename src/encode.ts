@@ -29,6 +29,16 @@ export class FfmpegMissingError extends Error {
   }
 }
 
+/** ffmpeg ran but could not write the output file (a folder in the way, no permission, …). */
+export class FfmpegWriteError extends Error {
+  readonly path: string;
+  constructor(path: string, reason: string) {
+    super(`ffmpeg could not write ${path}: ${reason}`);
+    this.name = "FfmpegWriteError";
+    this.path = path;
+  }
+}
+
 function run(args: string[], input?: Uint8Array): Promise<{ code: number | null; stderr: string; stdout: Uint8Array; missing: boolean }> {
   return new Promise((resolve) => {
     const child = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -66,7 +76,7 @@ export async function encodeAudio(
     toWav(audio, sampleRate, 24),
   );
   if (result.missing) throw new FfmpegMissingError(format);
-  if (result.code !== 0) throw new Error(`ffmpeg could not write ${path}: ${result.stderr.trim()}`);
+  if (result.code !== 0) throw new FfmpegWriteError(path, result.stderr.trim());
 }
 
 const CONTAINER: Record<Exclude<AudioFormat, "wav">, string> = { mp3: "mp3", ogg: "ogg" };

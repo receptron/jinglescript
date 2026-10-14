@@ -111,7 +111,8 @@ the file from that release's tag instead of `main`.
 
 [docs/video-sound-effects.md](docs/video-sound-effects.md) walks through adding footsteps, bonks and
 a jingle to two shots of *Big Buck Bunny* (CC BY) with ffmpeg: find the moments, name them as cues,
-render, mix, and check the frames line up.
+render, mix, and check the frames line up; then burn in telops on cues and karaoke captions from the
+lyrics, with ffmpeg's ASS subtitles.
 
 ## Hear it in a GUI chat (GUI Chat Protocol)
 

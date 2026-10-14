@@ -105,6 +105,47 @@ done
 Then watch it and listen. If a sound is early or late, change its cue in the score and render
 again; the video command does not change.
 
+## 7. Add telops and karaoke captions
+
+The timing map that put the sounds on the frames can place text on them too. ffmpeg burns in
+[ASS](https://github.com/libass/libass) subtitles (`-vf subtitles=…`; ffmpeg must be built with
+libass, as Homebrew's and most Linux builds are), and
+[`docs/video/make-captions.ts`](video/make-captions.ts) writes them from a timing map:
+
+- **telops**: short captions that pop in on a cue, from a list like
+  [`docs/video/big-buck-bunny-telops.json`](video/big-buck-bunny-telops.json)
+  (`at` is a cue name or seconds, `hold` how long it stays);
+- **karaoke**: when the score has lyrics, each line appears at its first syllable and fills syllable
+  by syllable, each on its own note.
+
+The script runs from a clone (Node 22.18 or newer runs it directly). Japanese needs a font that has
+it: the default is macOS's `Hiragino Maru Gothic ProN`; elsewhere pass one you have, such as
+`--font "Noto Sans CJK JP"`.
+
+```sh
+mkdir -p out/captions
+node docs/video/make-captions.ts out/bbb/sfx.timing.json docs/video/big-buck-bunny-telops.json \
+  > out/captions/big-buck-bunny.ass
+ffmpeg -i out/bbb/big-buck-bunny-sfx.mp4 -vf "subtitles=out/captions/big-buck-bunny.ass" \
+  -c:v libx264 -crf 20 -pix_fmt yuv420p -c:a copy out/captions/big-buck-bunny-telops.mp4
+```
+
+"てくてく…" runs over the walk, "コツン!" pops on each knock and "ガチャン!!" on the clang.
+
+Karaoke for a score with lyrics, here on a plain background:
+
+```sh
+npx -y jinglescript render examples/lyrics-hatena.json -o out/captions/lyrics.wav
+node docs/video/make-captions.ts out/captions/lyrics.timing.json > out/captions/lyrics.ass
+ffmpeg -f lavfi -i "color=c=0x1b2a4a:s=1280x720:r=30:d=6" -i out/captions/lyrics.wav \
+  -vf "subtitles=out/captions/lyrics.ass" -c:v libx264 -crf 20 -pix_fmt yuv420p -c:a aac -shortest \
+  out/captions/lyrics-karaoke.mp4
+```
+
+The look (font size, colours, outline, position, the pop) is in the two `Style:` lines and the
+telop's override tags in `captions.ts`; change them there. For captions that move more than ASS
+can, the same timing map can drive a motion-graphics tool instead.
+
 ## The same idea on any video
 
 - **One shot, one jingle**: render the jingle, read the cue from its timing map, and start the

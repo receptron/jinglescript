@@ -8,6 +8,9 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
                                            └──► timing.json (cues, beats, note onsets, lyrics)
 ```
 
+**Try it in your browser: [the playground](https://receptron.github.io/jinglescript/)** — pick an
+example or edit a score, and hear it rendered in the page (no server).
+
 - Everything is synthesized in code — except two things that play recordings. `grandpiano` plays a
   real grand piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)
   (CC0, public domain). Those samples are not in the package: the first render that uses

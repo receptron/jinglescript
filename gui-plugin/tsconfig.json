@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "jsx": "preserve",
     // Type-check against the library's source, as the root repo does.
-    "paths": { "jinglescript": ["../src/index.ts"] }
+    "paths": { "jinglescript": ["../src/index.ts"], "jinglescript/browser": ["../src/browser.ts"] }
   },
-  "include": ["src", "tests", "scripts", "demo", "vite.config.ts"]
+  "include": ["src", "tests", "scripts", "demo", "playground", "vite.config.ts"]
 }

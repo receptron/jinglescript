@@ -1350,3 +1350,9 @@ Decided:
   Fetch-and-check (`src/samples/fetch-sample.ts`, WebCrypto SHA-256) and the piano table are shared
   with the Node loader. Renders with the browser loader are PCM-identical to Node's for
   `recorded-effects.json` and `a-grandpiano.json`.
+- 2026-10-14 — Playground (M10 part 3, #15): `gui-plugin/playground/`, a vite page (Vue + Tailwind)
+  that renders in a Web Worker with `jinglescript/browser` and plays in the plugin's own player view.
+  It serves `samples/sfx/` next to the page. Deployed to GitHub Pages by `.github/workflows/pages.yml`
+  on push to main; CI builds it on every PR. PlayerData is now built in `src/player.ts` (Node-free;
+  `manage()` uses it, with byte-identical output). Checked in headless Chrome: five examples render,
+  including the recorded effects and grandpiano, at phone width and in dark mode, with no console error.

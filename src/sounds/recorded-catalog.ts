@@ -2,6 +2,7 @@
 // plays. The WAVs live in samples/sfx/ (made by scripts/import-sfx.ts from these sources) and are
 // read by loadSamples() from the installed package, never downloaded. A variant with several takes
 // plays one of them, chosen by the note's seeded random stream.
+import { sampleKey } from "../samples/source.ts";
 
 /** One recording: its file in samples/sfx/ (without .wav) and where it came from. */
 export interface RecordedTake {
@@ -61,3 +62,6 @@ export const SFX_SAMPLE_RATE = 48000;
 export function allTakes(): RecordedTake[] {
   return Object.values(RECORDED_EFFECTS).flatMap((variants: RecordedVariants) => Object.values(variants).flat());
 }
+
+/** Sample key → file name in samples/sfx/, for every recording. */
+export const SFX_FILES: ReadonlyMap<string, string> = new Map(allTakes().map((take) => [sampleKey(SFX_SET, take.file), `${take.file}.wav`]));

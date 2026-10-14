@@ -14,9 +14,14 @@ export const PREFIX_SECONDS = 4.5;
 /** Names the cache folder: a new commit or prefix length is a new folder, never a mix. */
 export const PIANO_SET = `vcsl-${VCSL_COMMIT.slice(0, 12)}-steinway-b-${PREFIX_SECONDS}s`;
 
+export const encodePath = (path: string): string => path.split("/").map(encodeURIComponent).join("/");
+
 export function vcslUrl(path: string): string {
-  return `https://raw.githubusercontent.com/${VCSL_REPO}/${VCSL_COMMIT}/${path.split("/").map(encodeURIComponent).join("/")}`;
+  return `https://raw.githubusercontent.com/${VCSL_REPO}/${VCSL_COMMIT}/${encodePath(path)}`;
 }
+
+/** The same commit through jsDelivr's GitHub mirror: raw.githubusercontent.com fails a browser's ranged CORS request. */
+export const VCSL_CDN_BASE_URL = `https://cdn.jsdelivr.net/gh/${VCSL_REPO}@${VCSL_COMMIT}/`;
 
 /**
  * One sample: the sampled pitch ("A#0"), the VCSL velocity layer (2 soft to 4 loud), the bytes

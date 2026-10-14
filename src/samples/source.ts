@@ -16,6 +16,22 @@ export function sampleKey(set: string, file: string): string {
   return `${set}/${file}`;
 }
 
+const PARALLEL_LOADS = 6;
+
+/** Loads each sample, a few at a time, into a SampleSource keyed by `sample.key`. */
+export async function loadInBatches<T extends { key: string }>(samples: readonly T[], load: (sample: T) => Promise<SampleData>): Promise<SampleSource> {
+  const loaded = new Map<string, SampleData>();
+  for (let i = 0; i < samples.length; i += PARALLEL_LOADS) {
+    const batch = samples.slice(i, i + PARALLEL_LOADS);
+    const data = await Promise.all(batch.map(load));
+    batch.forEach((sample, k) => {
+      const d = data[k];
+      if (d !== undefined) loaded.set(sample.key, d);
+    });
+  }
+  return { get: (key) => loaded.get(key) };
+}
+
 /** No samples at all: what render() uses when it is given none. */
 export const NO_SAMPLES: SampleSource = { get: () => undefined };
 

@@ -19,7 +19,7 @@ import {
 } from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
 import { renderToFiles } from "./output.ts";
-import { SampleDownloadError } from "./samples/load.ts";
+import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
 import { packageVersion } from "./version.ts";
 import { WAV_BITS } from "./wav.ts";

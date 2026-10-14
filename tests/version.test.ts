@@ -9,7 +9,7 @@ const stripTypes = process.features.typescript ? [] : ["--experimental-strip-typ
 const { version } = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
 
 describe("version", () => {
-  it("is package.json's", () => {
+  it("is package.json's (src/version.ts is stale: run `node scripts/write-version.ts`)", () => {
     expect(packageVersion()).toBe(version);
   });
 

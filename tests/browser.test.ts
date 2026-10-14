@@ -60,11 +60,9 @@ describe("jinglescript/browser", () => {
     expect([...importGraph("../src/index.ts").external]).toEqual(expect.arrayContaining(["node:fs/promises", "node:child_process"]));
   });
 
-  it("exports everything the Node entry does except what needs Node", () => {
+  it("exports everything the Node entry does except what needs Node, plus its own loader's defaults", () => {
     const nodeOnly = [
-      "loadSamples",
       "defaultCacheDir",
-      "SampleDownloadError",
       "renderToFiles",
       "manage",
       "ManageInputSchema",
@@ -75,10 +73,8 @@ describe("jinglescript/browser", () => {
       "AUDIO_FORMATS",
       "FfmpegMissingError",
     ];
-    expect(Object.keys(browser).sort()).toEqual(
-      Object.keys(node)
-        .filter((name) => !nodeOnly.includes(name))
-        .sort(),
-    );
+    const browserOnly = ["DEFAULT_SFX_BASE_URL", "DEFAULT_CACHE_NAME"];
+    expect(Object.keys(browser).sort()).toEqual([...Object.keys(node).filter((name) => !nodeOnly.includes(name)), ...browserOnly].sort());
+    expect(browser.loadSamples).not.toBe(node.loadSamples);
   });
 });

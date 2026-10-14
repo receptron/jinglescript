@@ -129,17 +129,29 @@ MCP tool): parse and check, `render`, `toWav`, `scoreToMidi`, the timing map, an
 It renders in the page, with no server, to the same bit-identical audio.
 
 ```ts
-import { parseScore, render, toWav } from "jinglescript/browser";
+import { parseScore, render, loadSamples, toWav } from "jinglescript/browser";
 
-const { audio, sampleRate, timing } = render(parseScore(json));
+const score = parseScore(json);
+const samples = await loadSamples(score); // only when it plays grandpiano or a recorded effect
+const { audio, sampleRate, timing } = render(score, { samples });
 const context = new AudioContext({ sampleRate });
 const buffer = context.createBuffer(2, audio[0].length, sampleRate);
 audio.forEach((channel, i) => buffer.copyToChannel(channel, i));
 // play `buffer`, or offer toWav(audio, sampleRate) as a download
 ```
 
-The browser entry has no sample loader yet: a score that plays `grandpiano` or a recorded sound
-effect throws `SamplesNotLoadedError`. Audio is WAV only (MP3 and OGG need ffmpeg).
+The browser's `loadSamples` fetches what the score plays:
+
+- `grandpiano`: the first 4.5 s of each VCSL recording it plays, through jsDelivr's GitHub mirror
+  (GitHub's raw server refuses a browser's ranged request), checked against the same SHA-256 as in
+  Node, and kept in the page's Cache API (`cache`), so a piece is downloaded once.
+- Recorded sound effects: from `sfxBaseUrl`, by default this version of the package on jsDelivr
+  (`https://cdn.jsdelivr.net/npm/jinglescript@<version>/samples/sfx/`). Serve `samples/sfx/` yourself
+  and pass its URL to keep the page off the CDN. These have no checksum, so they are left to the
+  browser's HTTP cache.
+
+Options: `sfxBaseUrl`, `pianoBaseUrl`, `cache` (a Cache API name, or `false`), `onDownload`,
+`seed`, `fetch`. Audio is WAV only (MP3 and OGG need ffmpeg).
 
 ## How to write a jingle
 

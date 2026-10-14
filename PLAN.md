@@ -1365,3 +1365,9 @@ Decided:
   Buck Bunny (CC BY 3.0, downloaded into `out/`, never committed), cues measured from 24 fps frame
   sheets, rendered and mixed with one ffmpeg command; frames at the four bonk cues show the nut on
   the bunny's head. `tests/docs.test.ts` keeps the score checking with those cue times.
+- 2026-10-14 — User: check the piano examples' copyright notices. Every file's licence matches
+  `examples/piano/README.md`, and each Mutopia source's licence was checked on mutopiaproject.org
+  (PD, or CC BY-SA 2.5 / 3.0 / 4.0, which allow BY-SA 4.0 adaptations). The four CC BY-SA files'
+  `copyright` — written into rendered audio and MIDI — now names the licence URL and the Mutopia
+  edition, typesetter and licence, so the credit travels without the README; the test requires it.
+  Moonlight III's "Chris Sawer and Stewart Holmes" is confirmed by the Mutopia .ly files.

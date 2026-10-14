@@ -2,7 +2,7 @@
   "format": "jinglescript/1",
   "title": "Piano Sonata No.14 'Moonlight', Op.27 No.2 - I. Adagio sostenuto (Beethoven)",
   "author": "Satoshi Nakajima",
-  "copyright": "© 2026 Satoshi Nakajima — CC BY-SA 4.0",
+  "copyright": "© 2026 Satoshi Nakajima — CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Adapted from the Mutopia Project edition Mutopia-2007/02/11-276, typeset by Stewart Holmes, CC BY-SA 2.5 (https://www.mutopiaproject.org/).",
   "tempo": 60,
   "length": { "seconds": 331.0 },
   "master": { "reverb": "hall", "fadeOut": 2 },

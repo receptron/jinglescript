@@ -43,6 +43,9 @@ These score files are **not** covered by the repository's MIT licence. Each carr
   commercially, with attribution: <https://creativecommons.org/licenses/by/4.0/>.
 - **CC BY-SA 4.0** — © 2026 Satoshi Nakajima. Adapted from Mutopia Project editions released under CC BY-SA;
   adaptations must keep the same licence and the credits below: <https://creativecommons.org/licenses/by-sa/4.0/>.
+  Their `copyright` field also names the licence URL and the Mutopia edition, its typesetter and its licence,
+  because that field is written into every audio and MIDI file rendered from them; keep it when you share
+  the score or its audio.
 
 ## Credits and sources
 
@@ -60,11 +63,11 @@ These score files are **not** covered by the repository's MIT licence. Each carr
   Source: Augener edition (ed. E. Pauer), public domain — IMSLP: https://imslp.org/wiki/Grandes_%C3%A9tudes_de_Paganini,_S.141_(Liszt,_Franz)
 - **La fille aux cheveux de lin (Préludes, Book 1, No.8, L.117/8)** — Music: Claude Debussy (public domain). Transcribed note by note from the Durand 1910 first-edition scan (IMSLP #521885) and checked bar by bar against it; there is no Mutopia Project edition of this prelude, and no other edition or MIDI file was consulted.
   Source: Durand & Cie, Paris, 1910, plate D. & F. 7687 (Préludes, 1er Livre, No.VIII, pp.31–32), public domain — IMSLP #521885
-- **Piano Sonata No.14 "Moonlight", Op.27 No.2 — I. Adagio sostenuto** — Music: Ludwig van Beethoven (public domain). Derived from the Mutopia Project edition typeset by Stewart Holmes (2007), source Berners 1908 ed. A. Winterberger, CC BY-SA 2.5 — https://www.mutopiaproject.org/ . Checked against the Cappi 1802 first edition (IMSLP #15808). Derived score and audio are CC BY-SA 4.0 (see Licence above).
+- **Piano Sonata No.14 "Moonlight", Op.27 No.2 — I. Adagio sostenuto** — Music: Ludwig van Beethoven (public domain). Derived from the Mutopia Project edition typeset by Stewart Holmes (Mutopia-2007/02/11-276), source Berners 1908 ed. A. Winterberger, CC BY-SA 2.5 — https://www.mutopiaproject.org/ . Checked against the Cappi 1802 first edition (IMSLP #15808). Derived score and audio are CC BY-SA 4.0 (see Licence above).
   Source: Gio. Cappi e Comp., Vienna, n.d. [1802], plate 879 (first edition), public domain — IMSLP #15808
 - **Piano Sonata No.14 "Moonlight", Op.27 No.2 — III. Presto agitato** — Music: Ludwig van Beethoven (public domain). Derived from the Mutopia Project edition typeset by Chris Sawer and Stewart Holmes (Mutopia-2007/02/11-276), source Berners 1908 ed. A. Winterberger, CC BY-SA 2.5 — https://www.mutopiaproject.org/ . Checked system by system against the Cappi 1802 first edition (IMSLP #15808), with the exposition repeat written out (first and second endings as printed). Derived score and audio are CC BY-SA 4.0 (see Licence above).
   Source: Gio. Cappi e Comp., Vienna, n.d. [1802], plate 879 (first edition), public domain — IMSLP #15808
-- **Nocturne in E-flat major, Op.9 No.2** — Music: Frédéric Chopin (public domain). Derived from the Mutopia Project edition typeset by Renato Biolcati Rinaldi (2014), source G. Schirmer 1881, CC BY-SA 3.0 — https://www.mutopiaproject.org/ . Checked against the Kullak Instructive Edition (Schlesinger/Schirmer 1881, IMSLP #80717). Derived score and audio are CC BY-SA 4.0 (see Licence above).
+- **Nocturne in E-flat major, Op.9 No.2** — Music: Frédéric Chopin (public domain). Derived from the Mutopia Project edition typeset by Renato Biolcati Rinaldi (Mutopia-2014/12/18-1590), source G. Schirmer 1881, CC BY-SA 3.0 — https://www.mutopiaproject.org/ . Checked against the Kullak Instructive Edition (Schlesinger/Schirmer 1881, IMSLP #80717). Derived score and audio are CC BY-SA 4.0 (see Licence above).
   Source: Klavierwerke, Instructive Ausgabe Vol.V (ed. Th. Kullak), Schlesinger, Berlin 1881, co-issued by G. Schirmer, New York, public domain — IMSLP #80717
 - **Piano Sonata No.8 "Pathétique", Op.13 — II. Adagio cantabile** — Music: Ludwig van Beethoven (public domain). Notes converted from the Mutopia Project edition by Chris Sawer (public domain dedication; sources Berners 1908 ed. Winterberger and Peters 1910), checked against the C.F. Peters ca.1910 print (IMSLP #30364).
   Source: C.F. Peters, Leipzig, n.d. (ca.1910), Sonaten für Pianoforte solo Bd.1, plate 9452, public domain — IMSLP #30364

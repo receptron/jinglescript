@@ -37,6 +37,8 @@ const tab = ref<(typeof TABS)[number]["id"]>("gui");
 const history = ref<History>(EMPTY_HISTORY);
 let editTimer: ReturnType<typeof setTimeout> | undefined;
 let unmounted = false;
+/** Counts example picks: a load that finishes after a newer pick is dropped. */
+let pickCount = 0;
 
 /** The score the timeline edits, or why the JSON is not one. */
 const editable = computed<{ score: ScoreInput } | { problem: string }>(() => {
@@ -184,13 +186,15 @@ async function pick(name: string): Promise<void> {
   if (!example || busy.value) return;
   clearTimeout(editTimer);
   editTimer = undefined;
+  const pickId = ++pickCount;
   const previous = selected.value;
   selected.value = name;
   try {
     const loaded = await example.load();
-    if (unmounted) return;
+    if (unmounted || pickId !== pickCount) return;
     source.value = JSON.stringify(loaded, null, 2);
   } catch (error) {
+    if (unmounted || pickId !== pickCount) return;
     selected.value = previous; // the editor still holds the previous score
     status.value = `Could not load the example ${name}: ${error instanceof Error ? error.message : String(error)}. Reload the page.`;
     return;

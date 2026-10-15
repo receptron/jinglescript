@@ -6,15 +6,14 @@ import type { PlayerData, ScoreProblem } from "jinglescript/browser";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import View from "../src/vue/View.vue";
 import { DEFAULT_EXAMPLE, EXAMPLES } from "./examples.ts";
-import type { RenderReply, RenderRequest } from "./messages.ts";
+import type { RenderReply } from "./messages.ts";
+import { createRenderClient } from "./render-client.ts";
 
 const REPO_URL = "https://github.com/receptron/jinglescript";
 const GROUPS = ["Examples", "Piano classics"] as const;
 const LONG_PIECE_SECONDS = 60;
 
-let worker = startWorker();
-/** The worker reported an error and may never answer: the next render starts a fresh one. */
-let workerFailed = false;
+const renderer = createRenderClient({ onReply, onFailure: fail });
 const selected = ref(DEFAULT_EXAMPLE);
 /** The player's title when the score has none: the example's name, until the score is edited. */
 const fallbackName = ref(DEFAULT_EXAMPLE);
@@ -24,7 +23,6 @@ const status = ref("");
 const problems = ref<{ kind: "error" | "warning"; problem: ScoreProblem }[]>([]);
 const result = ref<ToolResultComplete<PlayerData> | undefined>();
 const timingUrl = ref<string | undefined>();
-let renderId = 0;
 
 const timingSummary = computed(() => {
   const timing = result.value?.data?.timing;
@@ -62,12 +60,10 @@ function renderScore(): void {
   if (busy.value) return;
   const score = parseSource();
   if (score === undefined) return;
-  if (workerFailed) replaceWorker(); // it can fail before any render is posted, and would then never reply
   busy.value = true;
   status.value = "Rendering…";
   problems.value = [];
-  const request: RenderRequest = { id: ++renderId, score, name: fallbackName.value, sfxBaseUrl: new URL("sfx/", document.baseURI).href };
-  worker.postMessage(request);
+  renderer.request({ score, name: fallbackName.value, sfxBaseUrl: new URL("sfx/", document.baseURI).href });
 }
 
 function onDone(reply: Extract<RenderReply, { kind: "done" }>): void {
@@ -84,7 +80,6 @@ function onDone(reply: Extract<RenderReply, { kind: "done" }>): void {
 }
 
 function onReply(reply: RenderReply): void {
-  if (reply.id !== renderId) return;
   if (reply.kind === "downloading") {
     status.value = `Downloading samples (${reply.count}): ${reply.file}`;
     return;
@@ -125,37 +120,15 @@ function onKey(event: KeyboardEvent): void {
   if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) renderScore();
 }
 
-function startWorker(): Worker {
-  const started = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
-  // Only the current worker may change the page: a replaced one can still have events in flight.
-  const current = (): boolean => started === worker;
-  started.addEventListener("message", (event: MessageEvent<RenderReply>) => current() && onReply(event.data));
-  // A worker that cannot load (a stale tab after a redeploy) or a reply that cannot be read sends no message.
-  started.addEventListener("error", (event) => {
-    if (!current()) return;
-    workerFailed = true;
-    fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`);
-  });
-  started.addEventListener("messageerror", () => current() && fail("The renderer's answer could not be read. Reload the page."));
-  return started;
-}
-
-function replaceWorker(): void {
-  worker.terminate();
-  worker = startWorker();
-  workerFailed = false;
-}
-
 /** Render is synchronous inside the worker, so stopping it means replacing the worker. */
 function stop(): void {
-  replaceWorker();
-  renderId++;
+  renderer.restart();
   fail("Stopped.");
 }
 
 onMounted(() => void pick(DEFAULT_EXAMPLE));
 onBeforeUnmount(() => {
-  worker.terminate();
+  renderer.terminate();
   clearResult();
 });
 </script>
@@ -170,6 +143,7 @@ onBeforeUnmount(() => {
         </p>
       </div>
       <nav class="flex gap-4 text-sm">
+        <a class="font-medium text-sky-700 underline dark:text-sky-400" href="./studio.html">🎬 No-code studio</a>
         <a class="text-sky-700 underline dark:text-sky-400" :href="`${REPO_URL}#how-to-write-a-jingle`">How to write a score</a>
         <a class="text-sky-700 underline dark:text-sky-400" :href="REPO_URL">GitHub</a>
         <a class="text-sky-700 underline dark:text-sky-400" href="https://www.npmjs.com/package/jinglescript">npm</a>

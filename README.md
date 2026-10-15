@@ -8,8 +8,12 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
                                            └──► timing.json (cues, beats, note onsets, lyrics)
 ```
 
-**Try it in your browser: [the playground](https://receptron.github.io/jinglescript/)** — pick an
-example or edit a score, and hear it rendered in the page (no server).
+**Try it in your browser** (no server, nothing to install):
+
+- **[Studio](https://receptron.github.io/jinglescript/studio.html)**, for video editors: drop in a
+  video (or use the demo clip), press M where something happens, pick a sound from buttons, choose a
+  music style, and hear it land on the frame. Download the WAV and the timing map.
+- **[Playground](https://receptron.github.io/jinglescript/)**: pick an example or edit a score's JSON.
 
 - Everything is synthesized in code — except two things that play recordings. `grandpiano` plays a
   real grand piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)

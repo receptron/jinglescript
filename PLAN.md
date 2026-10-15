@@ -1377,3 +1377,11 @@ Decided:
   `copyright` — written into rendered audio and MIDI — now names the licence URL and the Mutopia
   edition, typesetter and licence, so the credit travels without the README; the test requires it.
   Moonlight III's "Chris Sawer and Stewart Holmes" is confirmed by the Mutopia .ly files.
+- 2026-10-15 — User: the playground is great but JSON is a lot for video editors, the main users;
+  add a page edited with buttons (#30). `gui-plugin/playground/studio.html`: your video (kept in the
+  browser) or a built-in canvas demo clip; marks added at the playhead (M), a sound per mark from
+  buttons (lead-ins end on the mark), a music style that lands its chord on the ⭐ mark; re-rendered
+  in the playground's worker on every change and played in sync; WAV, timing map, ffmpeg command and
+  the score's JSON to take away. The score comes from a pure `studioScore` (a seeded property test:
+  every generated score checks). Checked in Chrome against the rendered timing map: each edit moves
+  the sound or chord to its mark.

@@ -1,7 +1,6 @@
-// The page's side of the render worker, shared by the playground and the studio. Only the latest
-// request's reply reaches the page: any request, or invalidate(), makes earlier replies stale. A
-// worker that fails is replaced before the next request, and events from a replaced worker are
-// ignored.
+// The page's side of the render worker. Only the latest request's reply reaches the page: any
+// request, or invalidate(), makes earlier replies stale. A worker that fails is replaced before the
+// next request, and events from a replaced worker are ignored.
 import type { RenderReply, RenderRequest } from "./messages.ts";
 
 /** The part of a Worker the client uses (so tests can pass a fake). */

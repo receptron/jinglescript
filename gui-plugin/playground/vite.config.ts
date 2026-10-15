@@ -12,5 +12,10 @@ export default defineConfig({
   publicDir: resolve(import.meta.dirname, "../../samples"),
   resolve: { alias: { "jinglescript/browser": resolve(import.meta.dirname, "../../src/browser.ts") } },
   worker: { format: "es" },
-  build: { outDir: resolve(import.meta.dirname, "../../out/playground"), emptyOutDir: true },
+  build: {
+    outDir: resolve(import.meta.dirname, "../../out/playground"),
+    emptyOutDir: true,
+    // Two pages: the JSON playground and the no-code studio.
+    rollupOptions: { input: { index: resolve(import.meta.dirname, "index.html"), studio: resolve(import.meta.dirname, "studio.html") } },
+  },
 });

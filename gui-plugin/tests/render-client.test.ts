@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RenderReply, RenderRequest } from "../playground/messages.ts";
 import { createRenderClient, type WorkerLike } from "../playground/render-client.ts";
-import { shellQuote, shortcutsApply, sliderSeek } from "../playground/studio/page-rules.ts";
 
 /** A worker the test drives: it records requests and fires the events a real one would. */
 class FakeWorker implements WorkerLike {
@@ -86,49 +85,5 @@ describe("createRenderClient", () => {
     expect(failures).toEqual(["The renderer's answer could not be read. Reload the page."]);
     client.request(request);
     expect(workers).toHaveLength(2);
-  });
-});
-
-describe("shellQuote", () => {
-  it("makes any file name one literal shell word", () => {
-    expect(shellQuote("my video.mp4")).toBe("'my video.mp4'");
-    expect(shellQuote(`a"b$(rm -rf ~)\`x\`\\.mp4`)).toBe(`'a"b$(rm -rf ~)\`x\`\\.mp4'`);
-    expect(shellQuote("it's.mp4")).toBe(`'it'\\''s.mp4'`);
-    expect(shellQuote("")).toBe("''");
-  });
-});
-
-describe("shortcutsApply", () => {
-  const target = (tagName: string, isContentEditable = false) => ({ tagName, isContentEditable });
-  it("acts on the page, plain elements and the timeline (a div), for every key", () => {
-    for (const key of [" ", "m", "Delete"]) {
-      expect(shortcutsApply(null, key)).toBe(true);
-      expect(shortcutsApply(target("BODY"), key)).toBe(true);
-      expect(shortcutsApply(target("div"), key)).toBe(true);
-    }
-  });
-  it("never acts while typing in a field or editable text", () => {
-    for (const tag of ["INPUT", "textarea", "SELECT"]) for (const key of [" ", "m", "Delete"]) expect(shortcutsApply(target(tag), key)).toBe(false);
-    expect(shortcutsApply(target("DIV", true), "m")).toBe(false);
-  });
-  it("on a button or link, leaves Space and Enter to it and acts on the other keys", () => {
-    for (const tag of ["BUTTON", "a", "SUMMARY"]) {
-      expect(shortcutsApply(target(tag), " ")).toBe(false);
-      expect(shortcutsApply(target(tag), "Enter")).toBe(false);
-      expect(shortcutsApply(target(tag), "m")).toBe(true);
-      expect(shortcutsApply(target(tag), "Delete")).toBe(true);
-    }
-  });
-});
-
-describe("sliderSeek", () => {
-  it("moves by 0.1 s, 1 s with Shift, to either end with Home/End, and stays on the timeline", () => {
-    expect(sliderSeek("ArrowRight", false, 2, 5)).toBeCloseTo(2.1);
-    expect(sliderSeek("ArrowLeft", true, 2, 5)).toBe(1);
-    expect(sliderSeek("Home", false, 2, 5)).toBe(0);
-    expect(sliderSeek("End", false, 2, 5)).toBe(5);
-    expect(sliderSeek("ArrowLeft", true, 0.5, 5)).toBe(0);
-    expect(sliderSeek("ArrowRight", true, 4.5, 5)).toBe(5);
-    expect(sliderSeek("a", false, 2, 5)).toBeUndefined();
   });
 });

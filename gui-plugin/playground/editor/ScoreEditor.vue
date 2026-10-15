@@ -60,6 +60,8 @@ const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
 const now = ref<number | undefined>();
 let pendingPlayFrom: number | undefined;
+/** The score this editor last handed up, as JSON: a score that differs came from elsewhere. */
+let lastEdit: string | undefined;
 let frame = 0;
 
 const expanded = computed(() => {
@@ -85,17 +87,20 @@ const cueRows = computed(() => Object.entries(context.value.cues).map(([name, se
 const lengthForm = computed(() => ("beats" in props.score.length ? "beats" : "seconds"));
 const lengthValue = computed(() => ("beats" in props.score.length ? props.score.length.beats : props.score.length.seconds));
 
-// A selection that no longer exists (an undo, a JSON edit) is dropped.
+// A score from elsewhere (undo, redo, the JSON tab, another example) may have moved the notes the
+// selection's indices point at, so it is dropped.
 watch(
   () => props.score,
-  () => {
-    if (selected.value && !selectedNote.value) selected.value = undefined;
+  (score) => {
+    if (JSON.stringify(score) !== lastEdit) selected.value = undefined;
+    lastEdit = undefined;
   },
 );
 
 /** Hands up the next score; when `playFrom` is given, plays from just before it once it is rendered. */
 function edit(next: ScoreInput, playFrom?: number): void {
   pendingPlayFrom = playFrom === undefined ? undefined : Math.max(0, playFrom - LEAD_IN_SECONDS);
+  lastEdit = JSON.stringify(next);
   emit("edit", next);
 }
 
@@ -232,8 +237,10 @@ function pause(): void {
 }
 
 function togglePlay(): void {
-  if (playing.value) pause();
-  else void play(audio.value?.ended ? 0 : undefined);
+  if (playing.value) {
+    pendingPlayFrom = undefined; // a pause outlasts an edit's render
+    pause();
+  } else void play(audio.value?.ended ? 0 : undefined);
 }
 
 function onEnded(): void {

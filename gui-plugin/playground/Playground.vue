@@ -36,6 +36,7 @@ const timingUrl = ref<string | undefined>();
 const tab = ref<(typeof TABS)[number]["id"]>("gui");
 const history = ref<History>(EMPTY_HISTORY);
 let editTimer: ReturnType<typeof setTimeout> | undefined;
+let unmounted = false;
 
 /** The score the timeline edits, or why the JSON is not one. */
 const editable = computed<{ score: ScoreInput } | { problem: string }>(() => {
@@ -110,12 +111,15 @@ function setSource(text: string): void {
   fallbackName.value = "score";
   clearTimeout(editTimer);
   renderer.invalidate(); // a render of the previous score must not land after this edit
-  editTimer = setTimeout(() => {
-    // The latest edit wins: a render still running is of a score that is gone.
-    if (busy.value) renderer.restart();
-    busy.value = false;
-    startRender();
-  }, EDIT_RENDER_DELAY_MS);
+  editTimer = setTimeout(renderLatest, EDIT_RENDER_DELAY_MS);
+}
+
+/** Renders the score as it is now; a render still running is of a score that is gone. */
+function renderLatest(): void {
+  clearTimeout(editTimer);
+  if (busy.value) renderer.restart();
+  busy.value = false;
+  startRender();
 }
 
 function onUndo(): void {
@@ -165,10 +169,13 @@ function onReply(reply: RenderReply): void {
 async function pick(name: string): Promise<void> {
   const example = EXAMPLES.find((e) => e.name === name);
   if (!example || busy.value) return;
+  clearTimeout(editTimer);
   const previous = selected.value;
   selected.value = name;
   try {
-    source.value = JSON.stringify(await example.load(), null, 2);
+    const loaded = await example.load();
+    if (unmounted) return;
+    source.value = JSON.stringify(loaded, null, 2);
   } catch (error) {
     selected.value = previous; // the editor still holds the previous score
     status.value = `Could not load the example ${name}: ${error instanceof Error ? error.message : String(error)}. Reload the page.`;
@@ -176,7 +183,8 @@ async function pick(name: string): Promise<void> {
   }
   fallbackName.value = name;
   history.value = EMPTY_HISTORY;
-  renderScore();
+  // An edit's render may have started while the example loaded.
+  renderLatest();
 }
 
 function onPick(event: Event): void {
@@ -195,6 +203,7 @@ function stop(): void {
 
 onMounted(() => void pick(DEFAULT_EXAMPLE));
 onBeforeUnmount(() => {
+  unmounted = true;
   clearTimeout(editTimer);
   renderer.terminate();
   clearResult();

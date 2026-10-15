@@ -211,7 +211,6 @@ onBeforeUnmount(() => {
         </p>
       </div>
       <nav class="flex gap-4 text-sm">
-        <a class="font-medium text-sky-700 underline dark:text-sky-400" href="./studio.html">🎬 No-code studio</a>
         <a class="text-sky-700 underline dark:text-sky-400" :href="`${REPO_URL}#how-to-write-a-jingle`">How to write a score</a>
         <a class="text-sky-700 underline dark:text-sky-400" :href="REPO_URL">GitHub</a>
         <a class="text-sky-700 underline dark:text-sky-400" href="https://www.npmjs.com/package/jinglescript">npm</a>

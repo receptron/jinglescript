@@ -1385,3 +1385,6 @@ Decided:
   the score's JSON to take away. The score comes from a pure `studioScore` (a seeded property test:
   every generated score checks). Checked in Chrome against the rendered timing map: each edit moves
   the sound or chord to its mark.
+- 2026-10-15 — User: the Studio was not what they meant; they want the score itself edited with a
+  GUI (add sounds, move them in time) next to the JSON. The Studio page is removed (#32); the
+  playground keeps the render client it brought (latest render wins, failed workers replaced).

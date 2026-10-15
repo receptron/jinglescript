@@ -50,7 +50,7 @@ describe("studioScore", () => {
       { id: "c", t: 3.1, sound: "impact" },
     ];
     const score = studioScore({ duration: 5, marks, style: "none" });
-    expect(score.cues).toEqual({ m_a: { seconds: 1.25 }, m_b: { seconds: 2.5 }, m_c: { seconds: 3.1 } });
+    expect(score.cues).toEqual({ mark1: { seconds: 1.25 }, mark2: { seconds: 2.5 }, mark3: { seconds: 3.1 } });
     const parsed = parseScore(score);
     const { timing } = render(parsed, { samples: await loadSamples(parsed, { download: false }) });
     const onset = (name: string) => timing.notes.find((n) => score.tracks[n.track]?.name === name)?.t;
@@ -77,8 +77,24 @@ describe("studioScore", () => {
         { id: "early", t: 0.3, sound: "riser" },
       ],
     });
-    expect(Object.keys(score.cues ?? {})).toEqual(["m_early"]);
-    expect(score.tracks).toEqual([{ instrument: "riser", name: "riser", notes: [{ variant: "noise", end: "m_early", len: { seconds: 0.3 } }] }]);
+    expect(Object.keys(score.cues ?? {})).toEqual(["mark1"]);
+    expect(score.tracks).toEqual([{ instrument: "riser", name: "riser", notes: [{ variant: "noise", end: "mark1", len: { seconds: 0.3 } }] }]);
+  });
+
+  it("names cues by position, so ids that collide or repeat still get a cue and a sound each", () => {
+    const score = studioScore({
+      duration: 5,
+      style: "none",
+      marks: [
+        { id: "a-b", t: 1, sound: "pop" },
+        { id: "ab", t: 2, sound: "pop" },
+        { id: "!!", t: 3, sound: "ding" },
+        { id: "!!", t: 4, sound: "ding" },
+      ],
+    });
+    expect(score.cues).toEqual({ mark1: { seconds: 1 }, mark2: { seconds: 2 }, mark3: { seconds: 3 }, mark4: { seconds: 4 } });
+    expect(score.tracks.flatMap((t) => t.notes.map((n) => n.at))).toEqual(["mark1", "mark2", "mark3", "mark4"]);
+    expect(checkScore(score).errors).toEqual([]);
   });
 
   it("keeps footsteps inside the video", () => {
@@ -90,12 +106,16 @@ describe("studioScore", () => {
 describe("markRows", () => {
   const mark = (id: string, t: number): Mark => ({ id, t, sound: "pop" });
   it("keeps marks far apart on one row and stacks marks close together", () => {
-    const rows = markRows([mark("a", 1), mark("b", 4), mark("c", 4), mark("d", 4.1), mark("e", 9)], 10, 0.04);
-    expect(Object.fromEntries(rows)).toEqual({ a: 0, b: 0, c: 1, d: 2, e: 0 });
+    expect(markRows([mark("a", 1), mark("b", 4), mark("c", 4), mark("d", 4.1), mark("e", 9)], 10, 0.04)).toEqual([0, 0, 1, 2, 0]);
+    // In the order given, whatever order the times are in.
+    expect(markRows([mark("e", 9), mark("b", 4), mark("a", 1), mark("c", 4)], 10, 0.04)).toEqual([0, 0, 0, 1]);
   });
   it("reuses a row once the gap allows it, and handles no marks and a zero duration", () => {
-    expect(Object.fromEntries(markRows([mark("a", 0), mark("b", 0), mark("c", 1)], 10, 0.04))).toEqual({ a: 0, b: 1, c: 0 });
-    expect(markRows([], 10, 0.04).size).toBe(0);
-    expect(Object.fromEntries(markRows([mark("a", 0)], 0, 0.04))).toEqual({ a: 0 });
+    expect(markRows([mark("a", 0), mark("b", 0), mark("c", 1)], 10, 0.04)).toEqual([0, 1, 0]);
+    expect(markRows([], 10, 0.04)).toEqual([]);
+    expect(markRows([mark("a", 0)], 0, 0.04)).toEqual([0]);
+  });
+  it("gives marks with the same id rows of their own", () => {
+    expect(markRows([mark("x", 2), mark("x", 2)], 10, 0.04)).toEqual([0, 1]);
   });
 });

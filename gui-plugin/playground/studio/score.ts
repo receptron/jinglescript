@@ -146,8 +146,8 @@ const END_MARGIN_SECONDS = 0.05;
 const JINGLE_HIT_BEATS = 4;
 
 const round3 = (x: number): number => Math.round(x * 1000) / 1000;
-const SAFE_CUE = /[^a-z0-9]/gi;
-const cueOf = (mark: Mark): string => `m_${mark.id.replace(SAFE_CUE, "")}`;
+// Cues are named by position, not by id: ids are the page's, and need not be unique or safe names.
+const cueName = (index: number): string => `mark${index + 1}`;
 
 function soundNotes(sound: SoundDef, mark: Mark, cue: string, length: number): Note[] {
   const base = { ...(sound.variant === undefined ? {} : { variant: sound.variant }), ...(sound.pitch === undefined ? {} : { pitch: sound.pitch }) };
@@ -177,9 +177,9 @@ function musicTrack(styleId: StyleId, hitSeconds: number | undefined, length: nu
 export function studioScore(input: StudioInput): ScoreInput {
   const length = round3(Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, input.duration)));
   const marks = input.marks.filter((mark) => mark.t >= 0 && mark.t < length - END_MARGIN_SECONDS);
-  const cues = Object.fromEntries(marks.map((mark) => [cueOf(mark), { seconds: round3(mark.t) }]));
+  const cues = Object.fromEntries(marks.map((mark, i) => [cueName(i), { seconds: round3(mark.t) }]));
   const bySound = new Map<SoundId, Note[]>();
-  for (const mark of marks) bySound.set(mark.sound, [...(bySound.get(mark.sound) ?? []), ...soundNotes(SOUNDS[mark.sound], mark, cueOf(mark), length)]);
+  marks.forEach((mark, i) => bySound.set(mark.sound, [...(bySound.get(mark.sound) ?? []), ...soundNotes(SOUNDS[mark.sound], mark, cueName(i), length)]));
   const sfx = [...bySound].filter(([, notes]) => notes.length > 0).map(([id, notes]) => ({ instrument: SOUNDS[id].instrument, name: id, notes }));
   const hit = marks.find((mark) => mark.id === input.hitMarkId);
   const tempo = input.style === "none" ? 120 : STYLES[input.style].tempo;
@@ -195,19 +195,20 @@ export function studioScore(input: StudioInput): ScoreInput {
 }
 
 /**
- * A row per mark for drawing them on the timeline, so marks close together stack instead of hiding
- * each other: a mark goes in the first row whose last mark is at least `gap` (a fraction of the
- * duration) earlier.
+ * The row of each mark (in the order given) for drawing them on the timeline, so marks close
+ * together stack instead of hiding each other: a mark goes in the first row whose last mark is at
+ * least `gap` (a fraction of the duration) earlier.
  */
-export function markRows(marks: readonly Mark[], duration: number, gap: number): Map<string, number> {
+export function markRows(marks: readonly Mark[], duration: number, gap: number): number[] {
   const rowEnds: number[] = [];
-  const rows = new Map<string, number>();
-  for (const mark of [...marks].sort((a, b) => a.t - b.t)) {
-    const position = mark.t / Math.max(duration, Number.EPSILON);
+  const rows: number[] = [];
+  const byTime = marks.map((mark, index) => ({ t: mark.t, index })).sort((a, b) => a.t - b.t);
+  for (const { t, index } of byTime) {
+    const position = t / Math.max(duration, Number.EPSILON);
     const free = rowEnds.findIndex((end) => position - end >= gap);
     const row = free === -1 ? rowEnds.length : free;
     rowEnds[row] = position;
-    rows.set(mark.id, row);
+    rows[index] = row;
   }
   return rows;
 }

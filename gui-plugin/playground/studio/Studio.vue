@@ -4,9 +4,11 @@
 // the picture and the rendered audio together.
 import type { TimingMap } from "jinglescript/browser";
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { RenderReply, RenderRequest } from "../messages.ts";
+import type { RenderReply } from "../messages.ts";
+import { createRenderClient } from "../render-client.ts";
 import { DEMO_HEIGHT, DEMO_HIT_MARK, DEMO_MARKS, DEMO_SECONDS, DEMO_WIDTH, drawDemo } from "./demo-animation.ts";
 import MarkPanel from "./MarkPanel.vue";
+import { shellQuote, shortcutsApply } from "./page-rules.ts";
 import { MAX_SECONDS, STYLE_IDS, STYLES, studioScore, type Mark, type SoundId, type StyleId } from "./score.ts";
 import Timeline from "./Timeline.vue";
 
@@ -33,55 +35,68 @@ const video = ref<HTMLVideoElement | null>(null);
 const canvas = ref<HTMLCanvasElement | null>(null);
 const audio = new Audio();
 let nextId = 1;
-let renderId = 0;
 let renderTimer: ReturnType<typeof setTimeout> | undefined;
 let frame = 0;
+/** Bumped by every play and pause, so a play that resolves after a pause does not start the clock. */
+let playToken = 0;
 
 const selected = computed(() => marks.value.find((mark) => mark.id === selectedId.value));
 const score = computed(() => studioScore({ duration: duration.value, marks: marks.value, style: style.value, hitMarkId: hitMarkId.value }));
 const scoreJson = computed(() => JSON.stringify(score.value, null, 2));
 const ffmpegCommand = computed(() =>
   [
-    `ffmpeg -i "${videoName.value}" -i jingle.wav -filter_complex \\`,
+    `ffmpeg -i ${shellQuote(videoName.value)} -i jingle.wav -filter_complex \\`,
     `  "[0:a]volume=0.5[v];[v][1:a]amix=inputs=2:duration=first:normalize=0[a]" \\`,
     `  -map 0:v -map "[a]" -c:v copy -c:a aac with-sound.mp4`,
   ].join("\n"),
 );
 
-const worker = new Worker(new URL("../render-worker.ts", import.meta.url), { type: "module" });
+const renderer = createRenderClient({ onReply, onFailure: (message) => (status.value = message) });
 
 function revoke(url: string | undefined): void {
   if (url) URL.revokeObjectURL(url);
 }
 
+/** Drops the rendered audio, so nothing plays or downloads that is not this state's. */
+function clearOutput(): void {
+  pause();
+  [audioUrl.value, timingUrl.value].forEach(revoke);
+  audioUrl.value = undefined;
+  timingUrl.value = undefined;
+  peaks.value = [];
+  audio.removeAttribute("src");
+}
+
 function requestRender(): void {
+  // Any change makes a reply in flight stale, even before the delayed request goes out.
+  renderer.invalidate();
   clearTimeout(renderTimer);
+  if (score.value.tracks.length === 0) {
+    clearOutput();
+    status.value = "Add a mark, or pick a music style, to hear something.";
+    return;
+  }
   renderTimer = setTimeout(() => {
-    if (score.value.tracks.length === 0) {
-      status.value = "Add a mark, or pick a music style, to hear something.";
-      return;
-    }
     status.value = "Rendering…";
-    const request: RenderRequest = { id: ++renderId, score: score.value, name: "jingle", sfxBaseUrl: new URL("sfx/", document.baseURI).href };
-    worker.postMessage(request);
+    renderer.request({ score: score.value, name: "jingle", sfxBaseUrl: new URL("sfx/", document.baseURI).href });
   }, RENDER_DELAY_MS);
 }
 
 function onRendered(reply: Extract<RenderReply, { kind: "done" }>): void {
   const wasPlaying = playing.value;
+  pause();
   revoke(audioUrl.value);
   revoke(timingUrl.value);
   audioUrl.value = URL.createObjectURL(new Blob([reply.wav], { type: "audio/wav" }));
   timingUrl.value = URL.createObjectURL(new Blob([JSON.stringify(reply.player.timing satisfies TimingMap, null, 2)], { type: "application/json" }));
   peaks.value = reply.player.peaks;
   audio.src = audioUrl.value;
-  audio.currentTime = now.value;
-  if (wasPlaying) void audio.play();
+  seek(now.value);
+  if (wasPlaying) void play();
   status.value = `Ready: ${marks.value.length} mark${marks.value.length === 1 ? "" : "s"}, rendered in ${reply.ms} ms. Press Play (Space).`;
 }
 
 function onReply(reply: RenderReply): void {
-  if (reply.id !== renderId) return;
   if (reply.kind === "done") onRendered(reply);
   else if (reply.kind === "downloading") status.value = `Downloading a sound: ${reply.file}`;
   else if (reply.kind === "invalid") status.value = `Could not build the sound: ${reply.errors[0]?.message ?? "invalid score"}`;
@@ -104,12 +119,22 @@ function tick(): void {
 async function play(): Promise<void> {
   if (!audioUrl.value) return;
   if (now.value >= duration.value - 0.05) seek(0);
+  const token = ++playToken;
   playing.value = true;
-  await Promise.all([audio.play(), video.value?.play()]);
+  try {
+    await Promise.all([audio.play(), video.value?.play()]);
+  } catch (error) {
+    if (token === playToken) pause();
+    status.value = `Could not play: ${error instanceof Error ? error.message : String(error)}`;
+    return;
+  }
+  if (token !== playToken) return; // paused (or played again) while starting
+  cancelAnimationFrame(frame);
   frame = requestAnimationFrame(tick);
 }
 
 function pause(): void {
+  playToken++;
   playing.value = false;
   audio.pause();
   video.value?.pause();
@@ -190,12 +215,20 @@ function onDrop(event: DragEvent): void {
 }
 
 async function copy(text: string): Promise<void> {
-  await navigator.clipboard.writeText(text);
-  status.value = "Copied.";
+  try {
+    await navigator.clipboard.writeText(text);
+    status.value = "Copied.";
+  } catch {
+    status.value = "Could not copy: select the text and copy it by hand.";
+  }
+}
+
+function keyTarget(target: EventTarget | null) {
+  return target instanceof HTMLElement ? { tagName: target.tagName, isContentEditable: target.isContentEditable } : null;
 }
 
 function onKey(event: KeyboardEvent): void {
-  if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
+  if (!shortcutsApply(keyTarget(event.target), event.key)) return;
   if (event.key === " ") {
     event.preventDefault();
     if (playing.value) pause();
@@ -208,7 +241,6 @@ watch([score], requestRender);
 watch(keepOriginalSound, (keep) => {
   if (video.value) video.value.muted = !keep;
 });
-worker.addEventListener("message", (event: MessageEvent<RenderReply>) => onReply(event.data));
 onMounted(() => {
   window.addEventListener("keydown", onKey);
   draw();
@@ -216,8 +248,9 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKey);
+  clearTimeout(renderTimer);
   pause();
-  worker.terminate();
+  renderer.terminate();
   [audioUrl.value, timingUrl.value, videoUrl.value].forEach(revoke);
 });
 </script>
@@ -253,8 +286,8 @@ onBeforeUnmount(() => {
         </button>
         <span class="tabular-nums">{{ now.toFixed(2) }} / {{ duration.toFixed(2) }} s</span>
         <button type="button" class="rounded-full bg-amber-400 px-4 py-2 font-medium text-slate-900" @click="addMark">＋ Sound here (M)</button>
-        <label class="cursor-pointer rounded-full border border-slate-300 px-4 py-2 dark:border-slate-700">
-          🎬 Use my video<input type="file" accept="video/*" class="hidden" @change="onFile" />
+        <label class="cursor-pointer rounded-full border border-slate-300 px-4 py-2 focus-within:ring-2 focus-within:ring-sky-500 dark:border-slate-700">
+          🎬 Use my video<input type="file" accept="video/*" class="sr-only" @change="onFile" />
         </label>
         <button v-if="videoUrl" type="button" class="rounded-full border border-slate-300 px-4 py-2 dark:border-slate-700" @click="useDemo">
           Back to the demo

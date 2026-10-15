@@ -252,3 +252,13 @@ export function snappedSeconds(at: AtInput, seconds: number, context: TimeContex
   const resolved = resolveAt(atForSeconds(at, seconds, context), context.tempo, context.cues);
   return Math.max(floor, resolved.ok ? resolved.seconds : seconds);
 }
+
+/** A drag on the timeline: a note's anchor or a cue moved to `seconds`. */
+export type TimelineMove = { kind: "note"; ref: NoteRef; seconds: number } | { kind: "cue"; name: string; seconds: number };
+
+/** The score with `move` made: what a drag previews while it is held and writes when it is let go. */
+export function applyMove(score: ScoreInput, move: TimelineMove, context: TimeContext): ScoreInput {
+  if (move.kind === "note") return moveNote(score, move.ref, move.seconds, context);
+  const cue = score.cues?.[move.name];
+  return cue === undefined ? score : setCue(score, move.name, cueForSeconds(cue, move.seconds, context));
+}

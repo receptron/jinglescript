@@ -1,16 +1,20 @@
 <script setup lang="ts">
 // The score on a timeline: a ruler with the beat grid, the cues as flags, and one lane per track with
-// a block per sound. Drag a block or a cue to move it, double-click a lane to add a sound there,
-// click the ruler to play from that point.
+// a block per sound. Drag a block or a cue to move it (the blocks shown while dragging are the
+// moved score's, expanded), double-click a lane to add a sound there, click the ruler to play from
+// that point.
 import type { InstrumentInfo, ScoreInput } from "jinglescript/browser";
 import { computed, ref } from "vue";
-import { snappedSeconds, type AtInput, type CueInput, type NoteRef, type TimeContext } from "./score-edit.ts";
+import { snappedSeconds, type AtInput, type CueInput, type NoteRef, type TimeContext, type TimelineMove } from "./score-edit.ts";
 import { beatLines, TRACK_HEADER_PX as HEADER_PX, type Block } from "./timeline-layout.ts";
 
 const props = defineProps<{
   score: ScoreInput;
   blocks: Block[];
+  /** Cue times to draw, in seconds: the dragged score's while a drag is held. */
+  cueTimes: Readonly<Record<string, number>>;
   duration: number;
+  /** The score's times as written, which a drag snaps against. */
   context: TimeContext;
   pxPerSecond: number;
   selected: NoteRef | undefined;
@@ -20,8 +24,9 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [ref: NoteRef | undefined];
-  move: [ref: NoteRef, anchorSeconds: number];
-  moveCue: [name: string, seconds: number];
+  /** A drag in progress (undefined when it ends without a move). */
+  preview: [move: TimelineMove | undefined];
+  move: [move: TimelineMove];
   add: [track: number, seconds: number];
   seek: [seconds: number];
   setInstrument: [track: number, instrument: string];
@@ -35,8 +40,7 @@ const MIN_LENGTH_PX = 36;
 const DRAG_THRESHOLD_PX = 3;
 
 interface Drag {
-  kind: "note" | "cue";
-  key: string;
+  target: { kind: "note"; ref: NoteRef } | { kind: "cue"; name: string };
   startX: number;
   /** The time being moved, as written: what snapping keeps the form of. */
   at: AtInput;
@@ -52,22 +56,9 @@ const drag = ref<Drag | undefined>();
 const width = computed(() => Math.max(props.duration, 0.5) * props.pxPerSecond);
 const beats = computed(() => beatLines(props.context.tempo, props.duration));
 const xOf = (seconds: number) => seconds * props.pxPerSecond;
-const noteKey = (ref: NoteRef) => `${ref.track}:${ref.note}`;
 const isSelected = (block: Block) => props.selected?.track === block.track && props.selected.note === block.note;
 
-const cues = computed(() =>
-  Object.entries(props.context.cues).map(([name, seconds]) => {
-    const preview = drag.value?.kind === "cue" && drag.value.key === name ? drag.value.to : seconds;
-    return { name, seconds: preview };
-  }),
-);
-
-/** The block's start, moved along with a drag of its note. */
-function startOf(block: Block): number {
-  const current = drag.value;
-  if (current?.kind !== "note" || current.key !== noteKey(block)) return block.start;
-  return block.start + (current.to - current.from);
-}
+const cues = computed(() => Object.entries(props.cueTimes).map(([name, seconds]) => ({ name, seconds })));
 
 function lengthPx(block: Block): number {
   return Math.max(block.length * props.pxPerSecond, MIN_LENGTH_PX);
@@ -81,17 +72,20 @@ function anchorOf(block: Block, at: AtInput | undefined, end: AtInput | undefine
 
 function startNoteDrag(event: PointerEvent, block: Block): void {
   if (event.button !== 0) return;
-  const note = props.score.tracks[block.track]?.notes[block.note];
+  const ref = { track: block.track, note: block.note };
+  const note = props.score.tracks[ref.track]?.notes[ref.note];
   if (note === undefined) return;
-  emit("select", { track: block.track, note: block.note });
-  const anchor = anchorOf(block, note.at, note.end);
-  drag.value = { kind: "note", key: noteKey(block), startX: event.clientX, ...anchor, moved: false, to: anchor.from };
+  emit("select", ref);
+  // A repeat moves with its note: the drag moves the note's own time by as much as the pointer.
+  const first = props.blocks.find((b) => b.track === ref.track && b.note === ref.note && b.repeat === 0) ?? block;
+  const anchor = anchorOf(first, note.at, note.end);
+  drag.value = { target: { kind: "note", ref }, startX: event.clientX, ...anchor, moved: false, to: anchor.from };
   capture(event);
 }
 
 function startCueDrag(event: PointerEvent, name: string, seconds: number): void {
   if (event.button !== 0) return;
-  drag.value = { kind: "cue", key: name, startX: event.clientX, at: { seconds }, from: seconds, moved: false, to: seconds, floor: 0 };
+  drag.value = { target: { kind: "cue", name }, startX: event.clientX, at: { seconds }, from: seconds, moved: false, to: seconds, floor: 0 };
   capture(event);
 }
 
@@ -112,18 +106,23 @@ function onPointerMove(event: PointerEvent): void {
   const target = current.from + dx / props.pxPerSecond;
   const context = cueContext(event.altKey);
   // A cue's form is its own ({ seconds } or { beats }); snap it as a time of that form.
-  const cue: CueInput | undefined = current.kind === "cue" ? props.score.cues?.[current.key] : undefined;
+  const cue: CueInput | undefined = current.target.kind === "cue" ? props.score.cues?.[current.target.name] : undefined;
   const at: AtInput = cue === undefined ? current.at : "beats" in cue ? 0 : { seconds: 0 };
-  drag.value = { ...current, moved: true, to: snappedSeconds(at, target, context, current.floor) };
+  const next = { ...current, moved: true, to: snappedSeconds(at, target, context, current.floor) };
+  drag.value = next;
+  emit("preview", moveOf(next));
+}
+
+function moveOf(current: Drag): TimelineMove {
+  return { ...current.target, seconds: current.to };
 }
 
 function onPointerUp(): void {
   const current = drag.value;
   drag.value = undefined;
+  emit("preview", undefined);
   if (current === undefined || !current.moved || current.to === current.from) return;
-  if (current.kind === "cue") return emit("moveCue", current.key, current.to);
-  const [track = 0, note = 0] = current.key.split(":").map(Number);
-  emit("move", { track, note }, current.to);
+  emit("move", moveOf(current));
 }
 
 function secondsAt(event: MouseEvent): number {
@@ -235,14 +234,14 @@ function trackLabel(track: ScoreInput["tracks"][number], index: number): string 
             v-for="block in blocks.filter((b) => b.track === t)"
             :key="`${block.note}:${block.repeat}`"
             type="button"
-            :title="`${block.label} at ${startOf(block).toFixed(3)} s — drag to move (Alt: no snapping)`"
+            :title="`${block.label} at ${block.start.toFixed(3)} s — drag to move (Alt: no snapping)`"
             class="absolute z-10 cursor-grab touch-none truncate rounded px-1 text-left text-[10px] leading-[18px] font-medium"
             :class="[
               block.repeat > 0 ? 'opacity-40' : '',
               isSelected(block) ? 'bg-sky-600 text-white ring-2 ring-sky-300' : 'bg-sky-200 text-sky-950 hover:bg-sky-300 dark:bg-sky-800 dark:text-sky-50',
             ]"
             :style="{
-              left: `${xOf(startOf(block))}px`,
+              left: `${xOf(block.start)}px`,
               width: `${lengthPx(block)}px`,
               top: `${4 + block.height * (LANE_PX - BLOCK_PX - 8)}px`,
               height: `${BLOCK_PX}px`,

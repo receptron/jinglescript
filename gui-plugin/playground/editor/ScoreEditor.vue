@@ -7,10 +7,10 @@ import EditorTimeline from "./EditorTimeline.vue";
 import NotePanel from "./NotePanel.vue";
 import {
   addNote,
+  applyMove,
   addTrack,
   anchorSeconds,
   canRemoveNote,
-  cueForSeconds,
   cueUses,
   duplicateNote,
   freshCueName,
@@ -27,6 +27,7 @@ import {
   type NoteInput,
   type NoteRef,
   type TimeContext,
+  type TimelineMove,
 } from "./score-edit.ts";
 import { timelineBlocks, TRACK_HEADER_PX } from "./timeline-layout.ts";
 
@@ -64,13 +65,19 @@ let pendingPlayFrom: number | undefined;
 let lastEdit: string | undefined;
 let frame = 0;
 
-const expanded = computed(() => {
-  const parsed = ScoreBaseSchema.safeParse(props.score);
+/** The score the renderer would play, placed by the library's own expansion. */
+function expand(score: ScoreInput) {
+  const parsed = ScoreBaseSchema.safeParse(score);
   return parsed.success ? expandScore(parsed.data) : undefined;
-});
+}
+
+/** The score as a held drag would leave it; undefined when nothing is being dragged. */
+const dragged = ref<ScoreInput | undefined>();
+const expanded = computed(() => expand(props.score));
+const shown = computed(() => (dragged.value ? (expand(dragged.value) ?? expanded.value) : expanded.value));
 const duration = computed(() => expanded.value?.duration ?? 0);
 const context = computed<TimeContext>(() => ({ tempo: props.score.tempo, cues: expanded.value?.cues ?? {}, gridBeats: GRIDS[gridIndex.value]?.beats }));
-const blocks = computed(() => (expanded.value ? timelineBlocks(expanded.value) : []));
+const blocks = computed(() => (shown.value ? timelineBlocks(shown.value) : []));
 const root = ref<HTMLElement | null>(null);
 const fitWidth = ref(0);
 /** Until zoomed, the whole score fits the width of the page. */
@@ -104,9 +111,14 @@ function edit(next: ScoreInput, playFrom?: number): void {
   emit("edit", next);
 }
 
-function onMove(ref: NoteRef, anchor: number): void {
-  selected.value = ref;
-  edit(moveNote(props.score, ref, anchor, context.value), anchor);
+function onPreview(move: TimelineMove | undefined): void {
+  dragged.value = move === undefined ? undefined : applyMove(props.score, move, context.value);
+}
+
+function onMove(move: TimelineMove): void {
+  dragged.value = undefined;
+  if (move.kind === "note") selected.value = move.ref;
+  edit(applyMove(props.score, move, context.value), move.seconds);
 }
 
 function onAdd(track: number, seconds: number): void {
@@ -172,8 +184,7 @@ function onAddCue(): void {
 }
 
 function onMoveCue(name: string, seconds: number): void {
-  const cue = props.score.cues?.[name];
-  if (cue !== undefined) edit(setCue(props.score, name, cueForSeconds(cue, seconds, context.value)), seconds);
+  onMove({ kind: "cue", name, seconds });
 }
 
 function numberOf(event: Event): number | undefined {
@@ -396,6 +407,7 @@ onBeforeUnmount(() => {
     <EditorTimeline
       :score="score"
       :blocks="blocks"
+      :cue-times="shown?.cues ?? {}"
       :duration="duration"
       :context="context"
       :px-per-second="zoom"
@@ -403,8 +415,8 @@ onBeforeUnmount(() => {
       :now="now"
       :instruments="INSTRUMENTS"
       @select="selected = $event"
+      @preview="onPreview"
       @move="onMove"
-      @move-cue="onMoveCue"
       @add="onAdd"
       @seek="play"
       @set-instrument="(track, instrument) => edit(setTrack(score, track, { instrument }))"

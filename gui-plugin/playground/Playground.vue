@@ -117,9 +117,22 @@ function setSource(text: string): void {
 /** Renders the score as it is now; a render still running is of a score that is gone. */
 function renderLatest(): void {
   clearTimeout(editTimer);
+  editTimer = undefined;
   if (busy.value) renderer.restart();
   busy.value = false;
   startRender();
+}
+
+/** Typing JSON takes over from a timeline edit still waiting to render: the JSON renders on Render. */
+function onJsonInput(): void {
+  fallbackName.value = "score";
+  if (editTimer === undefined) return;
+  clearTimeout(editTimer);
+  editTimer = undefined;
+  // The edit dropped any render in flight; stop it, so Render is free again.
+  if (busy.value) renderer.restart();
+  busy.value = false;
+  status.value = "The JSON changed: press Render to hear it.";
 }
 
 function onUndo(): void {
@@ -170,6 +183,7 @@ async function pick(name: string): Promise<void> {
   const example = EXAMPLES.find((e) => e.name === name);
   if (!example || busy.value) return;
   clearTimeout(editTimer);
+  editTimer = undefined;
   const previous = selected.value;
   selected.value = name;
   try {
@@ -299,7 +313,7 @@ onBeforeUnmount(() => {
           spellcheck="false"
           class="h-[60vh] w-full resize-y rounded border border-slate-300 bg-white p-3 font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-900"
           @keydown="onKey"
-          @input="fallbackName = 'score'"
+          @input="onJsonInput"
         ></textarea>
       </section>
 

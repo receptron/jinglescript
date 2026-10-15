@@ -9,6 +9,7 @@ import {
   addNote,
   addTrack,
   anchorSeconds,
+  applyMove,
   atForSeconds,
   atInForm,
   canRemoveNote,
@@ -281,6 +282,16 @@ describe("cues", () => {
     const onHit = moved.events.filter((e) => e.cue === "hit");
     expect(onHit.length).toBeGreaterThan(0);
     onHit.forEach((e) => expect(e.nominal).toBe(2));
+  });
+
+  it("a cue drag moves the cue in its own form, and the sounds on it with it", () => {
+    const context: TimeContext = { tempo: 120, cues: expand(score).cues, gridBeats: 0.25 };
+    const beats = applyMove(setCue(score, "hit", { beats: 3 }), { kind: "cue", name: "hit", seconds: 2.1 }, context);
+    expect(beats.cues?.hit).toEqual({ beats: 4.25 });
+    const moved = expand(applyMove(score, { kind: "cue", name: "hit", seconds: 2 }, context));
+    expect(moved.cues.hit).toBe(2);
+    moved.events.filter((e) => e.cue === "hit").forEach((e) => expect(e.nominal).toBe(2));
+    expect(applyMove(score, { kind: "cue", name: "nowhere", seconds: 2 }, context)).toBe(score);
   });
 
   it("names a new cue without taking an existing name", () => {

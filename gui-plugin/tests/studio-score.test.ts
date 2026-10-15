@@ -97,6 +97,19 @@ describe("studioScore", () => {
     expect(checkScore(score).errors).toEqual([]);
   });
 
+  it("leaves out marks after a video shorter than the shortest render", () => {
+    const score = studioScore({
+      duration: 0.5,
+      style: "none",
+      marks: [
+        { id: "in", t: 0.2, sound: "pop" },
+        { id: "out", t: 0.7, sound: "pop" },
+      ],
+    });
+    expect(score.length).toEqual({ seconds: 1 });
+    expect(score.cues).toEqual({ mark1: { seconds: 0.2 } });
+  });
+
   it("keeps footsteps inside the video", () => {
     const steps = studioScore({ duration: 2, style: "none", marks: [{ id: "s", t: 1.2, sound: "steps" }] }).tracks[0]?.notes;
     expect(steps?.map((n) => n.at)).toEqual([{ seconds: 1.2 }, { seconds: 1.6 }]);

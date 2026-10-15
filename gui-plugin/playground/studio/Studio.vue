@@ -51,7 +51,7 @@ const ffmpegCommand = computed(() =>
   ].join("\n"),
 );
 
-const renderer = createRenderClient({ onReply, onFailure: (message) => (status.value = message) });
+const renderer = createRenderClient({ onReply, onFailure: renderFailed });
 
 function revoke(url: string | undefined): void {
   if (url) URL.revokeObjectURL(url);
@@ -96,11 +96,17 @@ function onRendered(reply: Extract<RenderReply, { kind: "done" }>): void {
   status.value = `Ready: ${marks.value.length} mark${marks.value.length === 1 ? "" : "s"}, rendered in ${reply.ms} ms. Press Play (Space).`;
 }
 
+/** The latest render did not happen: the previous audio is not this state's, so it goes too. */
+function renderFailed(message: string): void {
+  clearOutput();
+  status.value = message;
+}
+
 function onReply(reply: RenderReply): void {
   if (reply.kind === "done") onRendered(reply);
   else if (reply.kind === "downloading") status.value = `Downloading a sound: ${reply.file}`;
-  else if (reply.kind === "invalid") status.value = `Could not build the sound: ${reply.errors[0]?.message ?? "invalid score"}`;
-  else if (reply.kind === "failed") status.value = `Render failed: ${reply.message}`;
+  else if (reply.kind === "invalid") renderFailed(`Could not build the sound: ${reply.errors[0]?.message ?? "invalid score"}`);
+  else if (reply.kind === "failed") renderFailed(`Render failed: ${reply.message}`);
 }
 
 function draw(): void {

@@ -176,7 +176,9 @@ function musicTrack(styleId: StyleId, hitSeconds: number | undefined, length: nu
 /** The score for the studio's state. Marks outside the video are left out. */
 export function studioScore(input: StudioInput): ScoreInput {
   const length = round3(Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, input.duration)));
-  const marks = input.marks.filter((mark) => mark.t >= 0 && mark.t < length - END_MARGIN_SECONDS);
+  // Against the video's own length: a render is at least MIN_SECONDS, a video can be shorter.
+  const end = Math.min(length, input.duration);
+  const marks = input.marks.filter((mark) => mark.t >= 0 && mark.t < end - END_MARGIN_SECONDS);
   const cues = Object.fromEntries(marks.map((mark, i) => [cueName(i), { seconds: round3(mark.t) }]));
   const bySound = new Map<SoundId, Note[]>();
   marks.forEach((mark, i) => bySound.set(mark.sound, [...(bySound.get(mark.sound) ?? []), ...soundNotes(SOUNDS[mark.sound], mark, cueName(i), length)]));

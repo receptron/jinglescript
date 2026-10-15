@@ -1388,3 +1388,10 @@ Decided:
 - 2026-10-15 — User: the Studio was not what they meant; they want the score itself edited with a
   GUI (add sounds, move them in time) next to the JSON. The Studio page is removed (#32); the
   playground keeps the render client it brought (latest render wins, failed workers replaced).
+- 2026-10-15 — Timeline editor in the playground (#33): a Timeline tab next to the JSON, both kept in
+  sync (an edit rewrites the JSON; JSON that parses shows on the timeline). A lane per track, cues as
+  flags; drag a sound or a cue (a time keeps its written form — beats, seconds or "cue±beats" — and
+  snaps to the grid), double-click to add one that copies the sound before it, a panel for the
+  selected sound, tracks and cues added and removed, undo/redo; each edit re-renders and plays from
+  just before the edited sound. Sounds are placed by the library's `expandScore`, now exported from
+  the browser entry, and the tests check every edit against it.

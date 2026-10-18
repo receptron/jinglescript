@@ -20,7 +20,7 @@ import { knock } from "../sounds/knock.ts";
 import { laser } from "../sounds/laser.ts";
 import { pistol } from "../sounds/pistol.ts";
 import { pop } from "../sounds/pop.ts";
-import { book, cards, cloth, dice, ding, door, glass, metal, punch } from "../sounds/recorded.ts";
+import { applause, book, cards, cloth, coin, dice, ding, door, droplet, glass, metal, page, punch, shutter } from "../sounds/recorded.ts";
 import { riser } from "../sounds/riser.ts";
 import { tapdance } from "../sounds/tapdance.ts";
 import { whoosh } from "../sounds/whoosh.ts";
@@ -59,6 +59,11 @@ export const INSTRUMENT_NAMES = [
   "dice",
   "cards",
   "cloth",
+  "applause",
+  "shutter",
+  "coin",
+  "page",
+  "droplet",
 ] as const;
 export type InstrumentName = (typeof INSTRUMENT_NAMES)[number];
 
@@ -95,6 +100,11 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   dice,
   cards,
   cloth,
+  applause,
+  shutter,
+  coin,
+  page,
+  droplet,
 };
 
 export function isInstrumentName(name: string): name is InstrumentName {

@@ -1,5 +1,6 @@
 // The recorded sound effects shipped with the package: which CC0 recording each effect variant
-// plays. The WAVs live in samples/sfx/ (made by scripts/import-sfx.ts from these sources) and are
+// plays. Most are Kenney recordings; a few were generated with Stable Audio 3 and released as CC0
+// (soundeffects/stable-audio-3/, with the prompt and seed of each). The WAVs live in samples/sfx/ (made by scripts/import-sfx.ts from these sources) and are
 // read by loadSamples() from the installed package, never downloaded. A variant with several takes
 // plays one of them, chosen by the note's seeded random stream.
 import { sampleKey } from "../samples/source.ts";
@@ -42,6 +43,11 @@ export const RECORDED_EFFECTS = {
     fan: [take("card-fan", "kenney/casino-audio/card-fan-1.ogg")],
   },
   cloth: { rustle: [take("cloth-1", "kenney/rpg-audio/cloth1.ogg"), take("cloth-2", "kenney/rpg-audio/cloth2.ogg")] },
+  applause: { applause: [take("applause", "stable-audio-3/applause-s2.wav")] },
+  shutter: { shutter: [take("camera-shutter", "stable-audio-3/camera-shutter-s4.wav")] },
+  coin: { drop: [take("coin-drop", "stable-audio-3/coin-drop-s1.wav")] },
+  page: { turn: [take("page-turn", "stable-audio-3/page-turn-s1.wav")] },
+  droplet: { drop: [take("water-drop", "stable-audio-3/water-drop-s4.wav")] },
   /** Recorded surfaces for `footsteps`, whose left/right steps are synthesized. */
   footsteps: {
     carpet: [take("footstep-carpet", "kenney/impact-sounds/footstep_carpet_003.ogg")],

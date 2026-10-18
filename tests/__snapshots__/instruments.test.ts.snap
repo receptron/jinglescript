@@ -40,6 +40,8 @@ exports[`every shipped example > layered-hit.json renders cleanly at the loudnes
 
 exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudness target (or says why not) 1`] = `"e9b5fd01720ea59d6efb6865d8dc1546811bfd2b30a2f1ac30494308f26e310b"`;
 
+exports[`every shipped example > photo-op.json renders cleanly at the loudness target (or says why not) 1`] = `"e832aeb091c3098cf83bc4068d76adc0b651b9a1ca23b107399da4701c98ec4c"`;
+
 exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"9728dc6ab9793c3fb82c2630bd040c468ae24fea67b8d91aa4bb35629a8e2408"`;
 
 exports[`every shipped example > recorded-effects.json renders cleanly at the loudness target (or says why not) 1`] = `"f14968b5b95248d14be6e5bc18c8457153ce573fe5345acca82189d59a58aee9"`;

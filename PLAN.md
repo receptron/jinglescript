@@ -110,8 +110,9 @@ structure.
 - A recorded Foley library. Sound effects are synthesized like the instruments, in styles from
   cartoon to clean/modern; where a style matters an effect offers it as a `variant`. Effects that
   cannot be made convincing by synthesis are labelled synthetic, like piccolo and trumpet. The
-  exception is a small set of CC0 recordings the user picked by ear for sounds synthesis does
-  badly (glass, doors, dice, cards…), shipped in `samples/sfx/`
+  exception is a small set of CC0 recordings, and CC0 sounds generated with Stable Audio 3, that
+  the user picked by ear for sounds synthesis does badly (glass, doors, dice, applause…), shipped
+  in `samples/sfx/`
   ([Recorded sound effects](#recorded-sound-effects)).
 - Rendering the animation. v1 produces the cues and timing map the animation is built on; the
   animation itself is a later step ([M8](#m8--jingle--animation-tool-later)).
@@ -440,7 +441,8 @@ Sounds synthesis does badly — glass, a bell, metal, a punch, a book, a door, d
 footsteps on a given surface — play CC0 recordings instead. Added 2026-10-13: the user listened to
 194 candidate takes from the CC0 collection in `receptron/mulmocast-media` (`soundeffects/`, all
 Kenney packs) on a review page and picked 24; the rule against third-party audio in the repo was
-relaxed for exactly this (CC0, recorded rather than generated, small).
+relaxed for exactly this (CC0, recorded, small). On 2026-10-18 the user extended it to CC0 sounds
+generated with Stable Audio 3 (below).
 
 - `src/sounds/recorded-catalog.ts` is the one list of which recording each effect variant plays;
   `scripts/import-sfx.ts <soundeffects dir>` turns it into `samples/sfx/*.wav` (ffmpeg: mono,
@@ -451,6 +453,17 @@ relaxed for exactly this (CC0, recorded rather than generated, small).
   creak), `dice` (throw, die, shake), `cards` (place, fan), `cloth`; and recorded surface
   variants of `footsteps` (carpet, concrete, snow, wood) beside its synthesized left/right.
   (`bell` was taken: the authoring guide's custom-instrument example uses that name.)
+- Generated effects (added 2026-10-18): `applause`, `shutter`, `coin`, `page`, `droplet`. The user
+  agreed to the Stability AI Community License (receptron is under its USD 1M revenue threshold);
+  the outputs are receptron's and are released as CC0. Candidates were made with
+  `stabilityai/stable-audio-3-small-sfx` (github.com/Stability-AI/stable-audio-3, CPU, 8 steps,
+  fixed seeds; the same prompt and seed give the same samples), screened without ears (no clipping,
+  last 50 ms below −50 dB of the peak), and the user picked 5 of 28 on a review page. They live in
+  `receptron/mulmocast-media` `soundeffects/stable-audio-3/` with `prompts.json` (model, prompt,
+  duration, seed) and `License.txt`, and are imported like the recordings. Their descriptors carry
+  `GENERATED_SOURCE`. The licence also asks its licensee not to use outputs to build or improve a
+  foundational generative AI model; the CC0 waiver says nothing about that term, and the
+  mulmocast-media notes say so.
 - A variant with several takes plays one chosen by the note's seeded stream. Every recording is
   balanced like the other impulse-like effects (peaks like a C5 marimba note at full velocity).
 - Some recordings swell in rather than start on a hit: `door` creak, `cards` fan and place
@@ -1371,3 +1384,13 @@ Decided:
   `copyright` — written into rendered audio and MIDI — now names the licence URL and the Mutopia
   edition, typesetter and licence, so the credit travels without the README; the test requires it.
   Moonlight III's "Chris Sawer and Stewart Holmes" is confirmed by the Mutopia .ly files.
+- 2026-10-18 — User: add more sound effects with Stable Audio 3 (seen in a post about a local
+  "Audio Studio" app; the model alone is enough, since `import-sfx.ts` already trims and
+  normalizes). Generated 8 seeds per prompt for 7 effects with `stable-audio-3-small-sfx` on CPU;
+  short durations cut sounds off and some takes clipped, so durations were lengthened and takes
+  screened (no clipping, a decayed tail) before listening. The user picked 5 on a review page
+  (glass shatter and notification were rejected). Added `applause`, `shutter`, `coin`, `page`,
+  `droplet` from `receptron/mulmocast-media` `soundeffects/stable-audio-3/` (CC0 by receptron),
+  `GENERATED_SOURCE` for their descriptors, GM Applause for `applause` in MIDI, and the example
+  `photo-op.json`. Like any short effect played alone, a sparse score of them reaches the 6 dB
+  limiting cap and stays below −14 LUFS (glass alone does the same).

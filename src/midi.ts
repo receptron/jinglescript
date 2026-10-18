@@ -58,6 +58,11 @@ const GM: Record<InstrumentName, GmSound> = {
   dice: { marker: true },
   cards: { marker: true },
   cloth: { marker: true },
+  applause: { program: 126, key: 60 },
+  shutter: { marker: true },
+  coin: { marker: true },
+  page: { marker: true },
+  droplet: { marker: true },
 };
 
 interface Resolved {

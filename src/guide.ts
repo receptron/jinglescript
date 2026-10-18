@@ -130,6 +130,11 @@ is the start of the sound, so an animation frame on it lines up.
 | dice | throw, die, shake | recorded: dice thrown, one die, dice rattled (1.5 s) |
 | cards | place, fan | recorded: "place" slides the card first, so it lands 0.1–0.15 s after the note |
 | cloth | — | recorded: clothes rustling |
+| applause | — | generated: a small audience clapping, fading out over about 5 s |
+| shutter | — | generated: a camera shutter click |
+| coin | — | generated: a coin dropped on a table, a clink and a short rattle |
+| page | — | generated: one page turned slowly; softer and longer than book's "flip" |
+| droplet | — | generated: one water drop into still water, a "plop" |
 
 - \`end\` (instead of \`at\`) places an effect with a length by when it **finishes** — a riser or
   whoosh that stops exactly on the cut. \`len\` is beats, or \`{ "seconds": n }\` when the request

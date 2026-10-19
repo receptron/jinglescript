@@ -18,8 +18,9 @@ sound in a panel) or as JSON, and hear it rendered in the page (no server).
   `grandpiano` downloads the notes it plays (about 1.2 MB each) into `~/.cache/jinglescript`
   (`JINGLESCRIPT_CACHE` overrides it). The recorded sound effects (ding, glass, metal, punch, book,
   door, dice, cards, cloth, and the footstep surfaces) are CC0 recordings by
-  [Kenney](https://kenney.nl) that ship in the package (`samples/sfx/`, 1.2 MB; sources and licences
-  in [samples/sfx/SOURCES.md](samples/sfx/SOURCES.md)). Everything else needs no samples and no
+  [Kenney](https://kenney.nl), and five more (applause, shutter, coin, page, droplet) were generated
+  with Stability AI's Stable Audio 3 and released as CC0; all ship in the package (`samples/sfx/`,
+  2.0 MB; sources, prompts and licences in [samples/sfx/SOURCES.md](samples/sfx/SOURCES.md)). Everything else needs no samples and no
   network. What you render is yours to use.
 - Deterministic: the same score and seed give bit-identical audio on every machine.
 - Cues are named moments (`"hit": { "seconds": 1.5 }`); notes are placed on them, and the timing map
@@ -27,9 +28,10 @@ sound in a panel) or as JSON, and hear it rendered in the page (no server).
 
 **Status: early (0.x).** Twelve instruments (marimba, xylophone, glockenspiel, vibraphone, music
 box, piano, grandpiano (sampled), organ, ukulele, piccolo and trumpet — both synthetic-sounding —
-and clap) and twenty sound effects: eleven synthesized (clock, footsteps, heels, tapdance, knock,
-pistol, laser, whoosh, riser, impact, pop) and nine recorded (ding, glass, metal, punch, book,
-door, dice, cards, cloth), plus recorded surfaces for footsteps.
+and clap) and twenty-five sound effects: eleven synthesized (clock, footsteps, heels, tapdance,
+knock, pistol, laser, whoosh, riser, impact, pop), nine recorded (ding, glass, metal, punch, book,
+door, dice, cards, cloth) and five generated with Stable Audio 3 (applause, shutter, coin, page,
+droplet), plus recorded surfaces for footsteps.
 Chords by name (`"chord": "G7"`) and tab-style strums (`"strum": "D-DU-UDU"`). An MCP server and a
 GUI Chat Protocol plugin with a player view. Custom instruments are planned.
 
@@ -315,6 +317,11 @@ is the start of the sound, so an animation frame on it lines up.
 | dice | throw, die, shake | recorded: dice thrown, one die, dice rattled (1.5 s) |
 | cards | place, fan | recorded: "place" slides the card first, so it lands 0.1–0.15 s after the note |
 | cloth | — | recorded: clothes rustling |
+| applause | — | generated: a small audience clapping, fading out over about 5 s |
+| shutter | — | generated: a camera shutter click |
+| coin | — | generated: a coin dropped on a table, a clink and a short rattle |
+| page | — | generated: one page turned slowly; softer and longer than book's "flip" |
+| droplet | — | generated: one water drop into still water, a "plop" |
 
 - `end` (instead of `at`) places an effect with a length by when it **finishes** — a riser or
   whoosh that stops exactly on the cut. `len` is beats, or `{ "seconds": n }` when the request

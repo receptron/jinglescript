@@ -1,0 +1,28 @@
+{
+  "$schema": "../schema/jinglescript-1.json",
+  "format": "jinglescript/1",
+  "title": "Photo op: a page, a drop, a coin, the shutter and applause",
+  "tempo": 120,
+  "length": { "seconds": 12 },
+  "cues": {
+    "page": { "seconds": 0.5 },
+    "drop": { "seconds": 2.5 },
+    "coin": { "seconds": 3.5 },
+    "photo": { "seconds": 5.5 },
+    "applause": { "seconds": 6.5 }
+  },
+  "tracks": [
+    { "instrument": "page", "reverb": false, "notes": [{ "at": "page", "vel": 0.8 }] },
+    { "instrument": "droplet", "notes": [{ "at": "drop", "vel": 0.8 }] },
+    { "instrument": "coin", "reverb": false, "notes": [{ "at": "coin" }] },
+    {
+      "instrument": "shutter",
+      "reverb": false,
+      "notes": [
+        { "at": "photo", "vel": 0.9 },
+        { "at": "photo+1", "vel": 0.9 }
+      ]
+    },
+    { "instrument": "applause", "gain": -3, "notes": [{ "at": "applause" }] }
+  ]
+}

@@ -34,7 +34,7 @@ note happens. You write the score; the CLI checks and renders it. Everything run
 
 ## Notes
 
-- `grandpiano` and the recorded effects (ding, glass, door, dice, …) use recordings. The piano's
+- `grandpiano` and the recorded effects (ding, glass, door, dice, applause, coin, …) use recordings. The piano's
   are downloaded on first use (about 1.2 MB per note, cached in `~/.cache/jinglescript`), so the
   first render of a piano piece needs the network and takes longer.
 - The same score and seed always render the same audio, so a change the user did not ask for is a

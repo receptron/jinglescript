@@ -5,5 +5,10 @@ import { defineConfig } from "vitest/config";
 // Tests use the library's source, not a possibly stale dist.
 export default defineConfig({
   plugins: [vue()],
-  resolve: { alias: { jinglescript: resolve(import.meta.dirname, "../src/index.ts") } },
+  resolve: {
+    alias: [
+      { find: /^jinglescript\/browser$/, replacement: resolve(import.meta.dirname, "../src/browser.ts") },
+      { find: /^jinglescript$/, replacement: resolve(import.meta.dirname, "../src/index.ts") },
+    ],
+  },
 });

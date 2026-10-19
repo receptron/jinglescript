@@ -9,7 +9,8 @@ request ──► LLM ──► score (JSON) ──► render ──► audio (W
 ```
 
 **Try it in your browser: [the playground](https://receptron.github.io/jinglescript/)** — pick an
-example or edit a score, and hear it rendered in the page (no server).
+example and edit it on a timeline (drag sounds and cues, double-click to add one, change pitch and
+sound in a panel) or as JSON, and hear it rendered in the page (no server).
 
 - Everything is synthesized in code — except two things that play recordings. `grandpiano` plays a
   real grand piano from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)
@@ -113,7 +114,8 @@ the file from that release's tag instead of `main`.
 
 [docs/video-sound-effects.md](docs/video-sound-effects.md) walks through adding footsteps, bonks and
 a jingle to two shots of *Big Buck Bunny* (CC BY) with ffmpeg: find the moments, name them as cues,
-render, mix, and check the frames line up.
+render, mix, and check the frames line up; then burn in telops on cues and karaoke captions from the
+lyrics, with ffmpeg's ASS subtitles.
 
 ## Hear it in a GUI chat (GUI Chat Protocol)
 

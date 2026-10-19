@@ -4,6 +4,11 @@ export { parseScore, checkScore, ScoreSchema, JingleScriptError, formatProblem }
 export type { Score, ScoreProblem, CheckResult } from "./score.ts";
 export { ScoreBaseSchema, NoteSchema, TrackSchema, CueSchema, AtSchema, FORMAT } from "./score-schema.ts";
 export type { ScoreInput, Note, Track } from "./score-schema.ts";
+export { expandScore } from "./events.ts";
+export type { Expanded, NoteEvent } from "./events.ts";
+export { pitchToMidi } from "./pitch.ts";
+export { parseCueRef, resolveAt } from "./time.ts";
+export type { At } from "./time.ts";
 export { render, samplesNeeded, DEFAULT_SAMPLE_RATE, SAMPLE_RATES } from "./render.ts";
 export type { RenderOptions, RenderResult, SampleRate } from "./render.ts";
 export { TimingSchema, TIMING_FORMAT } from "./timing.ts";

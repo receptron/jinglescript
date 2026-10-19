@@ -1,20 +1,29 @@
 <script setup lang="ts">
-// The playground: pick an example or edit a score, render it in a worker with the library's
-// browser entry, and play it in the GUI plugin's player view.
+// The playground: pick an example, edit its score on a timeline or as JSON, render it in a worker
+// with the library's browser entry, and play it in the GUI plugin's player view.
 import type { ToolResultComplete } from "gui-chat-protocol";
-import type { PlayerData, ScoreProblem } from "jinglescript/browser";
+import type { PlayerData, ScoreInput, ScoreProblem } from "jinglescript/browser";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import View from "../src/vue/View.vue";
+import { formatScore } from "./editor/format-score.ts";
+import { EMPTY_HISTORY, record, redo, undo, type History } from "./editor/history.ts";
+import ScoreEditor from "./editor/ScoreEditor.vue";
+import { isScoreInput, scoreProblem } from "./editor/score-edit.ts";
 import { DEFAULT_EXAMPLE, EXAMPLES } from "./examples.ts";
-import type { RenderReply, RenderRequest } from "./messages.ts";
+import type { RenderReply } from "./messages.ts";
+import { createRenderClient } from "./render-client.ts";
 
 const REPO_URL = "https://github.com/receptron/jinglescript";
 const GROUPS = ["Examples", "Piano classics"] as const;
 const LONG_PIECE_SECONDS = 60;
+/** Edits in a row re-render once they pause for this long. */
+const EDIT_RENDER_DELAY_MS = 300;
+const TABS = [
+  { id: "gui", label: "Timeline" },
+  { id: "json", label: "JSON" },
+] as const;
 
-let worker = startWorker();
-/** The worker reported an error and may never answer: the next render starts a fresh one. */
-let workerFailed = false;
+const renderer = createRenderClient({ onReply, onFailure: fail });
 const selected = ref(DEFAULT_EXAMPLE);
 /** The player's title when the score has none: the example's name, until the score is edited. */
 const fallbackName = ref(DEFAULT_EXAMPLE);
@@ -24,7 +33,23 @@ const status = ref("");
 const problems = ref<{ kind: "error" | "warning"; problem: ScoreProblem }[]>([]);
 const result = ref<ToolResultComplete<PlayerData> | undefined>();
 const timingUrl = ref<string | undefined>();
-let renderId = 0;
+const tab = ref<(typeof TABS)[number]["id"]>("gui");
+const history = ref<History>(EMPTY_HISTORY);
+let editTimer: ReturnType<typeof setTimeout> | undefined;
+let unmounted = false;
+/** Counts example picks: a load that finishes after a newer pick is dropped. */
+let pickCount = 0;
+
+/** The score the timeline edits, or why the JSON is not one. */
+const editable = computed<{ score: ScoreInput } | { problem: string }>(() => {
+  let value: unknown;
+  try {
+    value = JSON.parse(source.value);
+  } catch (error) {
+    return { problem: `The JSON does not parse: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  return isScoreInput(value) ? { score: value } : { problem: scoreProblem(value) ?? "not a score" };
+});
 
 const timingSummary = computed(() => {
   const timing = result.value?.data?.timing;
@@ -60,14 +85,70 @@ function parseSource(): unknown {
 function renderScore(): void {
   // The worker renders one request at a time: a second one would queue behind a long render. Stop first.
   if (busy.value) return;
+  startRender();
+}
+
+function startRender(): void {
   const score = parseSource();
   if (score === undefined) return;
-  if (workerFailed) replaceWorker(); // it can fail before any render is posted, and would then never reply
   busy.value = true;
   status.value = "Rendering…";
   problems.value = [];
-  const request: RenderRequest = { id: ++renderId, score, name: fallbackName.value, sfxBaseUrl: new URL("sfx/", document.baseURI).href };
-  worker.postMessage(request);
+  renderer.request({ score, name: fallbackName.value, sfxBaseUrl: new URL("sfx/", document.baseURI).href });
+}
+
+/** A timeline edit: the JSON is rewritten, kept for undo, and rendered once the edits pause. */
+function onEdit(next: ScoreInput): void {
+  const problem = scoreProblem(next);
+  if (problem !== undefined) {
+    status.value = `That edit was not made: ${problem}`;
+    return;
+  }
+  history.value = record(history.value, source.value);
+  setSource(formatScore(next));
+}
+
+function setSource(text: string): void {
+  source.value = text;
+  fallbackName.value = "score";
+  clearTimeout(editTimer);
+  renderer.invalidate(); // a render of the previous score must not land after this edit
+  editTimer = setTimeout(renderLatest, EDIT_RENDER_DELAY_MS);
+}
+
+/** Renders the score as it is now; a render still running is of a score that is gone. */
+function renderLatest(): void {
+  clearTimeout(editTimer);
+  editTimer = undefined;
+  if (busy.value) renderer.restart();
+  busy.value = false;
+  startRender();
+}
+
+/** Typing JSON takes over from a timeline edit still waiting to render: the JSON renders on Render. */
+function onJsonInput(): void {
+  fallbackName.value = "score";
+  if (editTimer === undefined) return;
+  clearTimeout(editTimer);
+  editTimer = undefined;
+  // The edit dropped any render in flight; stop it, so Render is free again.
+  if (busy.value) renderer.restart();
+  busy.value = false;
+  status.value = "The JSON changed: press Render to hear it.";
+}
+
+function onUndo(): void {
+  const step = undo(history.value, source.value);
+  if (step === undefined) return;
+  history.value = step.history;
+  setSource(step.text);
+}
+
+function onRedo(): void {
+  const step = redo(history.value, source.value);
+  if (step === undefined) return;
+  history.value = step.history;
+  setSource(step.text);
 }
 
 function onDone(reply: Extract<RenderReply, { kind: "done" }>): void {
@@ -84,7 +165,6 @@ function onDone(reply: Extract<RenderReply, { kind: "done" }>): void {
 }
 
 function onReply(reply: RenderReply): void {
-  if (reply.id !== renderId) return;
   if (reply.kind === "downloading") {
     status.value = `Downloading samples (${reply.count}): ${reply.file}`;
     return;
@@ -104,17 +184,25 @@ function onReply(reply: RenderReply): void {
 async function pick(name: string): Promise<void> {
   const example = EXAMPLES.find((e) => e.name === name);
   if (!example || busy.value) return;
+  clearTimeout(editTimer);
+  editTimer = undefined;
+  const pickId = ++pickCount;
   const previous = selected.value;
   selected.value = name;
   try {
-    source.value = JSON.stringify(await example.load(), null, 2);
+    const loaded = await example.load();
+    if (unmounted || pickId !== pickCount) return;
+    source.value = JSON.stringify(loaded, null, 2);
   } catch (error) {
+    if (unmounted || pickId !== pickCount) return;
     selected.value = previous; // the editor still holds the previous score
     status.value = `Could not load the example ${name}: ${error instanceof Error ? error.message : String(error)}. Reload the page.`;
     return;
   }
   fallbackName.value = name;
-  renderScore();
+  history.value = EMPTY_HISTORY;
+  // An edit's render may have started while the example loaded.
+  renderLatest();
 }
 
 function onPick(event: Event): void {
@@ -125,37 +213,17 @@ function onKey(event: KeyboardEvent): void {
   if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) renderScore();
 }
 
-function startWorker(): Worker {
-  const started = new Worker(new URL("./render-worker.ts", import.meta.url), { type: "module" });
-  // Only the current worker may change the page: a replaced one can still have events in flight.
-  const current = (): boolean => started === worker;
-  started.addEventListener("message", (event: MessageEvent<RenderReply>) => current() && onReply(event.data));
-  // A worker that cannot load (a stale tab after a redeploy) or a reply that cannot be read sends no message.
-  started.addEventListener("error", (event) => {
-    if (!current()) return;
-    workerFailed = true;
-    fail(`The renderer stopped: ${event.message || "it could not be loaded"}. Reload the page.`);
-  });
-  started.addEventListener("messageerror", () => current() && fail("The renderer's answer could not be read. Reload the page."));
-  return started;
-}
-
-function replaceWorker(): void {
-  worker.terminate();
-  worker = startWorker();
-  workerFailed = false;
-}
-
 /** Render is synchronous inside the worker, so stopping it means replacing the worker. */
 function stop(): void {
-  replaceWorker();
-  renderId++;
+  renderer.restart();
   fail("Stopped.");
 }
 
 onMounted(() => void pick(DEFAULT_EXAMPLE));
 onBeforeUnmount(() => {
-  worker.terminate();
+  unmounted = true;
+  clearTimeout(editTimer);
+  renderer.terminate();
   clearResult();
 });
 </script>
@@ -166,7 +234,7 @@ onBeforeUnmount(() => {
       <div>
         <h1 class="text-2xl font-semibold">JingleScript playground</h1>
         <p class="text-sm text-slate-600 dark:text-slate-400">
-          A JSON score, rendered to audio and a timing map in your browser — no server. Edit it and press Render (⌘/Ctrl + Enter).
+          A score, rendered to audio and a timing map in your browser — no server. Edit it on the timeline, or as JSON and press Render (⌘/Ctrl + Enter).
         </p>
       </div>
       <nav class="flex gap-4 text-sm">
@@ -176,9 +244,27 @@ onBeforeUnmount(() => {
       </nav>
     </header>
 
-    <div class="grid gap-4 lg:grid-cols-2">
-      <section class="flex flex-col gap-2">
+    <div class="grid gap-4" :class="tab === 'json' ? 'lg:grid-cols-2' : ''">
+      <section class="flex min-w-0 flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2">
+          <div class="flex overflow-hidden rounded border border-slate-300 text-sm dark:border-slate-700" role="tablist" aria-label="Edit the score as">
+            <button
+              v-for="t in TABS"
+              :key="t.id"
+              type="button"
+              role="tab"
+              :aria-selected="tab === t.id"
+              class="px-3 py-1"
+              :class="
+                tab === t.id
+                  ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900'
+                  : 'bg-white hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800'
+              "
+              @click="tab = t.id"
+            >
+              {{ t.label }}
+            </button>
+          </div>
           <label class="text-sm font-medium" for="example">Example</label>
           <select
             id="example"
@@ -208,17 +294,34 @@ onBeforeUnmount(() => {
             Stop
           </button>
         </div>
+        <!-- Both stay mounted, so switching tabs keeps the timeline's selection, zoom and playback. -->
+        <div v-show="tab === 'gui'">
+          <ScoreEditor
+            v-if="'score' in editable"
+            :score="editable.score"
+            :audio-url="result?.data?.audio"
+            :can-undo="history.past.length > 0"
+            :can-redo="history.future.length > 0"
+            @edit="onEdit"
+            @undo="onUndo"
+            @redo="onRedo"
+          />
+          <p v-else class="rounded border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-800 dark:bg-amber-950">
+            The timeline cannot show this score — {{ editable.problem }}. Fix it in the JSON tab.
+          </p>
+        </div>
         <textarea
+          v-show="tab === 'json'"
           v-model="source"
           aria-label="Score (JSON)"
           spellcheck="false"
           class="h-[60vh] w-full resize-y rounded border border-slate-300 bg-white p-3 font-mono text-xs leading-relaxed dark:border-slate-700 dark:bg-slate-900"
           @keydown="onKey"
-          @input="fallbackName = 'score'"
+          @input="onJsonInput"
         ></textarea>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section class="flex min-w-0 flex-col gap-3">
         <p class="min-h-5 text-sm" role="status">{{ status }}</p>
         <ul v-if="problems.length" class="flex flex-col gap-1 text-sm">
           <li

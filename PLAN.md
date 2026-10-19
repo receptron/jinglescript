@@ -1378,12 +1378,36 @@ Decided:
   Buck Bunny (CC BY 3.0, downloaded into `out/`, never committed), cues measured from 24 fps frame
   sheets, rendered and mixed with one ffmpeg command; frames at the four bonk cues show the nut on
   the bunny's head. `tests/docs.test.ts` keeps the score checking with those cue times.
+- 2026-10-14 — User: captions and telops, starting with ffmpeg + ASS (no feature in the library).
+  `docs/video/captions.ts` (pure) writes ASS from a timing map: karaoke lines that fill per syllable
+  (`\kf`, cumulative rounding so a line's fills add up) and telops that pop in on cues;
+  `make-captions.ts` is its command line. Docs step 7. Burned in on the Big Buck Bunny clip and on
+  `lyrics-hatena` over a plain background; frames show each telop on its cue and the karaoke fill
+  advancing with the syllables. tsconfig now includes `docs`.
 - 2026-10-14 — User: check the piano examples' copyright notices. Every file's licence matches
   `examples/piano/README.md`, and each Mutopia source's licence was checked on mutopiaproject.org
   (PD, or CC BY-SA 2.5 / 3.0 / 4.0, which allow BY-SA 4.0 adaptations). The four CC BY-SA files'
   `copyright` — written into rendered audio and MIDI — now names the licence URL and the Mutopia
   edition, typesetter and licence, so the credit travels without the README; the test requires it.
   Moonlight III's "Chris Sawer and Stewart Holmes" is confirmed by the Mutopia .ly files.
+- 2026-10-15 — User: the playground is great but JSON is a lot for video editors, the main users;
+  add a page edited with buttons (#30). `gui-plugin/playground/studio.html`: your video (kept in the
+  browser) or a built-in canvas demo clip; marks added at the playhead (M), a sound per mark from
+  buttons (lead-ins end on the mark), a music style that lands its chord on the ⭐ mark; re-rendered
+  in the playground's worker on every change and played in sync; WAV, timing map, ffmpeg command and
+  the score's JSON to take away. The score comes from a pure `studioScore` (a seeded property test:
+  every generated score checks). Checked in Chrome against the rendered timing map: each edit moves
+  the sound or chord to its mark.
+- 2026-10-15 — User: the Studio was not what they meant; they want the score itself edited with a
+  GUI (add sounds, move them in time) next to the JSON. The Studio page is removed (#32); the
+  playground keeps the render client it brought (latest render wins, failed workers replaced).
+- 2026-10-15 — Timeline editor in the playground (#33): a Timeline tab next to the JSON, both kept in
+  sync (an edit rewrites the JSON; JSON that parses shows on the timeline). A lane per track, cues as
+  flags; drag a sound or a cue (a time keeps its written form — beats, seconds or "cue±beats" — and
+  snaps to the grid), double-click to add one that copies the sound before it, a panel for the
+  selected sound, tracks and cues added and removed, undo/redo; each edit re-renders and plays from
+  just before the edited sound. Sounds are placed by the library's `expandScore`, now exported from
+  the browser entry, and the tests check every edit against it.
 - 2026-10-18 — User: add more sound effects with Stable Audio 3 (seen in a post about a local
   "Audio Studio" app; the model alone is enough, since `import-sfx.ts` already trims and
   normalizes). Generated 8 seeds per prompt for 7 effects with `stable-audio-3-small-sfx` on CPU;

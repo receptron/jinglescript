@@ -1418,3 +1418,9 @@ Decided:
   `GENERATED_SOURCE` for their descriptors, GM Applause for `applause` in MIDI, and the example
   `photo-op.json`. Like any short effect played alone, a sparse score of them reaches the 6 dB
   limiting cap and stays below −14 LUFS (glass alone does the same).
+- 2026-10-22 — Both packages on npm at 0.9.0 (published by the user; the plugin's peer is
+  `jinglescript@^0.9.0`). 0.9.0 adds the five Stable Audio 3 effects, the playground's timeline
+  editor and the caption docs. Installed from the registry in a clean folder: all 34 files of
+  `samples/sfx/` are there, `photo-op.json` renders to WAV and MP3 and the WAV is bit-identical to
+  the repository's render; the library and the plugin's server entry load; jsDelivr serves the new
+  WAVs for the playground.

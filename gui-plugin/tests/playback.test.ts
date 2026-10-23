@@ -49,6 +49,14 @@ describe("waiting for the host's voice", () => {
     expect(quietWait(voice({ answered: true, shownAt: NOW - 1000, stoppedAt: NOW - 200 }), NOW, 6000)).toBe(5000);
     expect(quietWait(voice({ answered: true, shownAt: NOW - 9000, stoppedAt: NOW - 200 }), NOW, 6000)).toBe(QUIET_MS - 200);
   });
+
+  it("counts an autoplayDelay from when the card appeared, even when it appeared during speech", () => {
+    // A 10 s delay, the card shown during speech that ended 8 s later: it plays at 10 s, not 18 s.
+    expect(quietWait(voice({ shownAt: NOW - 8000, stoppedAt: NOW }), NOW, 10_000)).toBe(2000);
+    expect(quietWait(voice({ shownAt: NOW - 10_000, stoppedAt: NOW - 2000 }), NOW, 10_000)).toBe(0);
+    // The delay ran out while it spoke: still QUIET_MS after the voice.
+    expect(quietWait(voice({ shownAt: NOW - 12_000, stoppedAt: NOW }), NOW, 10_000)).toBe(QUIET_MS);
+  });
 });
 
 describe("autoplay", () => {

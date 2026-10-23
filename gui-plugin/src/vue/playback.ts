@@ -58,10 +58,12 @@ export interface VoiceState {
  */
 export function quietWait(voice: VoiceState, now: number, delayMs?: number): number | undefined {
   if (voice.speaking) return undefined;
-  const delay = delayMs === undefined ? 0 : delayMs - (now - voice.shownAt);
-  const quietSince = voice.stoppedAt ?? voice.shownAt;
-  const first = voice.answered ? QUIET_MS : (delayMs ?? (voice.voiced ? REPLY_MS : 0));
-  return Math.max(0, delay, first - (now - quietSince));
+  const afterVoice = voice.stoppedAt === undefined ? 0 : QUIET_MS - (now - voice.stoppedAt);
+  // The LLM's delay counts from when the card appeared, whatever the voice did meanwhile.
+  if (delayMs !== undefined) return Math.max(0, delayMs - (now - voice.shownAt), afterVoice);
+  if (voice.answered) return Math.max(0, afterVoice);
+  if (!voice.voiced) return 0;
+  return Math.max(0, REPLY_MS - (now - (voice.stoppedAt ?? voice.shownAt)));
 }
 
 /** The one message sent to the LLM when playback first reaches the end, if it asked for it. */

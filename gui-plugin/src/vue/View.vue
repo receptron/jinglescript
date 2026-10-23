@@ -88,8 +88,15 @@ function pause(): void {
   tick();
 }
 
-function toggle(): void {
+/** The user took over: nothing plays by itself any more, and a pending autoplay counts as used. */
+function takeOver(): void {
+  if (automatic && !memory.value.autoplayed) remember({ autoplayed: true });
   automatic = false;
+  clearTimeout(quietTimer);
+}
+
+function toggle(): void {
+  takeOver();
   if (playing.value) pause();
   else void play();
 }
@@ -98,7 +105,7 @@ function seek(event: MouseEvent): void {
   const target = event.currentTarget;
   if (!(target instanceof Element)) return;
   const box = target.getBoundingClientRect();
-  automatic = false;
+  takeOver();
   void play(((event.clientX - box.left) / box.width) * duration.value);
 }
 

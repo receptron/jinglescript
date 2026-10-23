@@ -155,6 +155,17 @@ describe("scoreToNotation", () => {
     expect(notation.warnings[0]?.message).toContain("off the sheet-music grid");
   });
 
+  it("warns about a len off the grid, and not about a triplet's 0.333", () => {
+    const notation = notationOf({}, [
+      melody([
+        { at: 0, pitch: "C4", len: 0.29 },
+        { at: 1, pitch: "D4", len: 0.333 },
+      ]),
+    ]);
+    expect(notation.warnings.map((w) => w.path.join("."))).toEqual(["tracks.0.notes.0.len"]);
+    expect(notation.warnings[0]?.message).toContain("written as 0.25");
+  });
+
   it("writes notes at their written time, before humanize moves them", () => {
     const humanized = notationOf({}, [melody([0, 1, 2, 3].map((at) => ({ at, pitch: "C4", len: 1, humanize: 30 })))]);
     expect(bars(humanized)).toEqual(["C4:q C4:q C4:q C4:q"]);
@@ -175,6 +186,17 @@ describe("scoreToNotation", () => {
       ["-", "natural", "-", "sharp"],
       ["-", "-", "-"],
     ]);
+  });
+
+  it("restates the accidental on a note after one tied over the bar line", () => {
+    const notation = notationOf({}, [
+      melody([
+        { at: 3, pitch: "F#4", len: 2 },
+        { at: 5, pitch: "F#4", len: 1 },
+      ]),
+    ]);
+    const measures = notation.parts[0]?.staves[0]?.measures ?? [];
+    expect(measures.map((m) => m.filter((i) => i.pitches.length > 0).map((i) => i.accidentals[0] ?? "-"))).toEqual([["sharp"], ["-", "sharp"]]);
   });
 
   it("spells a chord written by name from its root: C7's seventh is Bb, Cdim7's is Bbb", () => {

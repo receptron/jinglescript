@@ -20,8 +20,8 @@ export const DIVISIONS = 24;
 const KEYBOARDS: ReadonlySet<string> = new Set(["piano", "grandpiano", "organ"]);
 /** A track whose pitches are mostly below this (A3) gets a bass clef. */
 const BASS_BELOW = 57;
-/** Rounding a time by more than this many grid steps is reported (half a 32nd note). */
-const ROUNDING_WARNING = 1;
+/** Rounding a time or a length by more than this many grid steps (a 48th of a beat) is reported; a triplet written as 0.333 is far inside it. */
+const ROUNDING_WARNING = 0.5;
 
 export type Clef = "treble" | "bass";
 
@@ -200,11 +200,19 @@ function writtenOf(event: NoteEvent, harmony: string | undefined, ctx: TrackCont
   }
   const len = score.tracks[track]?.notes[event.note]?.len;
   const beats = typeof len === "object" ? secondsToBeats(len.seconds, score.tempo) : len;
+  const exactLen = beats === undefined ? 0 : toSteps(beats);
+  if (Math.abs(snap(exactLen) - exactLen) > ROUNDING_WARNING && event.repeat === 0) {
+    warnings.push({
+      path: [...path, "len"],
+      message: `Lasts ${beatsLabel(exactLen)} beats, off the sheet-music grid; written as ${beatsLabel(snap(exactLen))}.`,
+      hint: "Give `len` in beats, halves, quarters, eighths of a beat or triplets (0.333) for clean sheet music.",
+    });
+  }
   const pitches = event.pitches
     .map(notationPitch)
     .filter((p) => p !== undefined)
     .map((p) => (event.chord === undefined ? p : (spellChordTone(event.chord, midiOf(p)) ?? p)));
-  return { start, end: beats === undefined ? -1 : start + snap(toSteps(beats)), pitches, lyric: ctx.lyrics.get(event), harmony, path };
+  return { start, end: beats === undefined ? -1 : start + snap(exactLen), pitches, lyric: ctx.lyrics.get(event), harmony, path };
 }
 
 /** Events that start together become one chord, held as long as its longest note. */
@@ -438,7 +446,9 @@ function markAccidentals(items: NotationItem[], key: KeySignature): void {
     item.pitches.forEach((pitch, i) => {
       const line = `${pitch.step}${pitch.octave}`;
       const current = inBar.get(line) ?? signature.get(pitch.step) ?? 0;
-      if (!item.tieStop && current !== pitch.alter) item.accidentals[i] = ACCIDENTALS[pitch.alter];
+      // A note tied over from the bar before carries its pitch without stating it, so a later note still needs the accidental.
+      if (item.tieStop) return;
+      if (current !== pitch.alter) item.accidentals[i] = ACCIDENTALS[pitch.alter];
       inBar.set(line, pitch.alter);
     });
   }

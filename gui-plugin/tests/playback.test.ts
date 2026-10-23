@@ -83,7 +83,7 @@ describe("the plugin's instructions to the LLM", () => {
     const result = await executeManage({}, { action: "renderScore", score, view: "notation", autoplay: true, notifyWhenDone: true });
     expect(result.data?.musicxml).toContain("<score-partwise");
     expect(result.instructions).toBe(
-      "The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Do not speak while it plays: say nothing until a message saying it finished playing arrives, then go on.",
+      'The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Say only a few words that it is about to play (like "Here comes the sound."), then nothing until a message saying it finished playing arrives; then go on.',
     );
   });
 

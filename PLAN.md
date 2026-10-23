@@ -1486,3 +1486,8 @@ Decided:
   voice speaks again, resuming where it was; a click on play or the bar hands control to the user.
   Checked in a browser with a simulated voice (wait, start, pause at 1.9 s, resume, no pause after
   a click). Not yet heard in MulmoChat itself.
+- 2026-10-23 — The wait works in MulmoChat. The model said "playing the music / waiting to play"
+  in the turn after renderScore (told to say nothing, it described the player). A first fix (say
+  what to listen for there) was rejected and dropped. User: the line was simply wrong; a few words
+  like "preparing the sheet music" / "here comes the sound" is all it takes. The instruction now
+  asks for exactly that, then nothing until the "finished playing" message.

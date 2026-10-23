@@ -29,7 +29,7 @@ function moveTo(seconds: number): void {
   }
 }
 
-/** Draws `musicxml`; a newer call (the score changed meanwhile) wins. */
+/** Draws `musicxml`; a newer call (the score changed meanwhile) or an unmount cancels a pending one. */
 let drawing = 0;
 async function draw(musicxml: string): Promise<void> {
   const element = container.value;
@@ -38,6 +38,7 @@ async function draw(musicxml: string): Promise<void> {
   state.value = "loading";
   try {
     const { OpenSheetMusicDisplay } = await import("opensheetmusicdisplay");
+    if (call !== drawing) return;
     osmd ??= new OpenSheetMusicDisplay(element, {
       backend: "svg",
       autoResize: true,
@@ -86,6 +87,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  drawing++;
   osmd?.clear();
   osmd = undefined;
 });

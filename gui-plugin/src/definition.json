@@ -55,6 +55,22 @@
           "ogg"
         ]
       },
+      "view": {
+        "description": "renderScore: what the player shows the user first — \"waveform\" (default: the sound with its cues and beats) or \"notation\" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). checkScore: \"notation\" also reports what the sheet music had to round or shorten. Only where a player view shows the result.",
+        "type": "string",
+        "enum": [
+          "waveform",
+          "notation"
+        ]
+      },
+      "autoplay": {
+        "description": "renderScore: true to start playing as soon as the player appears (once). Only where a player view shows the result.",
+        "type": "boolean"
+      },
+      "notifyWhenDone": {
+        "description": "renderScore: true to be told when the user has heard it to the end: the player then sends you one message (\"Finished playing …\") and you can go on (ask a question about it, play the next exercise). Do not wait for it where no player view is shown.",
+        "type": "boolean"
+      },
       "includeTiming": {
         "description": "renderScore: true to get the whole timing map back (every beat, note and lyric syllable). By default only its summary comes back — tempo, duration, cues, audibleUntil, note counts — which is enough to check that cues land where intended.",
         "type": "boolean"

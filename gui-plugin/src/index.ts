@@ -29,8 +29,22 @@ export async function executeManage(context: ManageContext, args: object): Promi
     title: result.player.title,
     message: result.text,
     data: result.player,
-    instructions: "The jingle is shown to the user in a player with its waveform, cues and beats. Ask whether it fits, and offer changes.",
+    instructions: instructionsFor(result.player),
   };
+}
+
+/** What the LLM is told the user now sees, and what happens next. */
+export function instructionsFor(player: PlayerData): string {
+  const presentation = player.presentation;
+  const shown =
+    presentation?.view === "notation"
+      ? "The music is shown to the user as sheet music, with a cursor that follows playback."
+      : "The jingle is shown to the user in a player with its waveform, cues and beats.";
+  const playing = presentation?.autoplay ? " It starts playing by itself." : "";
+  const next = presentation?.notifyWhenDone
+    ? " When the user has heard it to the end, a message saying it finished playing arrives; then go on. Until then, say briefly what to listen for."
+    : " Ask whether it fits, and offer changes.";
+  return `${shown}${playing}${next}`;
 }
 
 export const pluginCore: ToolPluginCore<PlayerData, never, object> = {

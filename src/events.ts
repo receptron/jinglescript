@@ -5,6 +5,7 @@ import { buildInstruments, type InstrumentTable } from "./custom/instruments.ts"
 import { INSTRUMENT_NAMES, type InstrumentDescriptor } from "./instruments/index.ts";
 import { voiceChord } from "./chords.ts";
 import { buildLyrics, type LyricLine } from "./lyrics.ts";
+import { barQuarters, DEFAULT_METER, parseMeter } from "./meter.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
 import type { Note, ScoreData } from "./score-schema.ts";
@@ -467,12 +468,26 @@ function expandPedal(
   return { spans, issues };
 }
 
+/** A pickup is part of a bar: shorter than a whole one. */
+function pickupIssues(score: ScoreData): Issue[] {
+  const meter = parseMeter(score.meter ?? DEFAULT_METER);
+  if (score.pickup === undefined || meter === undefined || score.pickup < barQuarters(meter)) return [];
+  return [
+    {
+      path: ["pickup"],
+      message: `pickup is ${score.pickup} beats, but a bar of ${score.meter ?? DEFAULT_METER} is ${barQuarters(meter)}.`,
+      hint: "A pickup is the beats before the first full bar: less than one bar. Leave it out when the music starts on the bar.",
+    },
+  ];
+}
+
 export function expandScore(score: ScoreData): Expanded {
   const cues: Record<string, number> = {};
   for (const [name, time] of Object.entries(score.cues)) cues[name] = timeToSeconds(time, score.tempo);
   const duration = timeToSeconds(score.length, score.tempo);
   const { table: instruments, issues } = buildInstruments(score.instruments);
   if (duration <= 0) issues.push({ path: ["length"], message: "length must be more than 0.", hint: 'e.g. "length": { "seconds": 4 }.' });
+  issues.push(...pickupIssues(score));
   for (const [name, seconds] of Object.entries(cues)) {
     if (seconds > duration + EPSILON) {
       issues.push({

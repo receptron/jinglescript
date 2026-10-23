@@ -21,6 +21,23 @@ const QUALITIES = {
 } as const satisfies Record<string, readonly number[]>;
 
 type Quality = keyof typeof QUALITIES;
+
+/** Letters above the root each tone is spelled on (a third two letters up, a seventh six), in QUALITIES' order. */
+const TONE_LETTERS: Record<Quality, readonly number[]> = {
+  "": [0, 2, 4],
+  m: [0, 2, 4],
+  "7": [0, 2, 4, 6],
+  maj7: [0, 2, 4, 6],
+  m7: [0, 2, 4, 6],
+  "6": [0, 2, 4, 5],
+  m6: [0, 2, 4, 5],
+  dim: [0, 2, 4],
+  dim7: [0, 2, 4, 6],
+  aug: [0, 2, 4],
+  sus2: [0, 1, 4],
+  sus4: [0, 3, 4],
+  add9: [0, 2, 4, 1],
+};
 export const CHORD_QUALITIES = Object.keys(QUALITIES);
 // Longest alternatives first so "maj7" is not read as "m" + "aj7".
 const QUALITY_ALTERNATION = [...CHORD_QUALITIES].sort((a, b) => b.length - a.length || a.localeCompare(b)).join("|");
@@ -49,6 +66,24 @@ export function parseChord(symbol: string): ChordTones | undefined {
   const rootMidi = pitchToMidi(`${rootName}4`);
   if (rootMidi === undefined || !isQuality(quality)) return undefined;
   return { root: rootMidi % 12, intervals: QUALITIES[quality], flats: rootName.includes("b") || rootName === "F" };
+}
+
+const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+const LETTER_PCS = [0, 2, 4, 5, 7, 9, 11];
+
+/** A chord tone spelled as the chord names it (C7's seventh is Bb, not A#); undefined when it is not one of its tones. */
+export function spellChordTone(symbol: string, midi: number): { step: string; alter: number; octave: number } | undefined {
+  const match = CHORD_PATTERN.exec(symbol);
+  const quality = match?.[2] ?? "";
+  if (!match || !isQuality(quality)) return undefined;
+  const root = parseChord(symbol)?.root ?? 0;
+  const index = QUALITIES[quality].findIndex((interval) => (root + interval) % 12 === ((midi % 12) + 12) % 12);
+  if (index < 0) return undefined;
+  const letter = (LETTERS.indexOf(match[1]?.charAt(0) ?? "C") + (TONE_LETTERS[quality][index] ?? 0)) % 7;
+  const step = LETTERS[letter] ?? "C";
+  const natural = LETTER_PCS[letter] ?? 0;
+  const alter = ((((midi - natural) % 12) + 18) % 12) - 6;
+  return { step, alter, octave: Math.round((midi - natural - alter) / 12) - 1 };
 }
 
 export function midiToPitch(midi: number, flats: boolean): string {

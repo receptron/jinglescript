@@ -1,0 +1,53 @@
+[
+  {
+    "id": "scale-g",
+    "request": "Show me the G major scale, one octave up and back down, as sheet music, with the note names under the notes.",
+    "cues": [],
+    "notation": { "meter": "4/4", "key": "G" }
+  },
+  {
+    "id": "birthday-ja",
+    "request": "ハッピーバースデーの歌を楽譜で見せて。歌詞付きで、ピアノの右手と左手で。",
+    "cues": [],
+    "words": ["Happy|ハッピー", "birthday|バースデー"],
+    "notation": { "meter": "3/4", "pickup": 1 }
+  },
+  {
+    "id": "dotted-quarter",
+    "request": "Teach me what a dotted quarter note sounds like: a short 4/4 exercise on one note that alternates a dotted quarter plus an eighth with two plain quarters, on marimba, as sheet music.",
+    "cues": [],
+    "notation": { "meter": "4/4" }
+  },
+  {
+    "id": "triplets-ja",
+    "request": "3連符の練習曲を楽譜で。4分の4拍子で、普通の8分音符と8分音符の3連符を交互に、木琴で2小節ずつ。",
+    "cues": [],
+    "notation": { "meter": "4/4" }
+  },
+  {
+    "id": "waltz-am",
+    "request": "Write a short 8-bar waltz in A minor for piano — a melody in the right hand and an oom-pah-pah left hand — and show it as sheet music.",
+    "cues": [],
+    "notation": { "meter": "3/4", "key": "Am" }
+  },
+  {
+    "id": "row-boat",
+    "request": "Row, Row, Row Your Boat in 6/8 with the lyrics, on music box, as sheet music.",
+    "cues": [],
+    "words": ["Row", "row", "row", "your", "boat"],
+    "notation": { "meter": "6/8" }
+  },
+  {
+    "id": "chords-ja",
+    "request": "C - Am - F - G7 のコード進行を、コードネーム付きの楽譜で見せて。1小節に1コード、4分の4拍子、ピアノで。",
+    "cues": [],
+    "notation": { "meter": "4/4", "harmonies": 4 }
+  },
+  {
+    "id": "twinkle-bass",
+    "request": "Twinkle Twinkle Little Star, the first two lines, for a beginner: melody in the right hand with the words, a simple bass in the left hand, as sheet music in C.",
+    "cues": [],
+    "words": ["Twinkle", "twinkle", "little", "star"],
+    "notation": { "meter": "4/4", "key": "C" }
+  }
+]

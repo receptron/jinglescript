@@ -1,0 +1,145 @@
+{
+  "format": "jinglescript/1",
+  "title": "Twinkle, Twinkle, Little Star",
+  "tempo": 100,
+  "meter": "4/4",
+  "key": "C",
+  "length": {
+    "beats": 18
+  },
+  "tracks": [
+    {
+      "instrument": "piano",
+      "name": "right hand",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "Twin-"
+        },
+        {
+          "at": 1,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "kle"
+        },
+        {
+          "at": 2,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "twin-"
+        },
+        {
+          "at": 3,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "kle"
+        },
+        {
+          "at": 4,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "lit-"
+        },
+        {
+          "at": 5,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "tle"
+        },
+        {
+          "at": 6,
+          "pitch": "G4",
+          "len": 2,
+          "lyric": "star,",
+          "lineEnd": true
+        },
+        {
+          "at": 8,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "how"
+        },
+        {
+          "at": 9,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "I"
+        },
+        {
+          "at": 10,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "won-"
+        },
+        {
+          "at": 11,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "der"
+        },
+        {
+          "at": 12,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "what"
+        },
+        {
+          "at": 13,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "you"
+        },
+        {
+          "at": 14,
+          "pitch": "C4",
+          "len": 2,
+          "lyric": "are"
+        }
+      ]
+    },
+    {
+      "instrument": "piano",
+      "name": "left hand",
+      "gain": -4,
+      "notes": [
+        {
+          "at": 0,
+          "pitch": ["C3", "G3"],
+          "len": 4
+        },
+        {
+          "at": 4,
+          "pitch": ["F2", "C3"],
+          "len": 2
+        },
+        {
+          "at": 6,
+          "pitch": ["C3", "G3"],
+          "len": 2
+        },
+        {
+          "at": 8,
+          "pitch": ["F2", "C3"],
+          "len": 2
+        },
+        {
+          "at": 10,
+          "pitch": ["C3", "G3"],
+          "len": 2
+        },
+        {
+          "at": 12,
+          "pitch": ["G2", "D3"],
+          "len": 2
+        },
+        {
+          "at": 14,
+          "pitch": ["C3", "G3"],
+          "len": 2
+        }
+      ]
+    }
+  ]
+}

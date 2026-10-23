@@ -254,6 +254,60 @@ melody; the words are text on its notes, timed exactly by them.
 ] }
 \`\`\`
 
+## Sheet music (teaching and reading music)
+
+A score can also be shown as sheet music, for a lesson: a scale, a rhythm, a song to sing along to.
+The score only needs the fields below; how the player shows it is chosen **in the renderScore call,
+not in the score**: \`{ "action": "renderScore", "score": { … }, "view": "notation", "autoplay": true,
+"notifyWhenDone": true }\`. \`"view": "notation"\` shows the notes on staves with a cursor that
+follows playback; \`"autoplay": true\` starts it by itself; \`"notifyWhenDone": true\` sends you a
+message when the user has heard it to the end, so you can ask about it or go on to the next
+exercise. The sound is the same either way: sheet music is drawn from the score you wrote.
+
+- Set \`"meter"\` ("4/4", "3/4", "2/4", "6/8") and \`"key"\` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
+  They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).
+- \`"pickup": n\` when the tune starts before the first full bar ("Hap-py" of Happy Birthday is a
+  pickup of 1 beat in 3/4; many songs start this way). Bar lines fall at pickup, pickup + a bar, …
+- For a triplet, \`len\` is a third of the beat it shares (0.333 for a triplet eighth). Triplets are
+  written in 2/4, 3/4, 4/4 and 2/2, filling a quarter note (don't mix 0.25 and 0.333 within one);
+  6/8 has none.
+- Time in beats (quarter notes), on the grid: whole beats, halves, quarters (0.25), eighths of a
+  beat, or triplets (12, 12.333, 12.667). Use a tempo and plain beat numbers rather than seconds
+  or cues. In 6/8 a bar is still 3 beats: six eighths are 0.5 beats each.
+- Give every note its written length with \`len\` in beats (1 a quarter, 2 a half, 1.5 a dotted
+  quarter, 0.5 an eighth). Without it a note is written up to the next one.
+- One line of notes per track: a melody track and an accompaniment track. Chords (\`pitch\` lists)
+  are fine; notes that overlap at different times are not (the later one cuts the earlier).
+- Piano music: a "right hand" and a "left hand" track, both \`piano\` (or \`grandpiano\`), side by
+  side, become one grand staff. A track mostly below A3 gets a bass clef (or set \`"clef"\`).
+- \`lyric\`s are printed under their notes. A chord written by name (\`chord\`) prints its symbol
+  above the staff.
+- Sound effects are never drawn; \`"notation": false\` on a track leaves it off the page too.
+- checkScore with \`"view": "notation"\` warns about notes off the grid or held into the next note;
+  fix them so the page shows what you meant.
+
+\`\`\`json
+{
+  "format": "jinglescript/1",
+  "title": "Twinkle, Twinkle (first line)",
+  "tempo": 100, "meter": "4/4", "key": "C",
+  "length": { "beats": 10 },
+  "tracks": [
+    { "instrument": "piano", "name": "right hand", "notes": [
+      { "at": 0, "pitch": "C4", "len": 1, "lyric": "Twin-" }, { "at": 1, "pitch": "C4", "len": 1, "lyric": "kle" },
+      { "at": 2, "pitch": "G4", "len": 1, "lyric": "twin-" }, { "at": 3, "pitch": "G4", "len": 1, "lyric": "kle" },
+      { "at": 4, "pitch": "A4", "len": 1, "lyric": "lit-" }, { "at": 5, "pitch": "A4", "len": 1, "lyric": "tle" },
+      { "at": 6, "pitch": "G4", "len": 2, "lyric": "star" }
+    ] },
+    { "instrument": "piano", "name": "left hand", "gain": -4, "notes": [
+      { "at": 0, "pitch": ["C3", "G3"], "len": 4 },
+      { "at": 4, "pitch": ["F2", "C3"], "len": 2 },
+      { "at": 6, "pitch": ["C3", "G3"], "len": 2 }
+    ] }
+  ]
+}
+\`\`\`
+
 ## What makes a jingle work
 
 - A **question and an answer**: three rising notes that end open (e.g. G4 C5 E5 on eighths), then

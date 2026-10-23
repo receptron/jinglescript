@@ -5,8 +5,11 @@ import { z } from "zod";
 import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
 import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { renderToFiles } from "./output.ts";
-import { dataUri, round1, toPlayerData, wavPlayerAudio, type PlayerAudio, type PlayerData } from "./player.ts";
+import { scoreToMusicXml } from "./musicxml.ts";
+import { dataUri, round1, toPlayerData, VIEWS, wantsNotation, wavPlayerAudio, type PlayerAudio, type PlayerData, type Presentation } from "./player.ts";
 import { render, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
@@ -79,6 +82,22 @@ export const ManageInputSchema = z
       .optional()
       .describe('renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle").'),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
+    view: z
+      .enum(VIEWS)
+      .optional()
+      .describe(
+        'renderScore: what the player shows the user first — "waveform" (default: the sound with its cues and beats) or "notation" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
+      ),
+    autoplay: z
+      .boolean()
+      .optional()
+      .describe("renderScore: true to start playing as soon as the player appears (once). Only where a player view shows the result."),
+    notifyWhenDone: z
+      .boolean()
+      .optional()
+      .describe(
+        'renderScore: true to be told when the user has heard it to the end: the player then sends you one message ("Finished playing …") and you can go on (ask a question about it, play the next exercise). Do not wait for it where no player view is shown.',
+      ),
     includeTiming: z
       .boolean()
       .optional()
@@ -181,11 +200,26 @@ function timingSummary(timing: TimingMap, trackCount: number, fullTimingAt: stri
   };
 }
 
+/** Writes the score's sheet music next to its audio; undefined when it has none to write. */
+async function writeNotation(score: Score, dir: string, stem: string): Promise<string | undefined> {
+  const musicxml = scoreToMusicXml(score);
+  if (musicxml === undefined) return undefined;
+  const file = join(dir, `${stem}.musicxml`);
+  await writeFile(file, musicxml);
+  return file;
+}
+
+/** What the player was asked to do with the render. */
+function presentationOf(input: ManageInput): Presentation {
+  return { view: input.view ?? "waveform", autoplay: input.autoplay === true, notifyWhenDone: input.notifyWhenDone === true, renderedAt: Date.now() };
+}
+
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
   const source = await scoreOf(input, options);
   if (!source.ok) return source.result;
   const raw = source.score;
-  const check = checkScore(raw);
+  const view = input.view ?? "waveform";
+  const check = checkScore(raw, { notation: view === "notation" });
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
   const score = parseScore(raw);
   const stem = input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
@@ -198,10 +232,12 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     if (error instanceof FfmpegMissingError || error instanceof SampleDownloadError) return { text: error.message, isError: true };
     throw error;
   }
+  const notationFile = files && options.outDir !== undefined && wantsNotation(score, view) ? await writeNotation(score, options.outDir, stem) : undefined;
   const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : "render again with includeTiming: true to get them";
   const summary = {
     ok: true,
     ...(files ? { audio: files.audio, timingFile: files.timing } : {}),
+    ...(notationFile === undefined ? {} : { notationFile }),
     loudness: round1(result.stats.loudness),
     truePeak: round1(result.stats.truePeak),
     limitingDb: round1(result.stats.limitingDb),
@@ -210,7 +246,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     timing: input.includeTiming ? result.timing : timingSummary(result.timing, score.tracks.length, fullTimingAt),
   };
   if (!options.player) return { text: json(summary), isError: false };
-  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score));
+  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input));
   return { text: json(summary), isError: false, player };
 }
 
@@ -234,7 +270,7 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     }
     case "checkScore": {
       const source = await scoreOf(input, options);
-      return source.ok ? { text: json(checkScore(source.score)), isError: false } : source.result;
+      return source.ok ? { text: json(checkScore(source.score, { notation: input.view === "notation" })), isError: false } : source.result;
     }
     case "renderScore":
       return renderAction(input, options);

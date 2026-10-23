@@ -29,6 +29,21 @@
       "maximum": 400,
       "description": "Beats per minute; one beat is a quarter note. 100–140 suits most jingles."
     },
+    "meter": {
+      "description": "Time signature for sheet music, e.g. \"4/4\", \"3/4\", \"6/8\" (default \"4/4\"). It does not change the sound: `at`, `len` and `tempo` still count quarter notes, so a 3/4 bar is 3 beats and a 6/8 bar is 3 beats too.",
+      "type": "string",
+      "pattern": "^([1-9]|1[0-6])\\/(2|4|8|16)$"
+    },
+    "key": {
+      "description": "Key signature for sheet music: a major key (\"C\", \"G\", \"F\", \"Bb\", \"D\") or a minor one with \"m\" (\"Am\", \"Em\", \"Dm\", \"F#m\"); default \"C\". It does not change the sound or the pitches: still write each note's real pitch (\"F#4\" in G major).",
+      "type": "string",
+      "pattern": "^([A-G][#b]?)(m?)$"
+    },
+    "pickup": {
+      "description": "Sheet music only: beats before the first full bar (an upbeat, as in Happy Birthday's \"Hap-py\" = 1 beat in 3/4). Bar lines then fall at pickup, pickup + one bar, and so on. Less than one bar.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
     "length": {
       "anyOf": [
         {
@@ -1191,6 +1206,18 @@
               "description": "One note or chord (or one sound effect hit)."
             },
             "description": "The notes, in any order."
+          },
+          "clef": {
+            "description": "Sheet music only: the staff's clef. Leave it out to choose from the pitches (\"bass\" when they are mostly below A3).",
+            "type": "string",
+            "enum": [
+              "treble",
+              "bass"
+            ]
+          },
+          "notation": {
+            "description": "Sheet music only: false leaves this track off the sheet music (an accompaniment you do not want shown). Sound effects are never shown.",
+            "type": "boolean"
           },
           "pedal": {
             "description": "Sustain pedal, for instruments with dampers (grandpiano): stretches in time order that do not overlap. While it is down, notes whose `len` has ended ring on; when it lifts, they stop. Change pedal where the harmony changes, as the printed Ped. marks show. Notes without `len` ring out regardless. Two tracks of one piano (right and left hand) each need it.",

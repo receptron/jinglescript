@@ -1,0 +1,162 @@
+{
+  "format": "jinglescript/1",
+  "title": "Note values: quarters, eighths, dotted, triplets, sixteenths",
+  "tempo": 90,
+  "meter": "4/4",
+  "length": {
+    "beats": 21
+  },
+  "tracks": [
+    {
+      "instrument": "marimba",
+      "name": "rhythm",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "G4",
+          "len": 1
+        },
+        {
+          "at": 1,
+          "pitch": "G4",
+          "len": 1
+        },
+        {
+          "at": 2,
+          "pitch": "G4",
+          "len": 1
+        },
+        {
+          "at": 3,
+          "pitch": "G4",
+          "len": 1
+        },
+        {
+          "at": 4.0,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 4.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 5.0,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 5.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 6.0,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 6.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 7.0,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 7.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 8,
+          "pitch": "G4",
+          "len": 1.5
+        },
+        {
+          "at": 9.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 10,
+          "pitch": "G4",
+          "len": 1.5
+        },
+        {
+          "at": 11.5,
+          "pitch": "G4",
+          "len": 0.5
+        },
+        {
+          "at": 12,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 12.333,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 12.667,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 13,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 13.333,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 13.667,
+          "pitch": "G4",
+          "len": 0.333
+        },
+        {
+          "at": 14,
+          "pitch": "G4",
+          "len": 2
+        },
+        {
+          "at": 16,
+          "pitch": "G4",
+          "len": 0.25
+        },
+        {
+          "at": 16.25,
+          "pitch": "G4",
+          "len": 0.25
+        },
+        {
+          "at": 16.5,
+          "pitch": "G4",
+          "len": 0.25
+        },
+        {
+          "at": 16.75,
+          "pitch": "G4",
+          "len": 0.25
+        },
+        {
+          "at": 17,
+          "pitch": "G4",
+          "len": 1
+        },
+        {
+          "at": 18,
+          "pitch": "G4",
+          "len": 2
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 // The part of the library that runs anywhere JavaScript does: no Node built-ins, no ffmpeg, no files.
 // Both entries re-export it: index.ts adds the Node-only parts, browser.ts the browser's.
 export { parseScore, checkScore, ScoreSchema, JingleScriptError, formatProblem } from "./score.ts";
-export type { Score, ScoreProblem, CheckResult } from "./score.ts";
+export type { Score, ScoreProblem, CheckResult, CheckOptions } from "./score.ts";
 export { ScoreBaseSchema, NoteSchema, TrackSchema, CueSchema, AtSchema, FORMAT } from "./score-schema.ts";
 export type { ScoreInput, Note, Track } from "./score-schema.ts";
 export { expandScore } from "./events.ts";
@@ -28,5 +28,9 @@ export type { SchemaPart, InstrumentInfo } from "./llm.ts";
 export { INSTRUMENT_NAMES } from "./instruments/index.ts";
 export type { InstrumentName, InstrumentDescriptor } from "./instruments/index.ts";
 export { demoScore } from "./demo.ts";
-export { toPlayerData, wavPlayerAudio } from "./player.ts";
-export type { PlayerData, PlayerAudio } from "./player.ts";
+export { toPlayerData, wavPlayerAudio, VIEWS, DEFAULT_PRESENTATION, wantsNotation } from "./player.ts";
+export type { PlayerData, PlayerAudio, Presentation, PlayerView } from "./player.ts";
+export { scoreToNotation, DIVISIONS } from "./notation.ts";
+export type { Notation, NotationPart, NotationStaff, NotationItem, NotationMeasure } from "./notation.ts";
+export { scoreToMusicXml, notationToMusicXml, MUSICXML_MIME_TYPE } from "./musicxml.ts";
+export { KEYS, parseKey, parseMeter } from "./meter.ts";

@@ -8,11 +8,13 @@ import { REVERBS } from "./dsp/reverb.ts";
 import { CUSTOM_NAME_PATTERN, InstrumentsSchema } from "./custom/schema.ts";
 import { INSTRUMENT_NAMES, INSTRUMENTS } from "./instruments/index.ts";
 import { CHORD_PATTERN, CHORD_QUALITIES } from "./chords.ts";
+import { KEY_PATTERN, KEYS, METER_PATTERN, parseKey } from "./meter.ts";
 import { PITCH_PATTERN } from "./pitch.ts";
 import { STRUM_PATTERN } from "./strum.ts";
 import { CUE_NAME_PATTERN, CUE_REF_PATTERN } from "./time.ts";
 
 export const FORMAT = "jinglescript/1";
+export const CLEFS = ["treble", "bass"] as const;
 
 const instrumentList = INSTRUMENT_NAMES.map((name) => `"${name}"`).join(", ");
 /** One line per sound for the schema: what it is, and the facts needed to write for it. */
@@ -156,6 +158,14 @@ export const TrackSchema = z
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
+    clef: z
+      .enum(CLEFS)
+      .optional()
+      .describe('Sheet music only: the staff\'s clef. Leave it out to choose from the pitches ("bass" when they are mostly below A3).'),
+    notation: z
+      .boolean()
+      .optional()
+      .describe("Sheet music only: false leaves this track off the sheet music (an accompaniment you do not want shown). Sound effects are never shown."),
     pedal: z
       .array(PedalSchema)
       .optional()
@@ -197,6 +207,28 @@ export const ScoreBaseSchema = z
         'Copyright notice, e.g. "© 2026 Example Inc.", written to the audio file\'s copyright tag and the MIDI copyright event. Only fill it in when the user gives it; never guess.',
       ),
     tempo: z.number().min(20).max(400).describe("Beats per minute; one beat is a quarter note. 100–140 suits most jingles."),
+    meter: z
+      .string()
+      .regex(METER_PATTERN, { error: 'meter is a time signature such as "4/4", "3/4", "2/4" or "6/8".' })
+      .optional()
+      .describe(
+        'Time signature for sheet music, e.g. "4/4", "3/4", "6/8" (default "4/4"). It does not change the sound: `at`, `len` and `tempo` still count quarter notes, so a 3/4 bar is 3 beats and a 6/8 bar is 3 beats too.',
+      ),
+    key: z
+      .string()
+      .regex(KEY_PATTERN, { error: `key is a key such as "C", "G", "F", "Bb", "Am" or "F#m": ${KEYS.join(", ")}.` })
+      .refine((key) => parseKey(key) !== undefined, { error: `That key needs more than seven sharps or flats. Keys: ${KEYS.join(", ")}.` })
+      .optional()
+      .describe(
+        'Key signature for sheet music: a major key ("C", "G", "F", "Bb", "D") or a minor one with "m" ("Am", "Em", "Dm", "F#m"); default "C". It does not change the sound or the pitches: still write each note\'s real pitch ("F#4" in G major).',
+      ),
+    pickup: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        'Sheet music only: beats before the first full bar (an upbeat, as in Happy Birthday\'s "Hap-py" = 1 beat in 3/4). Bar lines then fall at pickup, pickup + one bar, and so on. Less than one bar.',
+      ),
     length: LengthSchema,
     seed: z.int().min(0).default(1).describe("Seed for every random detail (mallet noise, reverb, humanize). Same score + seed = identical audio."),
     master: MasterSchema.default({ reverb: "room", loudness: -14, fadeOut: 0.4, limiter: true }),

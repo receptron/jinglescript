@@ -1,0 +1,220 @@
+{
+  "format": "jinglescript/1",
+  "title": "Happy Birthday to You",
+  "tempo": 100,
+  "meter": "3/4",
+  "key": "F",
+  "pickup": 1,
+  "length": {
+    "beats": 27
+  },
+  "tracks": [
+    {
+      "instrument": "piano",
+      "name": "right hand",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "C4",
+          "len": 0.75,
+          "lyric": "Hap-"
+        },
+        {
+          "at": 0.75,
+          "pitch": "C4",
+          "len": 0.25,
+          "lyric": "py"
+        },
+        {
+          "at": 1,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "birth-"
+        },
+        {
+          "at": 2,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "day"
+        },
+        {
+          "at": 3,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "to"
+        },
+        {
+          "at": 4,
+          "pitch": "E4",
+          "len": 2,
+          "lyric": "you",
+          "lineEnd": true
+        },
+        {
+          "at": 6,
+          "pitch": "C4",
+          "len": 0.75,
+          "lyric": "Hap-"
+        },
+        {
+          "at": 6.75,
+          "pitch": "C4",
+          "len": 0.25,
+          "lyric": "py"
+        },
+        {
+          "at": 7,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "birth-"
+        },
+        {
+          "at": 8,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "day"
+        },
+        {
+          "at": 9,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "to"
+        },
+        {
+          "at": 10,
+          "pitch": "F4",
+          "len": 2,
+          "lyric": "you",
+          "lineEnd": true
+        },
+        {
+          "at": 12,
+          "pitch": "C4",
+          "len": 0.75,
+          "lyric": "Hap-"
+        },
+        {
+          "at": 12.75,
+          "pitch": "C4",
+          "len": 0.25,
+          "lyric": "py"
+        },
+        {
+          "at": 13,
+          "pitch": "C5",
+          "len": 1,
+          "lyric": "birth-"
+        },
+        {
+          "at": 14,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "day"
+        },
+        {
+          "at": 15,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "dear"
+        },
+        {
+          "at": 16,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "Ma-",
+          "lineEnd": true
+        },
+        {
+          "at": 17,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "ry"
+        },
+        {
+          "at": 18,
+          "pitch": "Bb4",
+          "len": 0.75,
+          "lyric": "Hap-"
+        },
+        {
+          "at": 18.75,
+          "pitch": "Bb4",
+          "len": 0.25,
+          "lyric": "py"
+        },
+        {
+          "at": 19,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "birth-"
+        },
+        {
+          "at": 20,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "day"
+        },
+        {
+          "at": 21,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "to"
+        },
+        {
+          "at": 22,
+          "pitch": "F4",
+          "len": 3,
+          "lyric": "you",
+          "lineEnd": true
+        }
+      ]
+    },
+    {
+      "instrument": "piano",
+      "name": "left hand",
+      "gain": -4,
+      "notes": [
+        {
+          "at": 1,
+          "pitch": ["F2", "C3"],
+          "len": 3
+        },
+        {
+          "at": 4,
+          "pitch": ["C3", "G3"],
+          "len": 3
+        },
+        {
+          "at": 7,
+          "pitch": ["C3", "G3"],
+          "len": 3
+        },
+        {
+          "at": 10,
+          "pitch": ["F2", "C3"],
+          "len": 3
+        },
+        {
+          "at": 13,
+          "pitch": ["Bb2", "F3"],
+          "len": 3
+        },
+        {
+          "at": 16,
+          "pitch": ["F2", "C3"],
+          "len": 3
+        },
+        {
+          "at": 19,
+          "pitch": ["C3", "G3"],
+          "len": 3
+        },
+        {
+          "at": 22,
+          "pitch": ["F2", "C3"],
+          "len": 3
+        }
+      ]
+    }
+  ]
+}

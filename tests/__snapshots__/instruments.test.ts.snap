@@ -38,6 +38,16 @@ exports[`every shipped example > laser-zaps.json renders cleanly at the loudness
 
 exports[`every shipped example > layered-hit.json renders cleanly at the loudness target (or says why not) 1`] = `"023c8e9264f2846078871d02a7b9af9f4863bb49c21289b654776a5d50a41043"`;
 
+exports[`every shipped example > learn-c-major-scale.json renders cleanly at the loudness target (or says why not) 1`] = `"3c776cab134f0999bfae18d727b861b637666a086913a5cf9b00f90fe85a86a2"`;
+
+exports[`every shipped example > learn-happy-birthday.json renders cleanly at the loudness target (or says why not) 1`] = `"9e899bb0938ccc2cdfab5a43cfc87ea6bbbaf24d36e5c78093ad703050a5e005"`;
+
+exports[`every shipped example > learn-rhythms.json renders cleanly at the loudness target (or says why not) 1`] = `"f9488b3608bb21b81e9225fa8fd5640a71023ff0f55dde4f532a4bce8a7a988c"`;
+
+exports[`every shipped example > learn-row-your-boat.json renders cleanly at the loudness target (or says why not) 1`] = `"8d08b618b4db924631dacfa504d33fc602d08b3a09ad7596e07cf7d9a4c55d85"`;
+
+exports[`every shipped example > learn-twinkle.json renders cleanly at the loudness target (or says why not) 1`] = `"75571d909e752e9bb7605934e6d7d669c0a821c3a4ef88b2bc5016f2f852c284"`;
+
 exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudness target (or says why not) 1`] = `"e9b5fd01720ea59d6efb6865d8dc1546811bfd2b30a2f1ac30494308f26e310b"`;
 
 exports[`every shipped example > photo-op.json renders cleanly at the loudness target (or says why not) 1`] = `"e832aeb091c3098cf83bc4068d76adc0b651b9a1ca23b107399da4701c98ec4c"`;

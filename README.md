@@ -478,7 +478,9 @@ exercise. The sound is the same either way: sheet music is drawn from the score 
   They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).
 - `"pickup": n` when the tune starts before the first full bar ("Hap-py" of Happy Birthday is a
   pickup of 1 beat in 3/4; many songs start this way). Bar lines fall at pickup, pickup + a bar, …
-- For a triplet, `len` is a third of the beat it shares (0.333 for a triplet eighth).
+- For a triplet, `len` is a third of the beat it shares (0.333 for a triplet eighth). Triplets are
+  written in 2/4, 3/4, 4/4 and 2/2, filling a quarter note (don't mix 0.25 and 0.333 within one);
+  6/8 has none.
 - Time in beats (quarter notes), on the grid: whole beats, halves, quarters (0.25), eighths of a
   beat, or triplets (12, 12.333, 12.667). Use a tempo and plain beat numbers rather than seconds
   or cues. In 6/8 a bar is still 3 beats: six eighths are 0.5 beats each.

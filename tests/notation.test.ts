@@ -128,6 +128,36 @@ describe("scoreToNotation", () => {
     expect(notation.warnings).toEqual([]);
   });
 
+  it("writes triplets in 2/2 too; in 6/8 it puts triplet times on the straight grid and says so", () => {
+    const triplet = [0, 0.333, 0.667].map((at, i) => ({ at, pitch: ["C4", "D4", "E4"][i], len: 0.333 }));
+    const cut = notationOf({ meter: "2/2" }, [melody([{ at: 0, pitch: "G4", len: 1 }, ...triplet.map((n) => ({ ...n, at: n.at + 1 }))])]);
+    expect(bars(cut)).toEqual(["G4:q C4:83 D4:83 E4:83 r:h"]);
+    expect(cut.warnings).toEqual([]);
+    const compound = notationOf({ meter: "6/8" }, [melody(triplet)]);
+    const items = compound.parts[0]?.staves[0]?.measures[0] ?? [];
+    expect(items.every((i) => i.duration % 3 === 0 && !i.value?.triplet)).toBe(true);
+    expect(compound.warnings.map((w) => w.path.join("."))).toEqual([
+      "tracks.0.notes.0.len",
+      "tracks.0.notes.1.at",
+      "tracks.0.notes.1.len",
+      "tracks.0.notes.2.at",
+    ]);
+    expect(compound.warnings[0]?.message).toContain("this meter writes no triplets");
+  });
+
+  it("warns when a quarter note mixes straight notes with triplets", () => {
+    const notation = notationOf({}, [
+      melody([
+        { at: 0, pitch: "C4", len: 0.25 },
+        { at: 0.25, pitch: "D4", len: 0.25 },
+        { at: 0.5, pitch: "E4", len: 0.333 },
+        { at: 0.833, pitch: "F4", len: 0.167 },
+      ]),
+    ]);
+    expect(notation.warnings.map((w) => w.path.join("."))).toEqual(["tracks.0.notes.0.len", "tracks.0.notes.1.at"]);
+    expect(notation.warnings[1]?.message).toContain("also has triplets; written at beat 0.333");
+  });
+
   it("starts with a pickup bar, numbered 0, and counts its beats back from the bar's end", () => {
     const notation = notationOf({ meter: "3/4", pickup: 1 }, [
       melody([

@@ -115,6 +115,8 @@ interface Written {
   harmony: string | undefined;
   /** Where it came from, for warnings. */
   path: (string | number)[];
+  /** Whether its end comes from its own `len` (not from the next note or the bar). */
+  fromLen: boolean;
 }
 
 function notationPitch(name: string): NotationPitch | undefined {
@@ -212,7 +214,8 @@ function writtenOf(event: NoteEvent, harmony: string | undefined, ctx: TrackCont
     .map(notationPitch)
     .filter((p) => p !== undefined)
     .map((p) => (event.chord === undefined ? p : (spellChordTone(event.chord, midiOf(p)) ?? p)));
-  return { start, end: beats === undefined ? -1 : start + snap(exactLen), pitches, lyric: ctx.lyrics.get(event), harmony, path };
+  const end = beats === undefined ? -1 : start + snap(exactLen);
+  return { start, end, pitches, lyric: ctx.lyrics.get(event), harmony, path, fromLen: beats !== undefined };
 }
 
 /** Events that start together become one chord, held as long as its longest note. */
@@ -301,9 +304,12 @@ interface BeatGrid {
   origin: number;
   beat: number;
   compound: boolean;
-  /** Beat indexes (from origin) written as triplets. */
+  /** Quarter notes (indexes from origin) written as triplets; empty in a meter that has none. */
   triplets: ReadonlySet<number>;
 }
+
+/** Triplets are written per quarter note. */
+const TRIPLET_SPAN = DIVISIONS;
 
 /**
  * Splits [start, end) — within one bar — into note values that show the beat: a value longer than
@@ -316,11 +322,14 @@ function valuesOf(start: number, end: number, grid: BeatGrid, rest = false): { s
   while (at < end) {
     const position = at - grid.origin;
     const beatIndex = Math.floor(position / grid.beat);
-    const beatEnd = grid.origin + (beatIndex + 1) * grid.beat;
+    const span = Math.floor(position / TRIPLET_SPAN);
+    // A straight value stays inside its beat and stops short of a triplet quarter within it.
+    let beatEnd = grid.origin + (beatIndex + 1) * grid.beat;
+    for (let q = span + 1; grid.origin + q * TRIPLET_SPAN < beatEnd; q++) if (grid.triplets.has(q)) beatEnd = grid.origin + q * TRIPLET_SPAN;
     const left = end - at;
     let chosen: [number, NoteValue] | undefined;
-    if (grid.triplets.has(beatIndex)) {
-      chosen = TRIPLET.find(([d]) => d <= Math.min(left, beatEnd - at));
+    if (grid.triplets.has(span)) {
+      chosen = TRIPLET.find(([d]) => d <= Math.min(left, grid.origin + (span + 1) * TRIPLET_SPAN - at));
     } else {
       chosen = STRAIGHT.find(([d]) => {
         if (d > left) return false;
@@ -330,8 +339,8 @@ function valuesOf(start: number, end: number, grid: BeatGrid, rest = false): { s
         return at + d <= beatEnd;
       });
     }
-    // Off every value (rounding left an odd remainder): take the smallest step that fits.
-    const [duration, value] = chosen ?? [Math.min(left, 3), { type: "32nd", dots: 0, triplet: false }];
+    // Times are on the grid (onGrid), so a remainder is at least a 32nd.
+    const [duration, value] = chosen ?? [3, { type: "32nd", dots: 0, triplet: false }];
     pieces.push({ start: at, duration, value });
     at += duration;
   }
@@ -340,26 +349,27 @@ function valuesOf(start: number, end: number, grid: BeatGrid, rest = false): { s
 
 const tripletBoundary = (steps: number): boolean => steps % 3 !== 0;
 
-/** Beats of a bar whose notes fall on the triplet grid; times in them are moved onto it. */
+/** Quarter notes of a bar whose notes fall on the triplet grid; times in them are moved onto it. */
 function beatGrid(measure: NotationMeasure, meter: Meter, bar: number, boundaries: number[]): BeatGrid {
   const compound = isCompound(meter);
   const beat = compound ? (DIVISIONS * 4 * 3) / meter.beatType : (DIVISIONS * 4) / meter.beatType;
   const origin = measure.implicit ? measure.start + measure.length - bar : measure.start;
   const triplets = new Set<number>();
-  // Triplets only in quarter-note beats; a compound beat already divides in three.
-  if (!compound && beat === DIVISIONS) {
+  // Triplets only where a beat is whole quarter notes (2/4, 3/4, 4/4, 2/2); in 6/8 or 3/8 the
+  // quarter note is not a unit of the beat, so their times go onto the straight grid instead.
+  if (!compound && beat % TRIPLET_SPAN === 0) {
     for (const b of boundaries)
-      if (b > measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / beat));
+      if (b > measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / TRIPLET_SPAN));
   }
   return { origin, beat, compound, triplets };
 }
 
-/** Moves times inside triplet beats onto the triplet grid (multiples of 4 from the beat). */
-function onTripletGrid(steps: number, grid: BeatGrid): number {
-  const beatIndex = Math.floor((steps - grid.origin) / grid.beat);
-  if (!grid.triplets.has(beatIndex)) return steps;
-  const beatStart = grid.origin + beatIndex * grid.beat;
-  return beatStart + Math.round((steps - beatStart) / 4) * 4;
+/** Moves a time onto what the bar can write: the triplet grid in a triplet quarter, else the straight one (32nds). */
+function onGrid(steps: number, grid: BeatGrid): number {
+  const span = Math.floor((steps - grid.origin) / TRIPLET_SPAN);
+  const spanStart = grid.origin + span * TRIPLET_SPAN;
+  const unit = grid.triplets.has(span) ? 4 : 3;
+  return spanStart + Math.round((steps - spanStart) / unit) * unit;
 }
 
 function itemOf(start: number, duration: number, value: NoteValue | undefined, pitches: NotationPitch[]): NotationItem {
@@ -379,7 +389,7 @@ function itemOf(start: number, duration: number, value: NoteValue | undefined, p
 }
 
 /** One bar of a staff: its notes (clipped to the bar), the rests between them, as note values. */
-function measureItems(notes: readonly Written[], measure: NotationMeasure, grid: BeatGrid): NotationItem[] {
+function measureItems(notes: readonly Written[], measure: NotationMeasure, grid: BeatGrid, warnings: Issue[]): NotationItem[] {
   const barStart = measure.start;
   const barEnd = measure.start + measure.length;
   const inBar = notes.filter((n) => n.start < barEnd && n.end > barStart);
@@ -389,9 +399,23 @@ function measureItems(notes: readonly Written[], measure: NotationMeasure, grid:
   const pushRest = (until: number): void => {
     for (const piece of valuesOf(at, until, grid, true)) items.push(itemOf(piece.start, piece.duration, piece.value, []));
   };
+  const moved = (field: "at" | "len", note: Written, exact: number, written: number): void => {
+    if (written === exact) return;
+    const mixed = grid.triplets.has(Math.floor((exact - grid.origin) / TRIPLET_SPAN));
+    const why = mixed ? "in a quarter note that also has triplets" : "a triplet time, and this meter writes no triplets";
+    warnings.push({
+      path: [...note.path, field],
+      message: `${field === "at" ? "Starts" : "Ends"} at beat ${beatsLabel(exact)}, ${why}; written at beat ${beatsLabel(written)}.`,
+      hint: mixed
+        ? "Keep one subdivision per quarter note: straight (0.5, 0.25) or triplets (0.333), not both."
+        : "Triplets are written only where the beat is whole quarter notes (2/4, 3/4, 4/4, 2/2). In 6/8 or 3/8, use eighths (0.5) and sixteenths (0.25).",
+    });
+  };
   for (const note of inBar) {
-    const from = Math.max(barStart, onTripletGrid(note.start, grid));
-    const to = Math.min(barEnd, onTripletGrid(note.end, grid));
+    const from = Math.max(barStart, onGrid(note.start, grid));
+    const to = Math.min(barEnd, onGrid(note.end, grid));
+    if (note.start >= barStart) moved("at", note, note.start, from);
+    if (note.fromLen && note.end <= barEnd) moved("len", note, note.end, to);
     if (from > at) pushRest(from);
     if (to <= from) continue;
     const pieces = valuesOf(from, to, grid);
@@ -417,10 +441,10 @@ function measureItems(notes: readonly Written[], measure: NotationMeasure, grid:
   return items;
 }
 
-/** Brackets each triplet beat: the first item in it opens, the last closes. */
+/** Brackets each triplet quarter: the first item in it opens, the last closes. */
 function markTuplets(items: NotationItem[], grid: BeatGrid): void {
-  for (const beatIndex of grid.triplets) {
-    const inBeat = items.filter((item) => item.value?.triplet && Math.floor((item.start - grid.origin) / grid.beat) === beatIndex);
+  for (const span of grid.triplets) {
+    const inBeat = items.filter((item) => item.value?.triplet && Math.floor((item.start - grid.origin) / TRIPLET_SPAN) === span);
     const first = inBeat[0];
     const last = inBeat.at(-1);
     if (first === undefined || last === undefined || first === last) continue;
@@ -454,12 +478,22 @@ function markAccidentals(items: NotationItem[], key: KeySignature): void {
   }
 }
 
-function staffOf(notes: readonly Written[], clef: Clef, measures: readonly NotationMeasure[], meter: Meter, bar: number, key: KeySignature): NotationStaff {
+/** What every staff of the score shares: its bars, meter and key, and where warnings go. */
+interface Sheet {
+  measures: readonly NotationMeasure[];
+  meter: Meter;
+  bar: number;
+  key: KeySignature;
+  warnings: Issue[];
+}
+
+function staffOf(notes: readonly Written[], clef: Clef, sheet: Sheet): NotationStaff {
+  const { measures, meter, bar, key, warnings } = sheet;
   const boundaries = notes.flatMap((n) => [n.start, n.end]);
   return {
     clef,
     measures: measures.map((measure) => {
-      const items = measureItems(notes, measure, beatGrid(measure, meter, bar, boundaries));
+      const items = measureItems(notes, measure, beatGrid(measure, meter, bar, boundaries), warnings);
       markAccidentals(items, key);
       return items;
     }),
@@ -497,6 +531,7 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
   );
   const end = Math.max(...tracks.flatMap((t) => t.notes.map((n) => n.end)));
   const measures = measuresOf(pickup, bar, end);
+  const sheet: Sheet = { measures, meter, bar, key, warnings };
   const parts: NotationPart[] = [];
   for (let i = 0; i < tracks.length; i++) {
     const upper = tracks[i];
@@ -509,7 +544,7 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
       id: `P${parts.length + 1}`,
       name: grand ? "Piano" : upper.name,
       tracks: members.map((t) => t.track),
-      staves: members.map((t) => staffOf(t.notes, t.clef, measures, meter, bar, key)),
+      staves: members.map((t) => staffOf(t.notes, t.clef, sheet)),
     });
     if (grand) i++;
   }

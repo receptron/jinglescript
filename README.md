@@ -470,7 +470,9 @@ not in the score**: `{ "action": "renderScore", "score": { … }, "view": "notat
 "notifyWhenDone": true }`. `"view": "notation"` shows the notes on staves with a cursor that
 follows playback; `"autoplay": true` starts it by itself; `"notifyWhenDone": true` sends you a
 message when the user has heard it to the end, so you can ask about it or go on to the next
-exercise. The sound is the same either way: sheet music is drawn from the score you wrote.
+exercise. Say what to listen for before renderScore, and say nothing while it plays: speech over
+the music drowns it out. The sound is the same either way: sheet music is drawn from the score you
+wrote.
 
 - Set `"meter"` ("4/4", "3/4", "2/4", "6/8") and `"key"` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
   They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).

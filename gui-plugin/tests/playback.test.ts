@@ -1,7 +1,7 @@
 import type { Presentation } from "jinglescript";
 import { describe, expect, it } from "vitest";
 import { executeManage, instructionsFor } from "../src/index.ts";
-import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, shouldAutoplay } from "../src/vue/playback.ts";
+import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, QUIET_MS, quietWait, shouldAutoplay } from "../src/vue/playback.ts";
 
 const NOW = 1_800_000_000_000;
 const asked = (fields: Partial<Presentation> = {}): Presentation => ({
@@ -12,6 +12,24 @@ const asked = (fields: Partial<Presentation> = {}): Presentation => ({
   ...fields,
 });
 const fresh = memoryOf(undefined);
+
+describe("waiting for the host's voice", () => {
+  it("never plays over the voice", () => {
+    expect(quietWait(true, undefined, NOW)).toBeUndefined();
+    expect(quietWait(true, NOW - 10 * QUIET_MS, NOW)).toBeUndefined();
+  });
+
+  it("plays at once when the voice has not spoken", () => {
+    expect(quietWait(false, undefined, NOW)).toBe(0);
+  });
+
+  it("waits until the voice has been quiet for QUIET_MS", () => {
+    expect(quietWait(false, NOW, NOW)).toBe(QUIET_MS);
+    expect(quietWait(false, NOW - 500, NOW)).toBe(QUIET_MS - 500);
+    expect(quietWait(false, NOW - QUIET_MS, NOW)).toBe(0);
+    expect(quietWait(false, NOW - 10 * QUIET_MS, NOW)).toBe(0);
+  });
+});
 
 describe("autoplay", () => {
   it("plays a fresh render once when asked", () => {
@@ -61,11 +79,11 @@ describe("the plugin's instructions to the LLM", () => {
     tracks: [{ instrument: "marimba", notes: [{ at: 0, pitch: "C4", len: 4 }] }],
   };
 
-  it("say what the user sees, whether it plays by itself, and that a message will come", async () => {
+  it("say what the user sees, whether it plays by itself, and to stay quiet until the message comes", async () => {
     const result = await executeManage({}, { action: "renderScore", score, view: "notation", autoplay: true, notifyWhenDone: true });
     expect(result.data?.musicxml).toContain("<score-partwise");
     expect(result.instructions).toBe(
-      "The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. When the user has heard it to the end, a message saying it finished playing arrives; then go on. Until then, say briefly what to listen for.",
+      'The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Say only a few words that it is about to play (like "Here comes the sound."), then nothing until a message saying it finished playing arrives; then go on.',
     );
   });
 

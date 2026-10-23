@@ -1474,3 +1474,20 @@ Decided:
   grandpiano part is printed "Piano". Real-sample renders: −14.0 to −14.4 LUFS, −1.8 dBTP, except
   riser-reveal at −15.6 LUFS (peak-held, −16.2 with the old piano). Not yet: the user's listen to
   `out/grandpiano/` (old piano in `out/old-piano/`), and the evaluation rerun with "piano" gone.
+- 2026-10-23 — 0.11.0 published; MulmoChat's Artist role teaches with sheet music (its branch
+  `jinglescript-0.11`). User, after a lesson there: the model talked while the music played; it
+  should speak only after it ends. The plugin's instruction for `notifyWhenDone` said "Until then,
+  say briefly what to listen for"; it now says to say nothing until the "finished playing" message,
+  and the guide and the tool description say to speak before renderScore (0.11.1).
+- 2026-10-23 — Still talking over the music in MulmoChat's voice mode, prompt or not: a voice model
+  speaks and calls renderScore in one turn, and the card appeared and autoplayed while that speech
+  was still playing. The view now takes the protocol's `isAudioPlaying`: what plays by itself waits
+  until the host's voice has been quiet for 1.5 s (`QUIET_MS`, `quietWait`), and pauses while the
+  voice speaks again, resuming where it was; a click on play or the bar hands control to the user.
+  Checked in a browser with a simulated voice (wait, start, pause at 1.9 s, resume, no pause after
+  a click). Not yet heard in MulmoChat itself.
+- 2026-10-23 — The wait works in MulmoChat. The model said "playing the music / waiting to play"
+  in the turn after renderScore (told to say nothing, it described the player). A first fix (say
+  what to listen for there) was rejected and dropped. User: the line was simply wrong; a few words
+  like "preparing the sheet music" / "here comes the sound" is all it takes. The instruction now
+  asks for exactly that, then nothing until the "finished playing" message.

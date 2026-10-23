@@ -97,7 +97,7 @@ export const ManageInputSchema = z
       .boolean()
       .optional()
       .describe(
-        'renderScore: true to be told when the user has heard it to the end: the player then sends you one message ("Finished playing …") and you can go on (ask a question about it, play the next exercise). Do not wait for it where no player view is shown.',
+        'renderScore: true to be told when the user has heard it to the end: the player then sends you one message ("Finished playing …") and you can go on (ask a question about it, play the next exercise). Until then say no more than a few words that it is about to play. Do not wait for it where no player view is shown.',
       ),
     includeTiming: z
       .boolean()

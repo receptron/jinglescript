@@ -3,17 +3,21 @@
 // music with a cursor on the note being played; its lyrics karaoke-style when it has any. Click the
 // waveform, the progress bar or a cue to jump there. What the LLM asked for (the first view,
 // autoplay, a message when it has been heard) is in `presentation`; what already happened is kept
-// in the result's viewState, so a card shown again never replays or re-sends by itself.
+// in the result's viewState, so a card shown again never replays or re-sends by itself. In a voice
+// host (`isAudioPlaying`), what plays by itself waits until the voice has been quiet a moment, and
+// pauses while it speaks again.
 import type { ToolResult, ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData, PlayerView } from "jinglescript";
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
-import { finishedMessage, memoryOf, shouldAutoplay, VIEW_LABELS, type PlayerMemory } from "./playback.ts";
+import { finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory } from "./playback.ts";
 
 const props = defineProps<{
   selectedResult: ToolResultComplete<PlayerData>;
   sendTextMessage?: (text?: string) => void;
   onUpdateResult?: (result: Partial<ToolResult<PlayerData>>) => void;
+  /** The host's voice is speaking (GUI Chat Protocol). */
+  isAudioPlaying?: boolean;
 }>();
 
 const Notation = defineAsyncComponent(() => import("./Notation.vue"));
@@ -28,6 +32,11 @@ const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
 const now = ref(0);
 let frame = 0;
+/** When the host's voice last stopped, while this card has been mounted. */
+let voiceStoppedAt: number | undefined;
+/** Playing, or waiting to play, by itself: it yields to the voice. A click hands control to the user. */
+let automatic = false;
+let quietTimer: ReturnType<typeof setTimeout> | undefined;
 
 const WAVE_HEIGHT = 140;
 const LANE_HEIGHT = 18;
@@ -79,7 +88,15 @@ function pause(): void {
   tick();
 }
 
+/** The user took over: nothing plays by itself any more, and a pending autoplay counts as used. */
+function takeOver(): void {
+  if (automatic && !memory.value.autoplayed) remember({ autoplayed: true });
+  automatic = false;
+  clearTimeout(quietTimer);
+}
+
 function toggle(): void {
+  takeOver();
   if (playing.value) pause();
   else void play();
 }
@@ -88,10 +105,17 @@ function seek(event: MouseEvent): void {
   const target = event.currentTarget;
   if (!(target instanceof Element)) return;
   const box = target.getBoundingClientRect();
-  void play(((event.clientX - box.left) / box.width) * duration.value);
+  playFrom(((event.clientX - box.left) / box.width) * duration.value);
+}
+
+/** The user plays from a point (the bar, the waveform, a cue). */
+function playFrom(seconds: number): void {
+  takeOver();
+  void play(seconds);
 }
 
 function ended(): void {
+  automatic = false;
   playing.value = false;
   cancelAnimationFrame(frame);
   now.value = duration.value;
@@ -103,13 +127,50 @@ function ended(): void {
 
 function autoplay(): void {
   if (!shouldAutoplay(data.value?.presentation, memory.value, Date.now())) return;
-  // Remembered before it starts: a host may remount the card at once.
-  remember({ autoplayed: true });
-  play().catch(() => {
+  automatic = true;
+  followVoice();
+}
+
+/** Plays what plays by itself once the voice has been quiet long enough; pauses it while the voice speaks. */
+function followVoice(): void {
+  clearTimeout(quietTimer);
+  if (!automatic) return;
+  const wait = quietWait(props.isAudioPlaying === true, voiceStoppedAt, Date.now());
+  if (wait === undefined) {
+    // `paused` turns false as soon as play() is called, so this also stops a start still pending.
+    if (playing.value || audio.value?.paused === false) pause();
+    return;
+  }
+  if (wait > 0) {
+    quietTimer = setTimeout(followVoice, wait);
+    return;
+  }
+  if (playing.value) return;
+  if (!memory.value.autoplayed) {
+    // Another mount of this card may have started it meanwhile.
+    if (memoryOf(props.selectedResult.viewState).autoplayed) {
+      automatic = false;
+      return;
+    }
+    // Remembered before it starts: a host may remount the card at once.
+    remember({ autoplayed: true });
+  }
+  play().catch((error: unknown) => {
+    // Paused for the voice before it started: it starts again when the voice is quiet.
+    if (error instanceof DOMException && error.name === "AbortError") return;
     // The browser wants a click first.
+    automatic = false;
     blocked.value = true;
   });
 }
+
+watch(
+  () => props.isAudioPlaying === true,
+  (speaking) => {
+    if (!speaking) voiceStoppedAt = Date.now();
+    followVoice();
+  },
+);
 
 onMounted(autoplay);
 
@@ -117,6 +178,8 @@ onMounted(autoplay);
 watch(
   () => props.selectedResult.uuid,
   () => {
+    automatic = false;
+    clearTimeout(quietTimer);
     pause();
     now.value = 0;
     blocked.value = false;
@@ -127,7 +190,10 @@ watch(
   },
 );
 
-onBeforeUnmount(() => cancelAnimationFrame(frame));
+onBeforeUnmount(() => {
+  cancelAnimationFrame(frame);
+  clearTimeout(quietTimer);
+});
 </script>
 
 <template>
@@ -230,7 +296,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
     </div>
 
     <div v-if="cues.length > 0" class="cues">
-      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" @click="play(cue.t - 0.5)">
+      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" @click="playFrom(cue.t - 0.5)">
         {{ cue.name }} <span>{{ cue.t.toFixed(3) }} s</span>
       </button>
     </div>

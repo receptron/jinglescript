@@ -358,15 +358,32 @@ function valuesOf(start: number, end: number, grid: BeatGrid, rest = false): { s
 
 const tripletBoundary = (steps: number): boolean => steps % 3 !== 0;
 
+/** Whether the meter writes triplets: where its beat is whole quarter notes (2/4, 3/4, 4/4, 2/2), not in 6/8 or 3/8. */
+const hasTriplets = (meter: Meter, beat: number): boolean => !isCompound(meter) && beat % TRIPLET_SPAN === 0;
+
+/** The pickup in grid steps; a triplet length in a meter without triplets is rounded to a 32nd and reported. */
+function pickupSteps(beats: number, meter: Meter, warnings: Issue[]): number {
+  const steps = snap(toSteps(beats));
+  if (hasTriplets(meter, beatOf(meter)) || steps % 3 === 0) return steps;
+  const written = Math.max(3, Math.round(steps / 3) * 3);
+  warnings.push({
+    path: ["pickup"],
+    message: `A pickup of ${beatsLabel(steps)} beats is a triplet length, and ${meter.beats}/${meter.beatType} writes no triplets; written as ${beatsLabel(written)}.`,
+    hint: "Give the pickup in eighths (0.5) or sixteenths (0.25) of a beat.",
+  });
+  return written;
+}
+
+const beatOf = (meter: Meter): number => (isCompound(meter) ? (DIVISIONS * 4 * 3) / meter.beatType : (DIVISIONS * 4) / meter.beatType);
+
 /** Quarter notes of a bar whose notes fall on the triplet grid; times in them are moved onto it. */
 function beatGrid(measure: NotationMeasure, meter: Meter, bar: number, boundaries: number[]): BeatGrid {
   const compound = isCompound(meter);
-  const beat = compound ? (DIVISIONS * 4 * 3) / meter.beatType : (DIVISIONS * 4) / meter.beatType;
+  const beat = beatOf(meter);
   const origin = measure.implicit ? measure.start + measure.length - bar : measure.start;
   const triplets = new Set<number>();
-  // Triplets only where a beat is whole quarter notes (2/4, 3/4, 4/4, 2/2); in 6/8 or 3/8 the
-  // quarter note is not a unit of the beat, so their times go onto the straight grid instead.
-  if (!compound && beat % TRIPLET_SPAN === 0) {
+  // Elsewhere the quarter note is not a unit of the beat, so triplet times go onto the straight grid.
+  if (hasTriplets(meter, beat)) {
     // The bar's own start counts: a pickup of a triplet's length starts off the straight grid.
     for (const b of [measure.start, ...boundaries])
       if (b >= measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / TRIPLET_SPAN));
@@ -528,11 +545,11 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
   const meter = parseMeter(score.meter ?? DEFAULT_METER) ?? { beats: 4, beatType: 4 };
   const key = parseKey(score.key ?? DEFAULT_KEY) ?? { fifths: 0, mode: "major" };
   const bar = barQuarters(meter) * DIVISIONS;
-  const pickup = snap(toSteps(score.pickup ?? 0));
+  const warnings: Issue[] = [];
+  const pickup = pickupSteps(score.pickup ?? 0, meter, warnings);
   const barEnd = (steps: number): number => (steps < pickup ? pickup : pickup + (Math.floor((steps - pickup) / bar) + 1) * bar);
   const shown = shownTracks(score, expanded.events);
   if (shown.length === 0) return undefined;
-  const warnings: Issue[] = [];
   const tracks = shown.map((track) =>
     trackNotes(
       score,

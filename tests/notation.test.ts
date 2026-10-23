@@ -162,7 +162,7 @@ describe("scoreToNotation", () => {
       return seed % n;
     };
     for (const meter of ["4/4", "3/4", "2/4", "2/2", "6/8", "3/8", "9/8", "5/4"]) {
-      for (let round = 0; round < 12; round++) {
+      for (let round = 0; round < 16; round++) {
         let at = 0;
         const notes = [];
         while (at < 8) {
@@ -170,7 +170,8 @@ describe("scoreToNotation", () => {
           notes.push({ at, pitch: "C4", len: steps[next(steps.length)] ?? 1 });
           at += steps[next(steps.length)] ?? 1;
         }
-        const pickup = [undefined, 0.333, 0.5, 1][next(4)];
+        // Every pickup in every meter, four rhythms each.
+        const pickup = [undefined, 0.333, 0.5, 1][round % 4];
         const notation = notationOf({ meter, ...(pickup === undefined ? {} : { pickup }), length: { beats: 12 } }, [melody(notes)]);
         const bars = notation.parts[0]?.staves[0]?.measures ?? [];
         expect(bars.map((items) => items.reduce((sum, i) => sum + i.duration, 0))).toEqual(notation.measures.map((m) => m.length));

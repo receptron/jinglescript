@@ -358,8 +358,9 @@ function beatGrid(measure: NotationMeasure, meter: Meter, bar: number, boundarie
   // Triplets only where a beat is whole quarter notes (2/4, 3/4, 4/4, 2/2); in 6/8 or 3/8 the
   // quarter note is not a unit of the beat, so their times go onto the straight grid instead.
   if (!compound && beat % TRIPLET_SPAN === 0) {
-    for (const b of boundaries)
-      if (b > measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / TRIPLET_SPAN));
+    // The bar's own start counts: a pickup of a triplet's length starts off the straight grid.
+    for (const b of [measure.start, ...boundaries])
+      if (b >= measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / TRIPLET_SPAN));
   }
   return { origin, beat, compound, triplets };
 }

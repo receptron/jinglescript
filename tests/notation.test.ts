@@ -145,6 +145,14 @@ describe("scoreToNotation", () => {
     expect(compound.warnings[0]?.message).toContain("this meter writes no triplets");
   });
 
+  it("fills every bar exactly, a pickup of triplets included", () => {
+    for (const pickup of [0.333, 0.667, 0.5, 1.333]) {
+      const notation = notationOf({ pickup }, [melody([0, 0.333, 0.667, 1, 1.333, 1.667].map((at) => ({ at, pitch: "C4", len: 0.333 })))]);
+      const staff = notation.parts[0]?.staves[0]?.measures ?? [];
+      expect(staff.map((items) => items.reduce((sum, i) => sum + i.duration, 0))).toEqual(notation.measures.map((m) => m.length));
+    }
+  });
+
   it("warns when a quarter note mixes straight notes with triplets", () => {
     const notation = notationOf({}, [
       melody([

@@ -6,7 +6,7 @@
 // in the result's viewState, so a card shown again never replays or re-sends by itself.
 import type { ToolResult, ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData, PlayerView } from "jinglescript";
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
 import { finishedMessage, memoryOf, shouldAutoplay, VIEW_LABELS, type PlayerMemory } from "./playback.ts";
 
@@ -20,7 +20,9 @@ const Notation = defineAsyncComponent(() => import("./Notation.vue"));
 
 const data = computed(() => props.selectedResult.data);
 const memory = ref<PlayerMemory>(memoryOf(props.selectedResult.viewState));
-const view = ref<PlayerView>(data.value?.musicxml === undefined ? "waveform" : (memory.value.view ?? data.value.presentation?.view ?? "waveform"));
+/** The view a result opens in: as last shown, else as the LLM asked; the waveform when there is no sheet music. */
+const firstView = (): PlayerView => (data.value?.musicxml === undefined ? "waveform" : (memory.value.view ?? data.value.presentation?.view ?? "waveform"));
+const view = ref<PlayerView>(firstView());
 const blocked = ref(false);
 const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
@@ -99,7 +101,7 @@ function ended(): void {
   props.sendTextMessage(message);
 }
 
-onMounted(() => {
+function autoplay(): void {
   if (!shouldAutoplay(data.value?.presentation, memory.value, Date.now())) return;
   // Remembered before it starts: a host may remount the card at once.
   remember({ autoplayed: true });
@@ -107,7 +109,23 @@ onMounted(() => {
     // The browser wants a click first.
     blocked.value = true;
   });
-});
+}
+
+onMounted(autoplay);
+
+// A host may reuse this card for another result: start over with that result's own memory.
+watch(
+  () => props.selectedResult.uuid,
+  () => {
+    pause();
+    now.value = 0;
+    blocked.value = false;
+    memory.value = memoryOf(props.selectedResult.viewState);
+    view.value = firstView();
+    // After the audio element has the new source.
+    void nextTick(autoplay);
+  },
+);
 
 onBeforeUnmount(() => cancelAnimationFrame(frame));
 </script>

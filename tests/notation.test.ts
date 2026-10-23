@@ -155,14 +155,14 @@ describe("scoreToNotation", () => {
 
   it("fills every bar exactly, whatever the rhythm rounds to", () => {
     // Deterministic rhythms from straight, triplet and off-grid steps, in every meter and with pickups.
-    const steps = [0.125, 0.25, 0.333, 0.5, 0.667, 0.75, 1, 1.5, 0.1, 0.29];
+    const steps = [0.125, 0.25, 0.333, 0.5, 0.667, 0.75, 1, 1.5, 0.1, 0.29, 0.167];
     let seed = 7;
     const next = (n: number): number => {
       seed = (seed * 1103515245 + 12345) % 2147483648;
       return seed % n;
     };
     for (const meter of ["4/4", "3/4", "2/4", "2/2", "6/8", "3/8", "9/8", "5/4"]) {
-      for (let round = 0; round < 16; round++) {
+      for (let round = 0; round < 24; round++) {
         let at = 0;
         const notes = [];
         while (at < 8) {
@@ -171,13 +171,25 @@ describe("scoreToNotation", () => {
           at += steps[next(steps.length)] ?? 1;
         }
         // Every pickup in every meter, four rhythms each.
-        const pickup = [undefined, 0.333, 0.5, 1][round % 4];
+        const pickup = [undefined, 0.333, 0.5, 1, 0.25, 0.667][round % 6];
         const notation = notationOf({ meter, ...(pickup === undefined ? {} : { pickup }), length: { beats: 12 } }, [melody(notes)]);
         const bars = notation.parts[0]?.staves[0]?.measures ?? [];
         expect(bars.map((items) => items.reduce((sum, i) => sum + i.duration, 0))).toEqual(notation.measures.map((m) => m.length));
         expect(bars.flat().every((i) => i.duration > 0 && i.start >= 0)).toBe(true);
       }
     }
+  });
+
+  it("writes a pickup of a quarter's part next to triplets straight, filling it exactly", () => {
+    const notation = notationOf({ pickup: 0.25 }, [
+      melody([
+        { at: 4 / 24, pitch: "C4", len: 1 / 3 },
+        { at: 16 / 24, pitch: "D4", len: 0.5 },
+      ]),
+    ]);
+    const staff = notation.parts[0]?.staves[0]?.measures ?? [];
+    expect(staff.map((items) => items.reduce((sum, i) => sum + i.duration, 0))).toEqual(notation.measures.map((m) => m.length));
+    expect(notation.warnings.length).toBeGreaterThan(0);
   });
 
   it("reports a pickup it rounds: off the grid, or a triplet length in 6/8; not a triplet pickup in 4/4", () => {

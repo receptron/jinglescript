@@ -391,6 +391,10 @@ function beatGrid(measure: NotationMeasure, meter: Meter, bar: number, boundarie
     // The bar's own start counts: a pickup of a triplet's length starts off the straight grid.
     for (const b of [measure.start, ...boundaries])
       if (b >= measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / TRIPLET_SPAN));
+    // A quarter the bar line cuts (a pickup of 0.25 next to triplets) is written in triplets only
+    // when the bar line is on their grid; else straight, where every bar line is.
+    const start = Math.floor((measure.start - origin) / TRIPLET_SPAN);
+    if ((measure.start - origin) % 4 !== 0) triplets.delete(start);
   }
   return { origin, beat, compound, triplets };
 }

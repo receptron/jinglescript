@@ -7,7 +7,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { checkScore, parseScore, render, scoreToMusicXml } from "../src/index.ts";
+import { checkScore, loadSamples, parseScore, render, scoreToMusicXml } from "../src/index.ts";
 
 const RequestsSchema = z.array(
   z.strictObject({
@@ -98,7 +98,9 @@ async function score({ id, cues: expected, words = [], custom = false, notation 
   const wordsMissing = missingWords(check.lyrics, words);
   const customMissing = custom && !playsCustom(input);
   const pageProblems = notation === undefined ? [] : notationProblems(input, notation);
-  const { audio, stats } = render(parseScore(input));
+  // A grand piano needs its recordings (downloaded once, then cached).
+  const parsed = parseScore(input);
+  const { audio, stats } = render(parsed, { samples: await loadSamples(parsed) });
   const finite = audio.every((channel) => channel.every(Number.isFinite));
   const clean = finite && stats.truePeak <= -1.5 && (Math.abs(stats.loudness - parseScore(input).master.loudness) <= 0.5 || stats.limitedByPeak);
   const detail = [

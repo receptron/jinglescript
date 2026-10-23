@@ -10,8 +10,6 @@ exports[`every shipped example > a-musicbox.json renders cleanly at the loudness
 
 exports[`every shipped example > a-organ.json renders cleanly at the loudness target (or says why not) 1`] = `"90b667b19bc62d40427688dcaac9682f2e759e2eca5d22fcffc596cb9799e612"`;
 
-exports[`every shipped example > a-piano.json renders cleanly at the loudness target (or says why not) 1`] = `"f2aa059910dbba1bf780a4209a14f1f642bb0fe704e388b7aa53e8ba8b1c1563"`;
-
 exports[`every shipped example > a-piccolo.json renders cleanly at the loudness target (or says why not) 1`] = `"9f9539f3c03b4e90446d4148d2aefcb57e65903a7d4487ae5ecf35d45c6ae682"`;
 
 exports[`every shipped example > a-trumpet.json renders cleanly at the loudness target (or says why not) 1`] = `"f6a59d3a8447d4145e4a2684d6d47c4da0783d144750cecbdc14879fe2077cdd"`;
@@ -36,27 +34,27 @@ exports[`every shipped example > hatena-marumo-c.json renders cleanly at the lou
 
 exports[`every shipped example > laser-zaps.json renders cleanly at the loudness target (or says why not) 1`] = `"cb143ed200f8f7a89efe5c5980ea52d42a897a6d0e2ddacfe375d7ad6606bc03"`;
 
-exports[`every shipped example > layered-hit.json renders cleanly at the loudness target (or says why not) 1`] = `"023c8e9264f2846078871d02a7b9af9f4863bb49c21289b654776a5d50a41043"`;
+exports[`every shipped example > layered-hit.json renders cleanly at the loudness target (or says why not) 1`] = `"4a08f7105d336dbe2a7c7f21319b0092b87ac0f4a019457dda159cb17668482d"`;
 
-exports[`every shipped example > learn-c-major-scale.json renders cleanly at the loudness target (or says why not) 1`] = `"3c776cab134f0999bfae18d727b861b637666a086913a5cf9b00f90fe85a86a2"`;
+exports[`every shipped example > learn-c-major-scale.json renders cleanly at the loudness target (or says why not) 1`] = `"7f7dba76558a0f6bd8a163d2b0fb9b087fadaa26d7187c68d07a530c223fa51b"`;
 
-exports[`every shipped example > learn-happy-birthday.json renders cleanly at the loudness target (or says why not) 1`] = `"9e899bb0938ccc2cdfab5a43cfc87ea6bbbaf24d36e5c78093ad703050a5e005"`;
+exports[`every shipped example > learn-happy-birthday.json renders cleanly at the loudness target (or says why not) 1`] = `"bb5cc6943119a47dd1daae56d3e110de13bc08952be5955f0f8e9c6036f70021"`;
 
 exports[`every shipped example > learn-rhythms.json renders cleanly at the loudness target (or says why not) 1`] = `"f9488b3608bb21b81e9225fa8fd5640a71023ff0f55dde4f532a4bce8a7a988c"`;
 
 exports[`every shipped example > learn-row-your-boat.json renders cleanly at the loudness target (or says why not) 1`] = `"8d08b618b4db924631dacfa504d33fc602d08b3a09ad7596e07cf7d9a4c55d85"`;
 
-exports[`every shipped example > learn-twinkle.json renders cleanly at the loudness target (or says why not) 1`] = `"75571d909e752e9bb7605934e6d7d669c0a821c3a4ef88b2bc5016f2f852c284"`;
+exports[`every shipped example > learn-twinkle.json renders cleanly at the loudness target (or says why not) 1`] = `"be1216b8bfd3ea149108d3808888fdab0b81f77fe02e9bbcc29f9c5f61a332db"`;
 
-exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudness target (or says why not) 1`] = `"e9b5fd01720ea59d6efb6865d8dc1546811bfd2b30a2f1ac30494308f26e310b"`;
+exports[`every shipped example > lyrics-hatena.json renders cleanly at the loudness target (or says why not) 1`] = `"15775c6340bd625b4b7509e863195775f9a965ad3f8a7b11188df5924dff0d29"`;
 
 exports[`every shipped example > photo-op.json renders cleanly at the loudness target (or says why not) 1`] = `"e832aeb091c3098cf83bc4068d76adc0b651b9a1ca23b107399da4701c98ec4c"`;
 
-exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"9728dc6ab9793c3fb82c2630bd040c468ae24fea67b8d91aa4bb35629a8e2408"`;
+exports[`every shipped example > piano-ukulele-claps.json renders cleanly at the loudness target (or says why not) 1`] = `"2b6e30466cc8b137bf333bcb16d6c86ee2a5273a49567d2d86b522a457a5f254"`;
 
 exports[`every shipped example > recorded-effects.json renders cleanly at the loudness target (or says why not) 1`] = `"f14968b5b95248d14be6e5bc18c8457153ce573fe5345acca82189d59a58aee9"`;
 
-exports[`every shipped example > riser-reveal.json renders cleanly at the loudness target (or says why not) 1`] = `"5d96c97a933ed5e30b8e54ce6569bf566aaa6823cc06df5b236ea2c27b3de414"`;
+exports[`every shipped example > riser-reveal.json renders cleanly at the loudness target (or says why not) 1`] = `"71eed5cd963c20fede6ed6f20b86e16d65fd017973297d4977c7353cd80f42ea"`;
 
 exports[`every shipped example > tap-dance.json renders cleanly at the loudness target (or says why not) 1`] = `"05e28155bc5966e705bf8076249cb86b4a4b04539d81c0d773a68dbbb1751205"`;
 

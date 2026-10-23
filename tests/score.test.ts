@@ -62,6 +62,14 @@ describe("score validation (errors written for repair)", () => {
     expect(error?.hint).toContain("marimba");
   });
 
+  it("says a removed instrument is gone and names the one to use", () => {
+    const [error] = errorsOf({ ...base, tracks: [{ instrument: "piano", notes: [{ at: 0, pitch: "C4" }] }] });
+    expect(error).toMatchObject({ path: "tracks[0].instrument", message: '"piano" was removed in 0.11.0; use "grandpiano" instead.' });
+    // A score may still define its own "piano".
+    const own = checkScore({ ...base, instruments: { piano: { base: "marimba" } }, tracks: [{ instrument: "piano", notes: [{ at: 0, pitch: "C4" }] }] });
+    expect(own.errors).toEqual([]);
+  });
+
   it("rejects unknown fields", () => {
     expect(errorsOf({ ...base, tempoo: 120 })).toContainEqual(expect.objectContaining({ message: 'Unknown field "tempoo".' }));
   });

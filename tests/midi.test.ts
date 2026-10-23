@@ -150,7 +150,7 @@ describe("scoreToMidi", () => {
       format: "jinglescript/1",
       tempo: 100,
       length: { beats: 2 },
-      instruments: { bell: { base: "vibraphone", transpose: 12 }, stack: { layers: [{ base: "piano" }, { base: "impact" }] } },
+      instruments: { bell: { base: "vibraphone", transpose: 12 }, stack: { layers: [{ base: "grandpiano" }, { base: "impact" }] } },
       tracks: [
         { instrument: "bell", notes: [{ at: 0, pitch: "C4" }] },
         { instrument: "stack", notes: [{ at: 0, pitch: "C4" }] },
@@ -200,9 +200,9 @@ describe("scoreToMidi", () => {
       tempo: 120,
       length: { beats: 1 },
       instruments: {
-        high: { base: "piano", transpose: 12 },
+        high: { base: "grandpiano", transpose: 12 },
         higher: { base: "high" },
-        stack: { layers: [{ base: "piano", transpose: -12, delay: 0.25 }, { base: "impact" }] },
+        stack: { layers: [{ base: "grandpiano", transpose: -12, delay: 0.25 }, { base: "impact" }] },
       },
       tracks: [
         { instrument: "higher", notes: [{ at: 0, pitch: "C4" }] },
@@ -246,7 +246,7 @@ describe("scoreToMidi", () => {
       tempo: 120,
       length: { beats: 4 },
       instruments: {
-        late: { layers: [{ base: "piano", delay: 1 }, { base: "impact" }] },
+        late: { layers: [{ base: "grandpiano", delay: 1 }, { base: "impact" }] },
         lateSwoosh: { layers: [{ base: "whoosh", delay: 1 }, { base: "pop" }] },
       },
       tracks: [

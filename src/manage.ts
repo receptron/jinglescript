@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
 import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
+import { removedInstrument } from "./instruments/index.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -259,10 +260,12 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     case "listInstruments":
       return { text: json(listInstruments()), isError: false };
     case "getInstrument": {
-      const info = getInstrument(input.instrument ?? "");
+      const name = input.instrument ?? "";
+      const info = getInstrument(name);
       if (info) return { text: json(info), isError: false };
+      const unknown = removedInstrument(name) ?? `Unknown instrument "${name}".`;
       return {
-        text: `Unknown instrument "${input.instrument ?? ""}". Available: ${listInstruments()
+        text: `${unknown} Available: ${listInstruments()
           .map((i) => i.name)
           .join(", ")}.`,
         isError: true,

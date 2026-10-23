@@ -82,12 +82,10 @@ pass \`path\` to \`checkScore\` / \`renderScore\` instead of the score itself.
 Every instrument and its range is listed in the schema (\`tracks[].instrument\`) and by
 listInstruments() / \`jinglescript instruments\`. Rules of thumb:
 
-- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, piano, ukulele,
-  clap) ring out on their own; \`len\` is ignored. **Sustained** (organ, piccolo, trumpet) hold each
+- **Struck and plucked** (marimba, xylophone, glockenspiel, vibraphone, musicbox, ukulele, clap) ring out on their own; \`len\` is ignored. **Sustained** (organ, piccolo, trumpet) hold each
   note until the track's next note unless you give \`len\` in beats.
-- **grandpiano** is a recorded grand piano (range A0–A7): use it when the piano should sound real.
-  **piano** is synthesized: lighter, and a little electric. grandpiano's samples download on first
-  use (about 1.2 MB per note), so its first render needs the network.
+- **grandpiano** is the piano: a recorded grand (range A0–A7). Its samples download on first use
+  (about 1.2 MB per note), so its first render needs the network.
 - **grandpiano has dampers**, like a real piano. Without \`len\` a note rings out (about 3 s). With
   \`len\` the key is held that long and the note stops when it ends — write it for staccato, short
   notes and rests. The track's \`pedal\` keeps released notes ringing until it lifts:
@@ -178,7 +176,7 @@ play every pitch of it, layers without pitch (an impact, a clap) play once.
 
 \`\`\`json
 "bigHit": { "layers": [
-  { "base": "piano" },
+  { "base": "grandpiano" },
   { "base": "impact", "variant": "soft", "gain": -8 },
   { "base": "glockenspiel", "transpose": 12, "gain": -12 }
 ] }
@@ -278,8 +276,8 @@ exercise. The sound is the same either way: sheet music is drawn from the score 
   quarter, 0.5 an eighth). Without it a note is written up to the next one.
 - One line of notes per track: a melody track and an accompaniment track. Chords (\`pitch\` lists)
   are fine; notes that overlap at different times are not (the later one cuts the earlier).
-- Piano music: a "right hand" and a "left hand" track, both \`piano\` (or \`grandpiano\`), side by
-  side, become one grand staff. A track mostly below A3 gets a bass clef (or set \`"clef"\`).
+- Piano music: a "right hand" and a "left hand" track, both \`grandpiano\`, side by side, become
+  one grand staff. A track mostly below A3 gets a bass clef (or set \`"clef"\`).
 - \`lyric\`s are printed under their notes. A chord written by name (\`chord\`) prints its symbol
   above the staff.
 - Sound effects are never drawn; \`"notation": false\` on a track leaves it off the page too.
@@ -293,13 +291,13 @@ exercise. The sound is the same either way: sheet music is drawn from the score 
   "tempo": 100, "meter": "4/4", "key": "C",
   "length": { "beats": 10 },
   "tracks": [
-    { "instrument": "piano", "name": "right hand", "notes": [
+    { "instrument": "grandpiano", "name": "right hand", "notes": [
       { "at": 0, "pitch": "C4", "len": 1, "lyric": "Twin-" }, { "at": 1, "pitch": "C4", "len": 1, "lyric": "kle" },
       { "at": 2, "pitch": "G4", "len": 1, "lyric": "twin-" }, { "at": 3, "pitch": "G4", "len": 1, "lyric": "kle" },
       { "at": 4, "pitch": "A4", "len": 1, "lyric": "lit-" }, { "at": 5, "pitch": "A4", "len": 1, "lyric": "tle" },
       { "at": 6, "pitch": "G4", "len": 2, "lyric": "star" }
     ] },
-    { "instrument": "piano", "name": "left hand", "gain": -4, "notes": [
+    { "instrument": "grandpiano", "name": "left hand", "gain": -4, "notes": [
       { "at": 0, "pitch": ["C3", "G3"], "len": 4 },
       { "at": 4, "pitch": ["F2", "C3"], "len": 2 },
       { "at": 6, "pitch": ["C3", "G3"], "len": 2 }

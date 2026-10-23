@@ -4,8 +4,8 @@
 // drift apart; tests/custom.test.ts checks they sound alike. They are what getInstrument shows an
 // LLM to copy and change, and what a `decay` tweak above 1 renders.
 //
-// The rest stay code: the piano, trumpet and piccolo need models the vocabulary lacks (hammer
-// spectra, lip and breath dynamics), the clap and the effects have variants, and effects such as
+// The rest stay code: the trumpet and piccolo need models the vocabulary lacks (lip and
+// breath dynamics), the clap and the effects have variants, and effects such as
 // the laser shape themselves relative to their length, which block envelopes do not.
 import { RING_TIME_CONSTANTS } from "../instruments/common.ts";
 import type { InstrumentName } from "../instruments/index.ts";

@@ -2,7 +2,7 @@
 // whole score is known (a cue that does not exist, a pitch out of range, a note after the end).
 // Rendering and the timing map both read these events, so they cannot disagree.
 import { buildInstruments, type InstrumentTable } from "./custom/instruments.ts";
-import { INSTRUMENT_NAMES, type InstrumentDescriptor } from "./instruments/index.ts";
+import { INSTRUMENT_NAMES, removedInstrument, type InstrumentDescriptor } from "./instruments/index.ts";
 import { voiceChord } from "./chords.ts";
 import { buildLyrics, type LyricLine } from "./lyrics.ts";
 import { barQuarters, DEFAULT_METER, parseMeter } from "./meter.ts";
@@ -396,6 +396,9 @@ function assignHolds(events: NoteEvent[]): void {
 
 function unknownInstrumentIssue(name: string, trackIndex: number, definitions: ScoreData["instruments"]): Issue {
   const custom = Object.keys(definitions ?? {});
+  const removed = removedInstrument(name);
+  if (removed !== undefined)
+    return { path: ["tracks", trackIndex, "instrument"], message: removed, hint: "Write the instrument's new name; the notes stay as they are." };
   return {
     path: ["tracks", trackIndex, "instrument"],
     message: `Unknown instrument "${name}".`,

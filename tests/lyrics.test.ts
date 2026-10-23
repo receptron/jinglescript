@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { checkScore, parseScore, render, TimingSchema } from "../src/index.ts";
+import { fixtureSamples } from "./sample-fixture.ts";
 
 const example: unknown = JSON.parse(readFileSync(new URL("../examples/lyrics-hatena.json", import.meta.url), "utf8"));
 const pcmHash = (audio: readonly Float32Array[]) => {
@@ -13,7 +14,7 @@ const pcmHash = (audio: readonly Float32Array[]) => {
 const base = { format: "jinglescript/1", tempo: 120, length: { seconds: 4 }, cues: { hit: { seconds: 1.5 } } };
 const sing = (notes: unknown[], instrument = "marimba") => ({ ...base, tracks: [{ instrument, notes }] });
 const errorsOf = (input: unknown) => checkScore(input).errors;
-const lyricsOf = (input: unknown) => render(parseScore(input)).timing.lyrics;
+const lyricsOf = (input: unknown) => render(parseScore(input), { samples: fixtureSamples }).timing.lyrics;
 
 /** The score without its words: the same notes, no `lyric` or `lineEnd`. */
 function withoutLyrics(score: unknown): unknown {
@@ -21,7 +22,7 @@ function withoutLyrics(score: unknown): unknown {
 }
 
 describe("lyrics in the timing map", () => {
-  const result = render(parseScore(example));
+  const result = render(parseScore(example), { samples: fixtureSamples });
 
   it("gives every syllable its note's onset, line by line", () => {
     expect(TimingSchema.parse(result.timing)).toBeTruthy();
@@ -40,7 +41,7 @@ describe("lyrics in the timing map", () => {
   });
 
   it("does not change the audio or the rest of the timing map", () => {
-    const plain = render(parseScore(withoutLyrics(example)));
+    const plain = render(parseScore(withoutLyrics(example)), { samples: fixtureSamples });
     expect(pcmHash(result.audio)).toBe(pcmHash(plain.audio));
     expect(plain.timing.lyrics).toBeUndefined();
     const { lyrics, ...rest } = result.timing;
@@ -93,7 +94,7 @@ describe("joining syllables into words", () => {
             { at: 1, pitch: "D5", lyric: "two" },
           ],
         },
-        { instrument: "piano", notes: [{ at: 0.5, pitch: "E4", lyric: "echo" }] },
+        { instrument: "vibraphone", notes: [{ at: 0.5, pitch: "E4", lyric: "echo" }] },
       ],
     });
     expect(lines?.map((l) => [l.track, l.line, l.text])).toEqual([

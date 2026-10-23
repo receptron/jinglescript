@@ -94,7 +94,7 @@ describe("grandpiano picks its samples", () => {
     expect(samplesNeeded(scoreWith([{ at: 0, pitch: "C4" }], { soft: { base: "grandpiano", transpose: 2 } }))).toEqual([key("D4", 4)]);
     expect(
       samplesNeeded(
-        parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 1 }, tracks: [{ instrument: "piano", notes: [{ at: 0, pitch: "C4" }] }] }),
+        parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 1 }, tracks: [{ instrument: "vibraphone", notes: [{ at: 0, pitch: "C4" }] }] }),
       ),
     ).toEqual([]);
   });

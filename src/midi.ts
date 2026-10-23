@@ -31,7 +31,6 @@ const GM: Record<InstrumentName, GmSound> = {
   glockenspiel: { program: 9 },
   vibraphone: { program: 11 },
   musicbox: { program: 10 },
-  piano: { program: 0 },
   grandpiano: { program: 0 },
   organ: { program: 16 },
   ukulele: { program: 24 },

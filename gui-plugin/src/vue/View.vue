@@ -105,8 +105,13 @@ function seek(event: MouseEvent): void {
   const target = event.currentTarget;
   if (!(target instanceof Element)) return;
   const box = target.getBoundingClientRect();
+  playFrom(((event.clientX - box.left) / box.width) * duration.value);
+}
+
+/** The user plays from a point (the bar, the waveform, a cue). */
+function playFrom(seconds: number): void {
   takeOver();
-  void play(((event.clientX - box.left) / box.width) * duration.value);
+  void play(seconds);
 }
 
 function ended(): void {
@@ -291,7 +296,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="cues.length > 0" class="cues">
-      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" @click="play(cue.t - 0.5)">
+      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" @click="playFrom(cue.t - 0.5)">
         {{ cue.name }} <span>{{ cue.t.toFixed(3) }} s</span>
       </button>
     </div>

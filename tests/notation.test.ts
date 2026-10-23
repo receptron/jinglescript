@@ -8,11 +8,12 @@ import { scoreToNotation, snap, type Notation, type NotationItem } from "../src/
 import { checkScore, parseScore } from "../src/score.ts";
 import { toPlayerData } from "../src/player.ts";
 import { render } from "../src/render.ts";
+import { fixtureSamples } from "./sample-fixture.ts";
 
 type ScoreJson = Record<string, unknown>;
 
 const base = (fields: ScoreJson, tracks: unknown[]): ScoreJson => ({ format: "jinglescript/1", tempo: 120, length: { beats: 16 }, ...fields, tracks });
-const melody = (notes: unknown[], extra: ScoreJson = {}) => ({ instrument: "piano", notes, ...extra });
+const melody = (notes: unknown[], extra: ScoreJson = {}) => ({ instrument: "grandpiano", notes, ...extra });
 const notationOf = (fields: ScoreJson, tracks: unknown[]): Notation => {
   const notation = scoreToNotation(parseScore(base(fields, tracks)));
   if (notation === undefined) throw new Error("no notation");
@@ -436,14 +437,14 @@ describe("sheet music through the tool and the player", () => {
   });
 
   it("adds sheet music for a score that sets a meter, and shows the waveform when there is nothing to draw", () => {
-    const result = render(birthday);
+    const result = render(birthday, { samples: fixtureSamples });
     expect(toPlayerData(birthday, result, "b").musicxml).toBeDefined();
     const effects = parseScore(base({}, [{ instrument: "clap", notes: [{ at: 0 }] }]));
     const data = toPlayerData(effects, render(effects), "e", undefined, { view: "notation", autoplay: false, notifyWhenDone: false, renderedAt: 0 });
     expect(data.musicxml).toBeUndefined();
     expect(data.presentation?.view).toBe("waveform");
     const jingle = parseScore(base({}, [melody([{ at: 0, pitch: "C4" }])]));
-    expect(toPlayerData(jingle, render(jingle), "j").musicxml).toBeUndefined();
+    expect(toPlayerData(jingle, render(jingle, { samples: fixtureSamples }), "j").musicxml).toBeUndefined();
   });
 });
 

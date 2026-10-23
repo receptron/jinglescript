@@ -6,7 +6,6 @@ import { glockenspiel } from "./glockenspiel.ts";
 import { marimba } from "./marimba.ts";
 import { musicbox } from "./musicbox.ts";
 import { organ } from "./organ.ts";
-import { piano } from "./piano.ts";
 import { piccolo } from "./piccolo.ts";
 import { trumpet } from "./trumpet.ts";
 import { ukulele } from "./ukulele.ts";
@@ -32,7 +31,6 @@ export const INSTRUMENT_NAMES = [
   "glockenspiel",
   "vibraphone",
   "musicbox",
-  "piano",
   "grandpiano",
   "organ",
   "ukulele",
@@ -73,7 +71,6 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   glockenspiel,
   vibraphone,
   musicbox,
-  piano,
   grandpiano,
   organ,
   ukulele,
@@ -106,6 +103,17 @@ export const INSTRUMENTS: Record<InstrumentName, Instrument> = {
   page,
   droplet,
 };
+
+/** Built-ins that were removed, each with the one to use instead, so an old score's error says what to write. */
+export const REMOVED_INSTRUMENTS: Readonly<Record<string, { since: string; use: InstrumentName }>> = {
+  piano: { since: "0.11.0", use: "grandpiano" },
+};
+
+/** Why a name is no longer an instrument, and what to use instead; undefined for any other name. */
+export function removedInstrument(name: string): string | undefined {
+  const removed = REMOVED_INSTRUMENTS[name];
+  return removed === undefined ? undefined : `"${name}" was removed in ${removed.since}; use "${removed.use}" instead.`;
+}
 
 export function isInstrumentName(name: string): name is InstrumentName {
   return INSTRUMENT_NAMES.some((known) => known === name);

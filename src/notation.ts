@@ -17,7 +17,9 @@ import { secondsToBeats } from "./time.ts";
 /** Grid steps per quarter note: 32nd notes (3) and triplet 16ths (4) both fit. */
 export const DIVISIONS = 24;
 /** Keyboard instruments whose treble and bass tracks, side by side, share a grand staff. */
-const KEYBOARDS: ReadonlySet<string> = new Set(["piano", "grandpiano", "organ"]);
+const KEYBOARDS: ReadonlySet<string> = new Set(["grandpiano", "organ"]);
+/** What a part is called on the page when its track has no name and the instrument's own name is not what musicians write. */
+const PART_NAMES: Readonly<Record<string, string>> = { grandpiano: "Piano" };
 /** A track whose pitches are mostly below this (A3) gets a bass clef. */
 const BASS_BELOW = 57;
 /** Rounding a time or a length by more than this many grid steps (a 48th of a beat) is reported; a triplet written as 0.333 is far inside it. */
@@ -269,7 +271,7 @@ function trackNotes(score: ScoreData, track: number, events: readonly NoteEvent[
   const notes = [...byStart.values()].sort((a, b) => a.start - b.start);
   closeNotes(notes, barEnd, warnings);
   const scoreTrack = score.tracks[track];
-  const name = scoreTrack?.name ?? scoreTrack?.instrument ?? "";
+  const name = scoreTrack?.name ?? PART_NAMES[scoreTrack?.instrument ?? ""] ?? scoreTrack?.instrument ?? "";
   return {
     track,
     instrument: scoreTrack?.instrument ?? "",

@@ -9,7 +9,7 @@
   },
   "tracks": [
     {
-      "instrument": "piano",
+      "instrument": "grandpiano",
       "name": "right hand",
       "notes": [
         {
@@ -100,7 +100,7 @@
       ]
     },
     {
-      "instrument": "piano",
+      "instrument": "grandpiano",
       "name": "left hand",
       "gain": -4,
       "notes": [

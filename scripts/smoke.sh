@@ -50,7 +50,10 @@ await writeFile("out/lib.wav", toWav(audio, sampleRate));
 await writeFile("out/lib.timing.json", JSON.stringify(timing));
 if (!checkScore(score).ok || getSchema().$schema === undefined) throw new Error("API for LLMs is broken");
 console.log("library rendered", timing.duration, "s");
-const lyrics = render(parseScore(JSON.parse(await readFile("lyrics.json", "utf8")))).timing.lyrics;
+// Without its grand-piano chord, whose recordings would need the network; the lyrics are on the melody.
+const sung = JSON.parse(await readFile("lyrics.json", "utf8"));
+sung.tracks = sung.tracks.filter((track) => track.instrument !== "grandpiano");
+const lyrics = render(parseScore(sung)).timing.lyrics;
 if (lyrics?.map((l) => l.text).join("/") !== "ハテナマルモ/はじまるよ！") throw new Error("lyrics missing from the timing map");
 console.log("library lyrics", lyrics.length, "lines");
 // The recorded sound effects are read from the installed package (samples/sfx/), never downloaded.

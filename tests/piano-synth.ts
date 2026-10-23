@@ -1,10 +1,12 @@
-// Piano, from the prototype (instruments2.py): inharmonic partials k·f·√(1+B·k²) (B ≈ 0.0004),
+// The synthesized piano that was an instrument until 0.11.0, kept only to stand in for the grand
+// piano's recordings in tests (tests/sample-fixture.ts), so their golden hashes hold offline.
+// From the prototype (instruments2.py): inharmonic partials k·f·√(1+B·k²) (B ≈ 0.0004),
 // three slightly detuned strings per note (beating), a two-stage decay (fast then slow, faster
 // for higher partials), hammer noise, 2 ms onset. Like the prototype it rings ~3 s whatever the
 // note length; the prototype's hard cut at 3 s becomes a short damper fade.
-import { addDampedSine, addNoiseBurst, buffer, finish, partialAllowed } from "./common.ts";
-import type { Instrument, SynthInput } from "./types.ts";
-import * as dmath from "../dsp/math.ts";
+import { addDampedSine, addNoiseBurst, buffer, finish, partialAllowed } from "../src/instruments/common.ts";
+import type { Instrument, SynthInput } from "../src/instruments/types.ts";
+import * as dmath from "../src/dsp/math.ts";
 
 const B = 0.0004;
 const PARTIALS = 11;

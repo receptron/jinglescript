@@ -10,7 +10,7 @@
     "bigHit": {
       "description": "A piano chord with a soft impact under it and a glockenspiel sparkle an octave up.",
       "layers": [
-        { "base": "piano" },
+        { "base": "grandpiano" },
         { "base": "impact", "variant": "soft", "gain": -10 },
         { "base": "glockenspiel", "transpose": 12, "gain": -14, "delay": 0.03 }
       ]
@@ -18,7 +18,7 @@
   },
   "tracks": [
     {
-      "instrument": "piano",
+      "instrument": "grandpiano",
       "name": "lead-in",
       "notes": [
         { "at": 0, "pitch": "G4", "vel": 0.7 },
@@ -29,6 +29,6 @@
       ]
     },
     { "instrument": "bigHit", "name": "hit", "notes": [{ "at": "hit", "pitch": ["C4", "E4", "G4", "C5"], "vel": 1 }] },
-    { "instrument": "piano", "name": "bass", "gain": -3, "notes": [{ "at": "hit", "pitch": ["C2", "G2"], "vel": 0.9 }] }
+    { "instrument": "grandpiano", "name": "bass", "gain": -3, "notes": [{ "at": "hit", "pitch": ["C2", "G2"], "vel": 0.9 }] }
   ]
 }

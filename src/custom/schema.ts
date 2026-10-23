@@ -67,7 +67,7 @@ export const LayeredDefinitionSchema = z
     description: DescriptionField,
   })
   .describe(
-    'Several sounds played together on every note, e.g. a piano chord with a soft impact under it: { "layers": [ { "base": "piano" }, { "base": "impact", "gain": -8 } ] }.',
+    'Several sounds played together on every note, e.g. a piano chord with a soft impact under it: { "layers": [ { "base": "grandpiano" }, { "base": "impact", "gain": -8 } ] }.',
   );
 
 // ---- Blocks ---------------------------------------------------------------------------------

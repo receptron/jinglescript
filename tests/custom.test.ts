@@ -97,7 +97,7 @@ describe("built-ins written as blocks sound like the built-ins", () => {
   it("are shown by getInstrument, as valid definitions an LLM can copy", () => {
     const info = getInstrument("glockenspiel");
     expect(DefinitionSchema.safeParse(info?.definition).success).toBe(true);
-    expect(getInstrument("piano")?.definition).toBeUndefined();
+    expect(getInstrument("trumpet")?.definition).toBeUndefined();
     expect(getSchema("instrument")).toMatchObject({ title: "jinglescript/1 instrument" });
   });
 });
@@ -119,7 +119,7 @@ describe("custom instruments in a score", () => {
   const score = withInstruments(
     {
       softBell: { base: "glockenspiel", params: { decay: 1.5, brightness: -0.4 } },
-      bigHit: { layers: [{ base: "piano" }, { base: "impact", variant: "soft", gain: -8 }, { base: "glockenspiel", transpose: 12, gain: -12 }] },
+      bigHit: { layers: [{ base: "grandpiano" }, { base: "impact", variant: "soft", gain: -8 }, { base: "glockenspiel", transpose: 12, gain: -12 }] },
       zap: {
         kind: "sfx",
         pitch: "C7",
@@ -135,8 +135,8 @@ describe("custom instruments in a score", () => {
 
   it("validates, renders deterministically, and names them in the timing map", () => {
     expect(checkScore(score)).toMatchObject({ ok: true, errors: [] });
-    const first = render(parseScore(score));
-    const second = render(parseScore(score));
+    const first = render(parseScore(score), { samples: fixtureSamples });
+    const second = render(parseScore(score), { samples: fixtureSamples });
     expect(first.audio[0].every(Number.isFinite)).toBe(true);
     expect(hash(first.audio[0])).toBe(hash(second.audio[0]));
     expect(first.timing.notes.map((n) => n.instrument)).toEqual(["softBell", "zap", "zap", "bigHit"]);
@@ -167,14 +167,14 @@ describe("tweaks and layers", () => {
 
   it("decay above 1 lengthens a built-in that has a definition; below 1 shortens any ringing one", () => {
     expect(tail(play(custom({ base: "glockenspiel", params: { decay: 2 } }), 72))).toBeGreaterThan(tail(play(INSTRUMENTS.glockenspiel, 72)) + 3);
-    const piano = play(INSTRUMENTS.piano, 60);
-    const damped = play(custom({ base: "piano", params: { decay: 0.3 } }), 60);
+    const piano = play(INSTRUMENTS.grandpiano, 60);
+    const damped = play(custom({ base: "grandpiano", params: { decay: 0.3 } }), 60);
     expect(damped.length).toBeLessThan(piano.length * 0.35);
     expect(rmsDb(damped, 0.4) - rmsDb(damped, 0)).toBeLessThan(rmsDb(piano, 0.4) - rmsDb(piano, 0) - 6);
   });
 
   it("brightness moves the tone colour", () => {
-    const tone = (brightness: number) => centroid(spectrum(play(custom({ base: "piano", params: { brightness } }), 60), 2400));
+    const tone = (brightness: number) => centroid(spectrum(play(custom({ base: "grandpiano", params: { brightness } }), 60), 2400));
     expect(tone(-0.8)).toBeLessThan(tone(0) * 0.8);
     expect(tone(0.8)).toBeGreaterThan(tone(0) * 1.1);
   });
@@ -256,11 +256,9 @@ describe("tweaks and layers", () => {
   });
 
   it("on a chord, a layer without pitch plays once", () => {
-    const hit = custom({ layers: [{ base: "piano" }, { base: "impact" }] });
+    const hit = custom({ layers: [{ base: "grandpiano" }, { base: "impact" }] });
     const voice = (chordVoice: number) =>
-      hit.synthesize({ midi: 60, frequency: midiToFrequency(60), velocity: 1, hold: 1, variant: undefined, sampleRate: RATE, rng: createRng(7), chordVoice });
-    const piano = (chordVoice: number) =>
-      custom({ base: "piano" }).synthesize({
+      hit.synthesize({
         midi: 60,
         frequency: midiToFrequency(60),
         velocity: 1,
@@ -269,6 +267,19 @@ describe("tweaks and layers", () => {
         sampleRate: RATE,
         rng: createRng(7),
         chordVoice,
+        samples: fixtureSamples,
+      });
+    const piano = (chordVoice: number) =>
+      custom({ base: "grandpiano" }).synthesize({
+        midi: 60,
+        frequency: midiToFrequency(60),
+        velocity: 1,
+        hold: 1,
+        variant: undefined,
+        sampleRate: RATE,
+        rng: createRng(7),
+        chordVoice,
+        samples: fixtureSamples,
       });
     // The second pitch of a chord is the piano alone: no second boom.
     expect(rmsDb(voice(1), 0.3)).toBeLessThan(rmsDb(voice(0), 0.3) - 3);
@@ -303,9 +314,14 @@ describe("custom levels are balanced against the marimba", () => {
 
 describe("definition errors (written for repair)", () => {
   it("rejects a name taken by a built-in", () => {
-    expect(errorsOf({ piano: { base: "marimba" } })).toEqual([
-      { path: "instruments.piano", message: '"piano" is a built-in instrument.', hint: 'Give yours another name, e.g. "myPiano".' },
+    expect(errorsOf({ organ: { base: "marimba" } })).toEqual([
+      { path: "instruments.organ", message: '"organ" is a built-in instrument.', hint: 'Give yours another name, e.g. "myOrgan".' },
     ]);
+  });
+
+  it("says a removed base is gone and names the one to use", () => {
+    const [error] = errorsOf({ x: { base: "piano" } });
+    expect(error).toMatchObject({ path: "instruments.x.base", message: '"piano" was removed in 0.11.0; use "grandpiano" instead.' });
   });
 
   it("names an unknown base and lists what exists", () => {
@@ -321,7 +337,7 @@ describe("definition errors (written for repair)", () => {
   it("checks variants, transposes and decays against the base", () => {
     expect(errorsOf({ x: { base: "impact", variant: "huge" } })[0]).toMatchObject({ path: "instruments.x.variant", hint: "Variants: soft, hard." });
     expect(errorsOf({ x: { base: "impact", transpose: 2 } })[0]?.path).toBe("instruments.x.transpose");
-    expect(errorsOf({ x: { base: "piano", params: { decay: 2 } } })[0]?.path).toBe("instruments.x.params.decay");
+    expect(errorsOf({ x: { base: "trumpet", params: { decay: 2 } } })[0]?.path).toBe("instruments.x.params.decay");
     expect(errorsOf({ x: { base: "organ", params: { decay: 0.5 } } })).toEqual([]);
   });
 
@@ -500,6 +516,6 @@ describe("damper (a key struck again cuts its ringing note)", () => {
     expect(table.get("softer")?.descriptor.damper).toEqual(table.get("grandpiano")?.descriptor.damper);
     expect(table.get("doubled")?.descriptor.damper).toEqual(table.get("grandpiano")?.descriptor.damper);
     expect(table.get("withBell")?.descriptor.damper).toBeUndefined();
-    expect(table.get("piano")?.descriptor.damper).toBeUndefined();
+    expect(table.get("vibraphone")?.descriptor.damper).toBeUndefined();
   });
 });

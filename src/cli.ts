@@ -6,7 +6,7 @@ import { parseArgs } from "node:util";
 import { demoScore } from "./demo.ts";
 import { AUDIO_FORMATS, isAudioFormat } from "./audio-format.ts";
 import { fileProblem, userFacingMessage } from "./cli-errors.ts";
-import { isInstrumentName } from "./instruments/index.ts";
+import { isInstrumentName, removedInstrument } from "./instruments/index.ts";
 import { checkScore, formatProblem, getAuthoringGuide, getInstrument, getSchema, listInstruments, parseScore, SCHEMA_PARTS } from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
 import { notationToMusicXml } from "./musicxml.ts";
@@ -166,10 +166,11 @@ async function notationCommand(file: string | undefined): Promise<void> {
 
 function instrumentsCommand(name: string | undefined): void {
   if (name !== undefined) {
+    const unknown = removedInstrument(name) ?? `Unknown instrument "${name}".`;
     const info =
       getInstrument(name) ??
       fail(
-        `Unknown instrument "${name}". Available: ${listInstruments()
+        `${unknown} Available: ${listInstruments()
           .map((i) => i.name)
           .join(", ")}`,
       );

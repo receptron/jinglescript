@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MIDI_MIME_TYPE, parseScore, render, scoreToMidi, toPlayerData, toWav } from "../src/index.ts";
 import { dataUri } from "../src/player.ts";
 import { tagsOf } from "../src/tags.ts";
+import { fixtureSamples } from "./sample-fixture.ts";
 
 const score = parseScore(JSON.parse(readFileSync(new URL("../examples/lyrics-hatena.json", import.meta.url), "utf8")));
 const base64 = (uri: string) => Buffer.from(uri.slice(uri.indexOf(",") + 1), "base64");
@@ -19,7 +20,7 @@ describe("dataUri", () => {
 });
 
 describe("toPlayerData", () => {
-  const result = render(score);
+  const result = render(score, { samples: fixtureSamples });
   const data = toPlayerData(score, result, "stem");
 
   it("embeds a tagged 16-bit WAV and the MIDI file", () => {

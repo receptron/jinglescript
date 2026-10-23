@@ -58,7 +58,7 @@ describe("the plugin's instructions to the LLM", () => {
     tempo: 120,
     meter: "4/4",
     length: { beats: 5 },
-    tracks: [{ instrument: "piano", notes: [{ at: 0, pitch: "C4", len: 4 }] }],
+    tracks: [{ instrument: "marimba", notes: [{ at: 0, pitch: "C4", len: 4 }] }],
   };
 
   it("say what the user sees, whether it plays by itself, and that a message will come", async () => {

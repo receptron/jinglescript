@@ -7,7 +7,7 @@ import { integratedLoudness } from "../dsp/loudness.ts";
 import * as dmath from "../dsp/math.ts";
 import type { Issue, IssuePath } from "../events.ts";
 import { finish, MIN_ATTACK_SECONDS } from "../instruments/common.ts";
-import { INSTRUMENT_NAMES, INSTRUMENTS, isInstrumentName, type InstrumentName } from "../instruments/index.ts";
+import { INSTRUMENT_NAMES, INSTRUMENTS, isInstrumentName, removedInstrument, type InstrumentName } from "../instruments/index.ts";
 import type { Instrument, InstrumentDescriptor, SynthInput } from "../instruments/types.ts";
 import { midiToFrequency, pitchToMidi } from "../pitch.ts";
 import { createRng, streamRng } from "../rng.ts";
@@ -455,6 +455,11 @@ class Builder {
     // A loop of bases has already been reported here.
     if (this.issues.some((i) => i.path.join(".") === path.join("."))) return;
     const custom = Object.keys(this.definitions).filter((n) => !isInstrumentName(n));
+    const removed = removedInstrument(name);
+    if (removed !== undefined) {
+      this.issues.push({ path, message: removed, hint: "Write the new name as the base." });
+      return;
+    }
     this.issues.push({
       path,
       message: `Unknown base "${name}".`,

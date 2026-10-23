@@ -1462,3 +1462,15 @@ Decided:
   wording suggested — then 8/8 after the guide said plainly that view / autoplay / notifyWhenDone
   belong to the renderScore call (and checkScore now says so when they appear in a score). Not
   yet: the user's look at the view and listen to `out/notation/`, and a host (MulmoTerminal) run.
+- 2026-10-23 — PR #37 merged (sheet music, 0.10.0) after 13 local Codex reviews; the last found
+  nothing.
+- 2026-10-23 — User: they don't like the sound of the synthesized `piano`; remove it and use
+  `grandpiano` for lessons. Chosen: removed outright (breaking, 0.11.0). A score or custom `base`
+  that still says "piano" fails with `"piano" was removed in 0.11.0; use "grandpiano" instead.`
+  (`REMOVED_INSTRUMENTS`), and a score may define its own "piano". The synth lives on only as
+  tests/piano-synth.ts, the stand-in for the grand piano's recordings in tests, so every
+  grandpiano golden hash holds offline. Seven examples moved to grandpiano (new golden hashes),
+  `a-piano.json` deleted, the guide's piano advice and sheet-music example rewritten; a lone
+  grandpiano part is printed "Piano". Real-sample renders: −14.0 to −14.4 LUFS, −1.8 dBTP, except
+  riser-reveal at −15.6 LUFS (peak-held, −16.2 with the old piano). Not yet: the user's listen to
+  `out/grandpiano/` (old piano in `out/old-piano/`), and the evaluation rerun with "piano" gone.

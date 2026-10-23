@@ -17,7 +17,7 @@
   },
   "tracks": [
     {
-      "instrument": "piano",
+      "instrument": "grandpiano",
       "name": "chords",
       "gain": -3,
       "notes": [
@@ -49,7 +49,7 @@
       ]
     },
     {
-      "instrument": "piano",
+      "instrument": "grandpiano",
       "name": "bass",
       "gain": -4,
       "notes": [

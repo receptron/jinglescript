@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { assSubtitles, assTime, literal, TelopsSchema } from "../docs/video/captions.ts";
 import { checkScore, parseScore, render } from "../src/index.ts";
+import { fixtureSamples } from "./sample-fixture.ts";
 
 const json = (path: string): unknown => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 
@@ -23,7 +24,7 @@ describe("docs/video-sound-effects.md", () => {
 });
 
 describe("docs/video/captions.ts", () => {
-  const timing = render(parseScore(json("../examples/lyrics-hatena.json"))).timing;
+  const timing = render(parseScore(json("../examples/lyrics-hatena.json")), { samples: fixtureSamples }).timing;
   const font = { font: "Test Font" };
   const dialogues = (ass: string) => ass.split("\n").filter((line) => line.startsWith("Dialogue: "));
 

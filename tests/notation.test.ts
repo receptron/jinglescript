@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { spellChordTone } from "../src/chords.ts";
-import { manage } from "../src/manage.ts";
+import { manage, ManageInputSchema } from "../src/manage.ts";
 import { KEYS, parseKey, parseMeter } from "../src/meter.ts";
 import { notationToMusicXml, scoreToMusicXml } from "../src/musicxml.ts";
 import { scoreToNotation, snap, type Notation, type NotationItem } from "../src/notation.ts";
@@ -62,12 +62,12 @@ describe("meter and key", () => {
 
 describe("render options written into the score", () => {
   it("say where they belong", () => {
-    const check = checkScore({ ...base({}, [melody([{ at: 0, pitch: "C4" }])]), view: "notation", autoplay: true });
+    const check = checkScore({ ...base({}, [melody([{ at: 0, pitch: "C4" }])]), view: "notation", autoplay: true, autoplayDelay: 2 });
     expect(check.errors).toEqual([
       {
         path: "",
-        message: 'Unknown fields "view", "autoplay".',
-        hint: "view, autoplay and notifyWhenDone are options of the renderScore call, next to `score` — not fields of the score. Remove them from the score.",
+        message: 'Unknown fields "view", "autoplay", "autoplayDelay".',
+        hint: "view, autoplay, autoplayDelay and notifyWhenDone are options of the renderScore call, next to `score` — not fields of the score. Remove them from the score.",
       },
     ]);
   });
@@ -434,6 +434,15 @@ describe("sheet music through the tool and the player", () => {
     expect(result.player?.musicxml).toBe(scoreToMusicXml(parseScore(example("learn-twinkle.json"))));
     expect(result.player?.presentation).toMatchObject({ view: "notation", autoplay: true, notifyWhenDone: true });
     expect(typeof result.player?.presentation?.renderedAt).toBe("number");
+    expect(result.player?.presentation).not.toHaveProperty("autoplayDelay");
+  });
+
+  it("passes autoplayDelay to the player, and refuses one out of range", async () => {
+    const score = example("learn-twinkle.json");
+    const delayed = await manage({ action: "renderScore", score, view: "notation", autoplay: true, autoplayDelay: 2.5 }, { player: true });
+    expect(delayed.player?.presentation).toMatchObject({ autoplay: true, autoplayDelay: 2.5 });
+    expect(ManageInputSchema.safeParse({ action: "renderScore", score, autoplayDelay: -1 }).success).toBe(false);
+    expect(ManageInputSchema.safeParse({ action: "renderScore", score, autoplayDelay: 31 }).success).toBe(false);
   });
 
   it("adds sheet music for a score that sets a meter, and shows the waveform when there is nothing to draw", () => {

@@ -47,7 +47,7 @@ export function formatProblem(problem: ScoreProblem): string {
 }
 
 /** The renderScore call's options, which an LLM may put into the score itself. */
-const RENDER_OPTIONS: ReadonlySet<string> = new Set(["view", "autoplay", "notifyWhenDone"]);
+const RENDER_OPTIONS: ReadonlySet<string> = new Set(["view", "autoplay", "autoplayDelay", "notifyWhenDone"]);
 
 function problemOf(issue: z.core.$ZodIssue): ScoreProblem {
   const path = formatPath(issue.path);
@@ -59,7 +59,7 @@ function problemOf(issue: z.core.$ZodIssue): ScoreProblem {
     return {
       path,
       message: `Unknown field${issue.keys.length > 1 ? "s" : ""} ${issue.keys.map((k) => JSON.stringify(k)).join(", ")}.`,
-      hint: "view, autoplay and notifyWhenDone are options of the renderScore call, next to `score` — not fields of the score. Remove them from the score.",
+      hint: "view, autoplay, autoplayDelay and notifyWhenDone are options of the renderScore call, next to `score` — not fields of the score. Remove them from the score.",
     };
   }
   if (issue.code === "unrecognized_keys") {

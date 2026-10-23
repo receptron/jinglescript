@@ -10,15 +10,20 @@ import type { ToolResult, ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData, PlayerView } from "jinglescript";
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
-import { finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory } from "./playback.ts";
+import { finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory, type VoiceState } from "./playback.ts";
 
-const props = defineProps<{
-  selectedResult: ToolResultComplete<PlayerData>;
-  sendTextMessage?: (text?: string) => void;
-  onUpdateResult?: (result: Partial<ToolResult<PlayerData>>) => void;
-  /** The host's voice is speaking (GUI Chat Protocol). */
-  isAudioPlaying?: boolean;
-}>();
+// The default keeps a host that never passes isAudioPlaying apart from one whose voice is quiet:
+// Vue would otherwise turn a missing boolean prop into false.
+const props = withDefaults(
+  defineProps<{
+    selectedResult: ToolResultComplete<PlayerData>;
+    sendTextMessage?: (text?: string) => void;
+    onUpdateResult?: (result: Partial<ToolResult<PlayerData>>) => void;
+    /** The host's voice is speaking (GUI Chat Protocol). */
+    isAudioPlaying?: boolean;
+  }>(),
+  { isAudioPlaying: undefined },
+);
 
 const Notation = defineAsyncComponent(() => import("./Notation.vue"));
 
@@ -32,8 +37,8 @@ const audio = ref<HTMLAudioElement | null>(null);
 const playing = ref(false);
 const now = ref(0);
 let frame = 0;
-/** When the host's voice last stopped, while this card has been mounted. */
-let voiceStoppedAt: number | undefined;
+/** The host's voice since this card appeared. */
+let voice: VoiceState = { voiced: false, speaking: false, answered: false, shownAt: 0 };
 /** Playing, or waiting to play, by itself: it yields to the voice. A click hands control to the user. */
 let automatic = false;
 let quietTimer: ReturnType<typeof setTimeout> | undefined;
@@ -127,6 +132,7 @@ function ended(): void {
 
 function autoplay(): void {
   if (!shouldAutoplay(data.value?.presentation, memory.value, Date.now())) return;
+  voice = { voiced: props.isAudioPlaying !== undefined, speaking: props.isAudioPlaying === true, answered: false, shownAt: Date.now() };
   automatic = true;
   followVoice();
 }
@@ -135,7 +141,8 @@ function autoplay(): void {
 function followVoice(): void {
   clearTimeout(quietTimer);
   if (!automatic) return;
-  const wait = quietWait(props.isAudioPlaying === true, voiceStoppedAt, Date.now());
+  const delay = data.value?.presentation?.autoplayDelay;
+  const wait = quietWait(voice, Date.now(), delay === undefined ? undefined : delay * 1000);
   if (wait === undefined) {
     // `paused` turns false as soon as play() is called, so this also stops a start still pending.
     if (playing.value || audio.value?.paused === false) pause();
@@ -167,7 +174,7 @@ function followVoice(): void {
 watch(
   () => props.isAudioPlaying === true,
   (speaking) => {
-    if (!speaking) voiceStoppedAt = Date.now();
+    voice = speaking ? { ...voice, speaking, answered: true } : { ...voice, speaking, stoppedAt: Date.now() };
     followVoice();
   },
 );

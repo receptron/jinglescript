@@ -1,7 +1,7 @@
 import type { Presentation } from "jinglescript";
 import { describe, expect, it } from "vitest";
 import { executeManage, instructionsFor } from "../src/index.ts";
-import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, QUIET_MS, quietWait, shouldAutoplay } from "../src/vue/playback.ts";
+import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, QUIET_MS, quietWait, REPLY_MS, shouldAutoplay, type VoiceState } from "../src/vue/playback.ts";
 
 const NOW = 1_800_000_000_000;
 const asked = (fields: Partial<Presentation> = {}): Presentation => ({
@@ -14,20 +14,48 @@ const asked = (fields: Partial<Presentation> = {}): Presentation => ({
 const fresh = memoryOf(undefined);
 
 describe("waiting for the host's voice", () => {
+  const voice = (fields: Partial<VoiceState> = {}): VoiceState => ({ voiced: true, speaking: false, answered: false, shownAt: NOW, ...fields });
+
   it("never plays over the voice", () => {
-    expect(quietWait(true, undefined, NOW)).toBeUndefined();
-    expect(quietWait(true, NOW - 10 * QUIET_MS, NOW)).toBeUndefined();
+    expect(quietWait(voice({ speaking: true }), NOW)).toBeUndefined();
+    expect(quietWait(voice({ speaking: true, answered: true, shownAt: NOW - 60_000 }), NOW, 0)).toBeUndefined();
   });
 
-  it("plays at once when the voice has not spoken", () => {
-    expect(quietWait(false, undefined, NOW)).toBe(0);
+  it("plays at once in a host without a voice", () => {
+    expect(quietWait(voice({ voiced: false }), NOW)).toBe(0);
   });
 
-  it("waits until the voice has been quiet for QUIET_MS", () => {
-    expect(quietWait(false, NOW, NOW)).toBe(QUIET_MS);
-    expect(quietWait(false, NOW - 500, NOW)).toBe(QUIET_MS - 500);
-    expect(quietWait(false, NOW - QUIET_MS, NOW)).toBe(0);
-    expect(quietWait(false, NOW - 10 * QUIET_MS, NOW)).toBe(0);
+  it("waits for the voice to answer the render, up to REPLY_MS from when it was last heard", () => {
+    expect(QUIET_MS).toBeLessThan(REPLY_MS);
+    expect(quietWait(voice(), NOW)).toBe(REPLY_MS);
+    expect(quietWait(voice({ shownAt: NOW - 1000 }), NOW)).toBe(REPLY_MS - 1000);
+    expect(quietWait(voice({ shownAt: NOW - REPLY_MS }), NOW)).toBe(0);
+    // Still speaking its first words when the card appeared: the wait counts from when they ended.
+    expect(quietWait(voice({ shownAt: NOW - 5000, stoppedAt: NOW - 1000 }), NOW)).toBe(REPLY_MS - 1000);
+  });
+
+  it("after the answer, waits until the voice has been quiet for QUIET_MS", () => {
+    expect(quietWait(voice({ answered: true, stoppedAt: NOW }), NOW)).toBe(QUIET_MS);
+    expect(quietWait(voice({ answered: true, stoppedAt: NOW - 500 }), NOW)).toBe(QUIET_MS - 500);
+    expect(quietWait(voice({ answered: true, stoppedAt: NOW - QUIET_MS }), NOW)).toBe(0);
+  });
+
+  it("an autoplayDelay replaces the wait for the answer, in any host", () => {
+    expect(quietWait(voice({ voiced: false }), NOW, 2000)).toBe(2000);
+    expect(quietWait(voice({ voiced: false, shownAt: NOW - 1500 }), NOW, 2000)).toBe(500);
+    expect(quietWait(voice(), NOW, 6000)).toBe(6000);
+    expect(quietWait(voice(), NOW, 0)).toBe(0);
+    // The voice answered within the delay: the delay still holds, and so does QUIET_MS after the voice.
+    expect(quietWait(voice({ answered: true, shownAt: NOW - 1000, stoppedAt: NOW - 200 }), NOW, 6000)).toBe(5000);
+    expect(quietWait(voice({ answered: true, shownAt: NOW - 9000, stoppedAt: NOW - 200 }), NOW, 6000)).toBe(QUIET_MS - 200);
+  });
+
+  it("counts an autoplayDelay from when the card appeared, even when it appeared during speech", () => {
+    // A 10 s delay, the card shown during speech that ended 8 s later: it plays at 10 s, not 18 s.
+    expect(quietWait(voice({ shownAt: NOW - 8000, stoppedAt: NOW }), NOW, 10_000)).toBe(2000);
+    expect(quietWait(voice({ shownAt: NOW - 10_000, stoppedAt: NOW - 2000 }), NOW, 10_000)).toBe(0);
+    // The delay ran out while it spoke: still QUIET_MS after the voice.
+    expect(quietWait(voice({ shownAt: NOW - 12_000, stoppedAt: NOW }), NOW, 10_000)).toBe(QUIET_MS);
   });
 });
 
@@ -83,7 +111,7 @@ describe("the plugin's instructions to the LLM", () => {
     const result = await executeManage({}, { action: "renderScore", score, view: "notation", autoplay: true, notifyWhenDone: true });
     expect(result.data?.musicxml).toContain("<score-partwise");
     expect(result.instructions).toBe(
-      'The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Say only a few words that it is about to play (like "Here comes the sound."), then nothing until a message saying it finished playing arrives; then go on.',
+      "The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Say only a few words, in the language you speak with the user, that it is about to play; then nothing until a message saying it finished playing arrives, then go on.",
     );
   });
 

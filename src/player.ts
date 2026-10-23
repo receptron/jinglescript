@@ -41,6 +41,8 @@ export interface Presentation {
   view: PlayerView;
   /** Start playing as soon as the view appears (once; never again when the card is shown later). */
   autoplay: boolean;
+  /** Seconds the view waits after it appears before it plays by itself. Default: at once, or in a voice chat until the voice has answered and fallen quiet. */
+  autoplayDelay?: number;
   /** When playback reaches the end for the first time, the view tells the LLM so it can go on. */
   notifyWhenDone: boolean;
   /** When the render was made (ms since 1970): a view autoplays only a fresh one, never one replayed from history. */

@@ -180,6 +180,13 @@ describe("scoreToNotation", () => {
     }
   });
 
+  it("reports a pickup it rounds: off the grid, or a triplet length in 6/8; not a triplet pickup in 4/4", () => {
+    const note = [melody([{ at: 0, pitch: "C4", len: 0.25 }])];
+    expect(notationOf({ pickup: 0.29 }, note).warnings.map((w) => w.path.join("."))).toEqual(["pickup"]);
+    expect(notationOf({ meter: "6/8", pickup: 0.333 }, note).warnings[0]?.message).toContain("6/8 writes no triplets");
+    expect(notationOf({ pickup: 0.333 }, note).warnings.filter((w) => w.path[0] === "pickup")).toEqual([]);
+  });
+
   it("warns when a quarter note mixes straight notes with triplets", () => {
     const notation = notationOf({}, [
       melody([

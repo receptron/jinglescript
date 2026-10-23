@@ -361,16 +361,20 @@ const tripletBoundary = (steps: number): boolean => steps % 3 !== 0;
 /** Whether the meter writes triplets: where its beat is whole quarter notes (2/4, 3/4, 4/4, 2/2), not in 6/8 or 3/8. */
 const hasTriplets = (meter: Meter, beat: number): boolean => !isCompound(meter) && beat % TRIPLET_SPAN === 0;
 
-/** The pickup in grid steps; a triplet length in a meter without triplets is rounded to a 32nd and reported. */
+/** The pickup in grid steps, on a grid its meter can write (no triplet lengths in 6/8); any rounding is reported. */
 function pickupSteps(beats: number, meter: Meter, warnings: Issue[]): number {
-  const steps = snap(toSteps(beats));
-  if (hasTriplets(meter, beatOf(meter)) || steps % 3 === 0) return steps;
-  const written = Math.max(3, Math.round(steps / 3) * 3);
-  warnings.push({
-    path: ["pickup"],
-    message: `A pickup of ${beatsLabel(steps)} beats is a triplet length, and ${meter.beats}/${meter.beatType} writes no triplets; written as ${beatsLabel(written)}.`,
-    hint: "Give the pickup in eighths (0.5) or sixteenths (0.25) of a beat.",
-  });
+  const exact = toSteps(beats);
+  const snapped = snap(exact);
+  const straight = hasTriplets(meter, beatOf(meter)) || snapped % 3 === 0;
+  const written = straight ? snapped : Math.max(3, Math.round(snapped / 3) * 3);
+  if (Math.abs(written - exact) > ROUNDING_WARNING) {
+    const why = straight ? "off the sheet-music grid" : `a triplet length, and ${meter.beats}/${meter.beatType} writes no triplets`;
+    warnings.push({
+      path: ["pickup"],
+      message: `A pickup of ${beatsLabel(exact)} beats is ${why}; written as ${beatsLabel(written)}, which moves every bar line.`,
+      hint: "Give the pickup in whole beats, eighths (0.5) or sixteenths (0.25) of a beat.",
+    });
+  }
   return written;
 }
 

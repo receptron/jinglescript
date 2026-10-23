@@ -530,10 +530,11 @@ function staffOf(notes: readonly Written[], clef: Clef, sheet: Sheet): NotationS
   };
 }
 
-/** Tracks shown on sheet music: pitched, not hidden. */
-function shownTracks(score: ScoreData, events: readonly NoteEvent[]): number[] {
-  const withPitches = new Set(events.filter((e) => e.pitches.length > 0).map((e) => e.track));
-  return score.tracks.flatMap((track, i) => (track.notation !== false && withPitches.has(i) ? [i] : []));
+/** Tracks shown on sheet music: a pitched instrument (built in or the score's own) with notes, not hidden. A sound effect that takes a pitch (a laser's start) is not music. */
+function shownTracks(score: ScoreData, expanded: ReturnType<typeof expandScore>): number[] {
+  const withPitches = new Set(expanded.events.filter((e) => e.pitches.length > 0).map((e) => e.track));
+  const pitched = (instrument: string): boolean => expanded.instruments.get(instrument)?.descriptor.pitched === true;
+  return score.tracks.flatMap((track, i) => (track.notation !== false && withPitches.has(i) && pitched(track.instrument) ? [i] : []));
 }
 
 /**
@@ -548,7 +549,7 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
   const warnings: Issue[] = [];
   const pickup = pickupSteps(score.pickup ?? 0, meter, warnings);
   const barEnd = (steps: number): number => (steps < pickup ? pickup : pickup + (Math.floor((steps - pickup) / bar) + 1) * bar);
-  const shown = shownTracks(score, expanded.events);
+  const shown = shownTracks(score, expanded);
   if (shown.length === 0) return undefined;
   const tracks = shown.map((track) =>
     trackNotes(

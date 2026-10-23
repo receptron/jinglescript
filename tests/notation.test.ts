@@ -321,6 +321,16 @@ describe("scoreToNotation", () => {
     ]);
   });
 
+  it("leaves out sound effects that take a pitch, and keeps a custom pitched instrument", () => {
+    const laser = parseScore(base({}, [{ instrument: "laser", notes: [{ at: 0, pitch: "C6" }] }]));
+    expect(scoreToNotation(laser)).toBeUndefined();
+    const custom = notationOf({ instruments: { bell: { base: "glockenspiel", transpose: 12 } } }, [
+      { instrument: "bell", notes: [{ at: 0, pitch: "C5", len: 1 }] },
+      { instrument: "laser", notes: [{ at: 1, pitch: "C6" }] },
+    ]);
+    expect(custom.parts.map((p) => p.tracks)).toEqual([[0]]);
+  });
+
   it("has nothing to show for a score of sound effects only", () => {
     expect(scoreToNotation(parseScore(base({}, [{ instrument: "clap", notes: [{ at: 0 }] }])))).toBeUndefined();
     expect(scoreToMusicXml(parseScore(base({}, [{ instrument: "clap", notes: [{ at: 0 }] }])))).toBeUndefined();

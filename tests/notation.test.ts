@@ -253,6 +253,16 @@ describe("scoreToNotation", () => {
     expect(repeated.warnings.map((w) => w.path.join("."))).toEqual(["tracks.0.notes.0.len", "tracks.0.notes.1.at"]);
   });
 
+  it("joins lyrics in written order even when humanize swaps two notes in playback", () => {
+    const notes = [
+      { at: 1, pitch: "C4", len: 0.125, humanize: 50, lyric: "hap-" },
+      { at: 1.125, pitch: "D4", len: 0.125, humanize: 50, lyric: "py" },
+    ];
+    const notation = notationOf({ tempo: 400, seed: 6 }, [melody(notes)]);
+    const sung = (notation.parts[0]?.staves[0]?.measures ?? []).flat().filter((i) => i.lyric !== undefined);
+    expect(sung.map((i) => i.lyric?.syllabic)).toEqual(["begin", "end"]);
+  });
+
   it("writes notes at their written time, before humanize moves them", () => {
     const humanized = notationOf({}, [melody([0, 1, 2, 3].map((at) => ({ at, pitch: "C4", len: 1, humanize: 30 })))]);
     expect(bars(humanized)).toEqual(["C4:q C4:q C4:q C4:q"]);

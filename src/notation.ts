@@ -559,7 +559,8 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
     trackNotes(
       score,
       track,
-      expanded.events.filter((e) => e.track === track && e.pitches.length > 0),
+      // In written order: humanize may swap neighbours in playback order, and lyrics join by order.
+      expanded.events.filter((e) => e.track === track && e.pitches.length > 0).sort((a, b) => a.nominal - b.nominal),
       barEnd,
       warnings,
     ),

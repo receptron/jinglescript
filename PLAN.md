@@ -854,6 +854,23 @@ browser's Cache API. (3) A playground on GitHub Pages built on (1) and (2). **Do
 playground renders the synthesized, recorded-effect and grandpiano examples in a real browser with
 the same PCM as Node.
 
+### M11 — Sheet music for teaching (2026-10-22)
+The user: extend JingleScript for music education — an LLM writes a short piece and presents it;
+the tool call says whether the player shows the waveform or sheet music, can start it playing, and
+can have the player tell the LLM when it has been heard. (1) Score: optional `meter`, `key`,
+`pickup`, and per track `clef` and `notation: false`; none of them changes the audio. (2) Library:
+`scoreToNotation` (bars, note values, ties, triplets, rests, accidentals, lyrics, chord symbols, a
+grand staff for a piano's two hands; every rounding or shortening a warning with the note's path)
+and `scoreToMusicXml`; `checkScore(…, { notation })`; CLI `notation` and `check --notation`; the MCP
+render writes a `.musicxml`. (3) Tool: `renderScore` takes `view` ("waveform" | "notation"),
+`autoplay` and `notifyWhenDone`; PlayerData carries `musicxml` and `presentation`. (4) View: sheet
+music drawn by OpenSheetMusicDisplay (a dependency of the plugin only, loaded on demand) with a
+cursor following playback; autoplay of a fresh render only, once; one chat message at the first
+end; both remembered in viewState, since hosts mount every card and remount them often.
+**Done when** the teaching examples write with no warnings and render as the score says in a real
+browser, audio golden hashes hold, the notation requests in the evaluation pass, and the user has
+looked at the sheet-music view and heard the examples.
+
 ### M8 — Jingle + animation tool (later)
 Grow JingleScript into a tool that writes the jingle and the animation synced to it from one
 request, on the cue vocabulary ([Toward a jingle + animation tool](#toward-a-jingle--animation-tool)).
@@ -1424,3 +1441,24 @@ Decided:
   `samples/sfx/` are there, `photo-op.json` renders to WAV and MP3 and the WAV is bit-identical to
   the repository's render; the library and the plugin's server entry load; jsDelivr serves the new
   WAVs for the playground.
+- 2026-10-22 — User: extend JingleScript for music education — an LLM writes a short piece and
+  presents it; the call chooses waveform or sheet music, can start playback and can be told when it
+  has been heard. **M11** implemented (branch `notation`, see the milestone): `meter`, `key`,
+  `pickup`, track `clef` / `notation`; `scoreToNotation` / `scoreToMusicXml`, `checkScore(…, {
+  notation })`, CLI `notation` and `check --notation`; `renderScore` `view` / `autoplay` /
+  `notifyWhenDone`; the view draws the MusicXML with OpenSheetMusicDisplay (BSD-3-Clause; Verovio
+  is LGPL) behind a Waveform / Sheet music switch, with a cursor on the playing note. A host
+  survey (MulmoTerminal mounts every card and remounts them often; MulmoClaude keeps viewState in
+  memory; neither passes `isAudioPlaying`) set the rules: autoplay only a render under two minutes
+  old, once, and one finish message, both kept in viewState. Five `learn-*` examples (scale with
+  solfège, note values with triplets, Twinkle and Happy Birthday on a grand staff, Row Your Boat in
+  6/8) write with no warnings; their audio golden hashes are new, every older hash holds. Checked in
+  Chrome (headless): each example draws as written (pickup, ties, dotted values, triplet
+  brackets, 6/8 beaming, accidentals, lyrics, grand staff), the cursor follows playback, the
+  finish message is sent once and not again on a replay; headless Chrome blocks autoplay without
+  a click, and the card then says "Press play to listen" (autoplay after a user's typing in a real
+  host not yet seen). Evaluation `eval/requests-notation.json` (8 requests, EN/JA): default model
+  8/8 first try; Haiku 0/8 at first — every score carried `"view": "notation"`, as the guide's
+  wording suggested — then 8/8 after the guide said plainly that view / autoplay / notifyWhenDone
+  belong to the renderScore call (and checkScore now says so when they appear in a score). Not
+  yet: the user's look at the view and listen to `out/notation/`, and a host (MulmoTerminal) run.

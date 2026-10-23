@@ -1,19 +1,30 @@
 // Scores the evaluation: for each request in eval/requests.json, reads the score an LLM wrote at
 // out/eval/<run>/<id>.json and checks it mechanically — valid, the requested times exist as cues,
 // renders cleanly at the loudness target, and — for requests that give `words` — the lyrics contain
-// those words in order; for requests marked `custom`, a track plays an instrument the score defines. Usage: node eval/check.ts <run> [requests file, default requests.json]
+// those words in order; for requests marked `custom`, a track plays an instrument the score defines;
+// for requests with `notation`, the score has the asked meter (and key, pickup, chord symbols) and
+// writes as sheet music with nothing rounded or shortened. Usage: node eval/check.ts <run> [requests file, default requests.json]
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
-import { checkScore, parseScore, render } from "../src/index.ts";
+import { checkScore, parseScore, render, scoreToMusicXml } from "../src/index.ts";
 
 const RequestsSchema = z.array(
   z.strictObject({
     id: z.string(),
     request: z.string(),
     cues: z.array(z.number()),
-    words: z.array(z.string()).optional().describe("Words the lyrics must contain, in order (spaces and case ignored)."),
+    words: z.array(z.string()).optional().describe('Words the lyrics must contain, in order (spaces and case ignored); "a|b" accepts either spelling.'),
     custom: z.boolean().optional().describe("The request needs a custom instrument: a track must play one the score defines."),
+    notation: z
+      .strictObject({
+        meter: z.string(),
+        key: z.string().optional(),
+        pickup: z.number().optional(),
+        harmonies: z.int().optional().describe("At least this many chord symbols on the page."),
+      })
+      .optional()
+      .describe("A request for sheet music: what the page must show."),
   }),
 );
 
@@ -38,9 +49,13 @@ function missingWords(lyrics: readonly { text: string }[] | undefined, words: re
   let from = 0;
   const missing: string[] = [];
   for (const word of words) {
-    const at = text.indexOf(squash(word), from);
-    if (at < 0) missing.push(word);
-    else from = at + squash(word).length;
+    // "Happy|ハッピー": any one of the spellings.
+    const found = word
+      .split("|")
+      .map((spelling) => ({ at: text.indexOf(squash(spelling), from), length: squash(spelling).length }))
+      .find((hit) => hit.at >= 0);
+    if (found === undefined) missing.push(word);
+    else from = found.at + found.length;
   }
   return missing;
 }
@@ -52,7 +67,24 @@ function playsCustom(input: unknown): boolean {
   return parsed.tracks.some((t) => defined.has(t.instrument));
 }
 
-async function score(id: string, expected: readonly number[], words: readonly string[], custom: boolean): Promise<Row> {
+type Request = z.infer<typeof RequestsSchema>[number];
+
+/** What a sheet-music request's page lacks; empty when it is right. */
+function notationProblems(input: unknown, want: NonNullable<Request["notation"]>): string[] {
+  const parsed = parseScore(input);
+  const problems: string[] = [];
+  if ((parsed.meter ?? "4/4") !== want.meter) problems.push(`meter ${parsed.meter ?? "(none)"}, not ${want.meter}`);
+  if (want.key !== undefined && parsed.key !== want.key) problems.push(`key ${parsed.key ?? "(none)"}, not ${want.key}`);
+  if (want.pickup !== undefined && parsed.pickup !== want.pickup) problems.push(`pickup ${parsed.pickup ?? "(none)"}, not ${want.pickup}`);
+  const warnings = checkScore(input, { notation: true }).warnings;
+  const listed = warnings.map((w) => `${w.path} ${w.message}`).join(" / ");
+  if (warnings.length > 0) problems.push(`sheet music: ${listed}`);
+  const harmonies = (scoreToMusicXml(parsed)?.match(/<harmony>/g) ?? []).length;
+  if (want.harmonies !== undefined && harmonies < want.harmonies) problems.push(`${harmonies} chord symbols, not ${want.harmonies}`);
+  return problems;
+}
+
+async function score({ id, cues: expected, words = [], custom = false, notation }: Request): Promise<Row> {
   let input: unknown;
   try {
     input = JSON.parse(await readFile(join(dir, `${id}.json`), "utf8"));
@@ -65,6 +97,7 @@ async function score(id: string, expected: readonly number[], words: readonly st
   const missing = expected.filter((t) => !times.some((s) => Math.abs(s - t) < 0.0015));
   const wordsMissing = missingWords(check.lyrics, words);
   const customMissing = custom && !playsCustom(input);
+  const pageProblems = notation === undefined ? [] : notationProblems(input, notation);
   const { audio, stats } = render(parseScore(input));
   const finite = audio.every((channel) => channel.every(Number.isFinite));
   const clean = finite && stats.truePeak <= -1.5 && (Math.abs(stats.loudness - parseScore(input).master.loudness) <= 0.5 || stats.limitedByPeak);
@@ -72,14 +105,15 @@ async function score(id: string, expected: readonly number[], words: readonly st
     missing.length > 0 ? `missing cues at ${missing.join(", ")} s` : "",
     wordsMissing.length > 0 ? `lyrics lack ${wordsMissing.join(", ")}` : "",
     customMissing ? "no track plays a custom instrument" : "",
+    ...pageProblems,
     `${stats.loudness.toFixed(1)} LUFS, limiting ${stats.limitingDb.toFixed(1)} dB`,
   ]
     .filter(Boolean)
     .join("; ");
-  return { id, valid: true, cues: missing.length === 0 && wordsMissing.length === 0 && !customMissing, clean, detail };
+  return { id, valid: true, cues: missing.length === 0 && wordsMissing.length === 0 && !customMissing && pageProblems.length === 0, clean, detail };
 }
 
-const rows = await Promise.all(requests.map((r) => score(r.id, r.cues, r.words ?? [], r.custom === true)));
+const rows = await Promise.all(requests.map(score));
 const mark = (ok: boolean): string => (ok ? "yes" : "NO");
 const table = [
   `| request | valid | cues | clean | detail |`,

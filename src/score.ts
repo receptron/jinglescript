@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { BLOCK_SCHEMAS, blockForm, DEFINITION_FORM_SCHEMAS, definitionForm } from "./custom/schema.ts";
 import { expandScore, type Expanded, type Issue } from "./events.ts";
+import { scoreToNotation } from "./notation.ts";
 import { ScoreBaseSchema, type ScoreData } from "./score-schema.ts";
 import { roundMs, secondsToBeats } from "./time.ts";
 
@@ -45,11 +46,21 @@ export function formatProblem(problem: ScoreProblem): string {
   return `  ${problem.path || "(score)"}: ${problem.message}${hint}`;
 }
 
+/** The renderScore call's options, which an LLM may put into the score itself. */
+const RENDER_OPTIONS: ReadonlySet<string> = new Set(["view", "autoplay", "notifyWhenDone"]);
+
 function problemOf(issue: z.core.$ZodIssue): ScoreProblem {
   const path = formatPath(issue.path);
   if (issue.code === "custom") {
     const hint: unknown = issue.params?.hint;
     return typeof hint === "string" ? { path, message: issue.message, hint } : { path, message: issue.message };
+  }
+  if (issue.code === "unrecognized_keys" && issue.path.length === 0 && issue.keys.some((key) => RENDER_OPTIONS.has(key))) {
+    return {
+      path,
+      message: `Unknown field${issue.keys.length > 1 ? "s" : ""} ${issue.keys.map((k) => JSON.stringify(k)).join(", ")}.`,
+      hint: "view, autoplay and notifyWhenDone are options of the renderScore call, next to `score` — not fields of the score. Remove them from the score.",
+    };
   }
   if (issue.code === "unrecognized_keys") {
     return {
@@ -150,8 +161,31 @@ function nearCueWarnings(expanded: Expanded): ScoreProblem[] {
   return warnings;
 }
 
+export interface CheckOptions {
+  /**
+   * Also report what sheet music would have to change (times off the grid, notes held into the
+   * next). Always on for a score that sets a meter, key or pickup.
+   */
+  notation?: boolean;
+}
+
+/** What writing the score as sheet music changes, as warnings; nothing for a score not meant as sheet music. */
+function notationWarnings(score: ScoreData, options: CheckOptions): ScoreProblem[] {
+  const wanted = options.notation === true || score.meter !== undefined || score.key !== undefined || score.pickup !== undefined;
+  if (!wanted) return [];
+  const notation = scoreToNotation(score);
+  if (notation === undefined) {
+    return [{ path: "", message: "Nothing to show as sheet music: no track plays pitched notes.", hint: "The player shows the waveform instead." }];
+  }
+  return notation.warnings.map((issue) => ({
+    path: formatPath(issue.path),
+    message: issue.message,
+    ...(issue.hint === undefined ? {} : { hint: issue.hint }),
+  }));
+}
+
 /** Checks a score without throwing: errors with paths and hints, and what the score resolves to. */
-export function checkScore(input: unknown): CheckResult {
+export function checkScore(input: unknown, options: CheckOptions = {}): CheckResult {
   const result = ScoreSchema.safeParse(input);
   if (!result.success) return { ok: false, errors: problemsOf(result.error, input), warnings: [], cues: {} };
   const expanded = expandScore(result.data);
@@ -172,7 +206,7 @@ export function checkScore(input: unknown): CheckResult {
   return {
     ok: true,
     errors: [],
-    warnings: nearCueWarnings(expanded),
+    warnings: [...nearCueWarnings(expanded), ...notationWarnings(result.data, options)],
     cues,
     duration: roundMs(expanded.duration),
     notes: expanded.events.length,

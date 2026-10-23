@@ -3,7 +3,7 @@
 // in, as any untyped data is.
 import type { ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData } from "jinglescript";
-import { createApp, h } from "vue";
+import { createApp, h, ref } from "vue";
 import { z } from "zod";
 // The schema modules alone: the library's index needs Node (ffmpeg), which a page cannot load.
 import { ScoreBaseSchema } from "../../src/score-schema.ts";
@@ -22,6 +22,15 @@ const PlayerSchema = z.object({
   loudness: z.number(),
   score: ScoreBaseSchema,
   midi: z.string(),
+  musicxml: z.string().optional(),
+  presentation: z
+    .object({
+      view: z.enum(["waveform", "notation"]),
+      autoplay: z.boolean(),
+      notifyWhenDone: z.boolean(),
+      renderedAt: z.number().optional(),
+    })
+    .optional(),
 });
 const SamplesSchema = z.array(z.object({ toolName: z.string(), uuid: z.string(), message: z.string(), title: z.string().optional(), data: PlayerSchema }));
 
@@ -34,13 +43,25 @@ if (!parsed.success) {
 }
 const results: ToolResultComplete<PlayerData>[] = parsed.data;
 
+/** What the views would send the LLM, listed on the page. */
+const sent = ref<string[]>([]);
+
 createApp({
   render: () => [
+    h("div", { class: "sent" }, [
+      h("strong", "Sent to the LLM: "),
+      sent.value.length === 0
+        ? "nothing yet"
+        : h(
+            "ol",
+            sent.value.map((text) => h("li", text)),
+          ),
+    ]),
     h(
       "div",
       { class: "previews" },
       results.map((r) => h("div", [h(Preview, { result: r })])),
     ),
-    ...results.map((r) => h("div", { class: "card" }, [h(View, { selectedResult: r, sendTextMessage: () => undefined })])),
+    ...results.map((r) => h("div", { class: "card" }, [h(View, { selectedResult: r, sendTextMessage: (text?: string) => sent.value.push(text ?? "") })])),
   ],
 }).mount("#app");

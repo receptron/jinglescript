@@ -41,4 +41,9 @@ note happens. You write the score; the CLI checks and renders it. Everything run
   change in the score.
 - To hear an instrument across its range before choosing it:
   `npx -y jinglescript demo <instrument> -o jingles/demo/`.
+- **Sheet music** (a lesson, a melody to read or sing): give the score a `meter` and `key`, every
+  note a `len`, and keep notes on the beat grid (the guide's "Sheet music" section). Check with
+  `npx -y jinglescript check jingles/<short-name>.json --notation` until it prints no warnings,
+  then write it with `npx -y jinglescript notation jingles/<short-name>.json -o jingles/<short-name>.musicxml`
+  for the user to open in MuseScore or another notation program.
 - To try a score in the browser instead: https://receptron.github.io/jinglescript/ (paste the JSON).

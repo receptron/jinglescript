@@ -71,5 +71,8 @@
     "vue": "^3.5.43",
     "vue-tsc": "^3.3.12",
     "zod": "^4.6.5"
+  },
+  "dependencies": {
+    "opensheetmusicdisplay": "^2.2.1"
   }
 }

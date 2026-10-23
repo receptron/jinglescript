@@ -2,6 +2,7 @@
 // jingle and show its timing. Built here, with no Node built-in, so the browser builds the same.
 import { MIME_TYPES } from "./audio-format.ts";
 import { MIDI_MIME_TYPE, scoreToMidi } from "./midi.ts";
+import { scoreToMusicXml } from "./musicxml.ts";
 import type { RenderResult } from "./render.ts";
 import type { Score } from "./score.ts";
 import { tagsOf } from "./tags.ts";
@@ -25,6 +26,32 @@ export interface PlayerData {
   score: Score;
   /** The score as a Standard MIDI File, as a data URI. */
   midi: string;
+  /** The score as sheet music (MusicXML), when it was asked for or the score sets a meter, key or pickup, and has pitched notes to show. */
+  musicxml?: string;
+  /** How the view shows it; absent in results rendered before 0.10 (a view then shows the waveform). */
+  presentation?: Presentation;
+}
+
+/** How a player view shows the jingle: what the LLM asked for when it rendered it. */
+export const VIEWS = ["waveform", "notation"] as const;
+export type PlayerView = (typeof VIEWS)[number];
+
+export interface Presentation {
+  /** What the view shows first: the waveform with cues and lanes, or the sheet music. */
+  view: PlayerView;
+  /** Start playing as soon as the view appears (once; never again when the card is shown later). */
+  autoplay: boolean;
+  /** When playback reaches the end for the first time, the view tells the LLM so it can go on. */
+  notifyWhenDone: boolean;
+  /** When the render was made (ms since 1970): a view autoplays only a fresh one, never one replayed from history. */
+  renderedAt?: number;
+}
+
+export const DEFAULT_PRESENTATION: Presentation = { view: "waveform", autoplay: false, notifyWhenDone: false };
+
+/** Sheet music goes with a score written for it, or one the LLM asked to see as sheet music. */
+export function wantsNotation(score: Score, view: PlayerView): boolean {
+  return view === "notation" || score.meter !== undefined || score.key !== undefined || score.pickup !== undefined;
 }
 
 /** The embedded audio: a data URI and its type. */
@@ -64,7 +91,14 @@ export function wavPlayerAudio(result: RenderResult, score: Score): PlayerAudio 
 export const round1 = (x: number): number => Math.round(x * 10) / 10;
 
 /** PlayerData for a render of `score`, with `audio` embedded (WAV unless the caller encoded something smaller). */
-export function toPlayerData(score: Score, result: RenderResult, title: string, audio: PlayerAudio = wavPlayerAudio(result, score)): PlayerData {
+export function toPlayerData(
+  score: Score,
+  result: RenderResult,
+  title: string,
+  audio: PlayerAudio = wavPlayerAudio(result, score),
+  presentation: Presentation = DEFAULT_PRESENTATION,
+): PlayerData {
+  const musicxml = wantsNotation(score, presentation.view) ? scoreToMusicXml(score) : undefined;
   return {
     title: score.title ?? title,
     ...audio,
@@ -75,5 +109,8 @@ export function toPlayerData(score: Score, result: RenderResult, title: string, 
     loudness: round1(result.stats.loudness),
     score,
     midi: dataUri(MIDI_MIME_TYPE, scoreToMidi(score)),
+    ...(musicxml === undefined ? {} : { musicxml }),
+    // Without sheet music to show, the view shows the waveform whatever was asked.
+    presentation: { ...presentation, view: musicxml === undefined ? "waveform" : presentation.view },
   };
 }

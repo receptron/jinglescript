@@ -34,7 +34,7 @@ describe("skills/jinglescript/SKILL.md", () => {
 
   it("names the commands it relies on", () => {
     const verbs = new Set(commands.map((command) => command.split(" ")[0]));
-    expect([...verbs].sort()).toEqual(["check", "demo", "guide", "instruments", "render", "schema"]);
+    expect([...verbs].sort()).toEqual(["check", "demo", "guide", "instruments", "notation", "render", "schema"]);
   });
 
   // Run as written: a renamed command, a wrong flag or a missing argument fails here.

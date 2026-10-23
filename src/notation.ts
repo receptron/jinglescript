@@ -1,0 +1,507 @@
+// Sheet music from a score: bars of notes and rests on a grid, ready to be written as MusicXML
+// (musicxml.ts) and drawn by a player view. Built from the same expanded events the audio plays, at
+// their written times (before humanize and strum looseness), so the music and the page agree.
+//
+// The score has no notation of its own, so this decides it: times are rounded to a grid of 32nd
+// notes and triplets, a note without `len` is written up to the track's next note, a staff holds one
+// voice (a held note is cut where the next one starts), and every rounding or cut that changes what
+// was written is reported as a warning with the note's path.
+import { spellChordTone } from "./chords.ts";
+import { expandScore, type Issue, type NoteEvent } from "./events.ts";
+import { barQuarters, DEFAULT_KEY, DEFAULT_METER, isCompound, parseKey, parseMeter, type KeySignature, type Meter } from "./meter.ts";
+import { HOLD_SYLLABLE } from "./lyrics.ts";
+import { PITCH_PATTERN, pitchToMidi } from "./pitch.ts";
+import type { ScoreData } from "./score-schema.ts";
+import { secondsToBeats } from "./time.ts";
+
+/** Grid steps per quarter note: 32nd notes (3) and triplet 16ths (4) both fit. */
+export const DIVISIONS = 24;
+/** Keyboard instruments whose treble and bass tracks, side by side, share a grand staff. */
+const KEYBOARDS: ReadonlySet<string> = new Set(["piano", "grandpiano", "organ"]);
+/** A track whose pitches are mostly below this (A3) gets a bass clef. */
+const BASS_BELOW = 57;
+/** Rounding a time by more than this many grid steps is reported (half a 32nd note). */
+const ROUNDING_WARNING = 1;
+
+export type Clef = "treble" | "bass";
+
+export interface NotationPitch {
+  step: string;
+  /** −1 flat, 0 natural, 1 sharp (±2 for doubles, in chords such as Cdim7). */
+  alter: number;
+  octave: number;
+}
+
+export type Accidental = "sharp" | "flat" | "natural" | "double-sharp" | "flat-flat";
+
+const ACCIDENTALS: Record<number, Accidental> = { 2: "double-sharp", 1: "sharp", 0: "natural", [-1]: "flat", [-2]: "flat-flat" };
+
+/** A note value as written: its shape, dots and whether it is one of a triplet. */
+export interface NoteValue {
+  type: "whole" | "half" | "quarter" | "eighth" | "16th" | "32nd";
+  dots: number;
+  triplet: boolean;
+}
+
+export interface Lyric {
+  text: string;
+  syllabic: "single" | "begin" | "middle" | "end";
+  /** The syllable is held over the notes that follow ("_"). */
+  extend: boolean;
+}
+
+/** A note, a chord (several pitches) or a rest (none), within one bar. */
+export interface NotationItem {
+  /** Grid steps from the start of the score. */
+  start: number;
+  duration: number;
+  pitches: NotationPitch[];
+  /** Accidental to print per pitch (undefined: the key signature or the bar already says it). */
+  accidentals: (Accidental | undefined)[];
+  /** A whole-bar rest. */
+  measureRest: boolean;
+  value: NoteValue | undefined;
+  tieStart: boolean;
+  tieStop: boolean;
+  /** Opens or closes a triplet bracket. */
+  tuplet: "start" | "stop" | undefined;
+  lyric: Lyric | undefined;
+  /** A chord symbol printed above, where the harmony changes. */
+  harmony: string | undefined;
+}
+
+export interface NotationMeasure {
+  /** 0 for a pickup bar, then 1, 2 … */
+  number: number;
+  start: number;
+  length: number;
+  /** A pickup bar: shorter than the meter says. */
+  implicit: boolean;
+}
+
+export interface NotationStaff {
+  clef: Clef;
+  /** Items per measure, in time order, filling each bar. */
+  measures: NotationItem[][];
+}
+
+export interface NotationPart {
+  id: string;
+  name: string;
+  /** The score tracks on this part's staves, one per staff. */
+  tracks: number[];
+  staves: NotationStaff[];
+}
+
+export interface Notation {
+  title: string | undefined;
+  composer: string | undefined;
+  rights: string | undefined;
+  tempo: number;
+  meter: Meter;
+  key: KeySignature;
+  measures: NotationMeasure[];
+  parts: NotationPart[];
+  /** What the sheet music had to change from the score (rounded times, shortened notes). */
+  warnings: Issue[];
+}
+
+/** One sounding note of a staff, before it is split into bars and note values. */
+interface Written {
+  start: number;
+  end: number;
+  pitches: NotationPitch[];
+  lyric: Lyric | undefined;
+  harmony: string | undefined;
+  /** Where it came from, for warnings. */
+  path: (string | number)[];
+}
+
+function notationPitch(name: string): NotationPitch | undefined {
+  const match = PITCH_PATTERN.exec(name);
+  if (!match) return undefined;
+  const [, step = "C", accidental = "", octave = "4"] = match;
+  return { step, alter: ALTER_OF[accidental] ?? 0, octave: Number(octave) };
+}
+
+const ALTER_OF: Record<string, number> = { "#": 1, b: -1, "": 0 };
+
+const midiOf = (pitch: NotationPitch): number => (pitchToMidi(`${pitch.step}${pitch.octave}`) ?? 60) + pitch.alter;
+
+/** The nearest grid point: a multiple of 3 (straight, down to 32nds) or of 4 (triplets), whichever is closer. */
+export function snap(steps: number): number {
+  const straight = Math.round(steps / 3) * 3;
+  const triplet = Math.round(steps / 4) * 4;
+  return Math.abs(triplet - steps) < Math.abs(straight - steps) - 1e-9 ? triplet : straight;
+}
+
+const beatsLabel = (steps: number): string => `${Math.round((steps / DIVISIONS) * 1000) / 1000}`;
+
+interface TrackNotes {
+  track: number;
+  instrument: string;
+  name: string;
+  clef: Clef;
+  notes: Written[];
+}
+
+function syllabicOf(joinsPrevious: boolean, joinsNext: boolean): Lyric["syllabic"] {
+  if (joinsPrevious) return joinsNext ? "middle" : "end";
+  return joinsNext ? "begin" : "single";
+}
+
+/** Syllables as MusicXML wants them: whether each joins the one before and after. */
+function lyricsOf(events: readonly NoteEvent[]): Map<NoteEvent, Lyric> {
+  const sung = events.filter((e) => e.lyric !== undefined);
+  const lyrics = new Map<NoteEvent, Lyric>();
+  let joinsPrevious = false;
+  let previous: Lyric | undefined;
+  for (const event of sung) {
+    const raw = event.lyric ?? "";
+    if (raw === HOLD_SYLLABLE) {
+      if (previous) previous.extend = true;
+      continue;
+    }
+    const joinsNext = raw.length > 1 && raw.endsWith("-");
+    previous = { text: joinsNext ? raw.slice(0, -1) : raw, syllabic: syllabicOf(joinsPrevious, joinsNext), extend: false };
+    lyrics.set(event, previous);
+    joinsPrevious = joinsNext;
+  }
+  return lyrics;
+}
+
+function clefOf(pitches: readonly NotationPitch[]): Clef {
+  const sorted = pitches.map(midiOf).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)] ?? 60;
+  return median < BASS_BELOW ? "bass" : "treble";
+}
+
+const toSteps = (beats: number): number => beats * DIVISIONS;
+
+interface TrackContext {
+  score: ScoreData;
+  track: number;
+  lyrics: Map<NoteEvent, Lyric>;
+  warnings: Issue[];
+}
+
+/** One event as written: its rounded onset, its end from `len` (-1 when it has none), its pitches spelled. */
+function writtenOf(event: NoteEvent, harmony: string | undefined, ctx: TrackContext): Written {
+  const { score, track, warnings } = ctx;
+  const exact = toSteps(secondsToBeats(event.nominal, score.tempo));
+  const start = snap(exact);
+  const path = ["tracks", track, "notes", event.note];
+  if (Math.abs(start - exact) > ROUNDING_WARNING && event.repeat === 0) {
+    warnings.push({
+      path: [...path, "at"],
+      message: `Starts at beat ${beatsLabel(exact)}, off the sheet-music grid; written at beat ${beatsLabel(start)}.`,
+      hint: "Place notes on beats, halves, quarters, eighths of a beat or triplets for clean sheet music.",
+    });
+  }
+  const len = score.tracks[track]?.notes[event.note]?.len;
+  const beats = typeof len === "object" ? secondsToBeats(len.seconds, score.tempo) : len;
+  const pitches = event.pitches
+    .map(notationPitch)
+    .filter((p) => p !== undefined)
+    .map((p) => (event.chord === undefined ? p : (spellChordTone(event.chord, midiOf(p)) ?? p)));
+  return { start, end: beats === undefined ? -1 : start + snap(toSteps(beats)), pitches, lyric: ctx.lyrics.get(event), harmony, path };
+}
+
+/** Events that start together become one chord, held as long as its longest note. */
+function merge(into: Written, other: Written): void {
+  for (const pitch of other.pitches) if (!into.pitches.some((p) => midiOf(p) === midiOf(pitch))) into.pitches.push(pitch);
+  into.end = Math.max(into.end, other.end);
+  into.lyric ??= other.lyric;
+  into.harmony ??= other.harmony;
+}
+
+/** Ends each note: at its `len` but no later than the next onset (warned), else at the next onset or the end of its bar. */
+function closeNotes(notes: Written[], barEnd: (steps: number) => number, warnings: Issue[]): void {
+  notes.forEach((note, i) => {
+    const next = notes[i + 1]?.start;
+    if (note.end < 0) note.end = next ?? barEnd(note.start);
+    else if (next !== undefined && note.end > next) {
+      warnings.push({
+        path: [...note.path, "len"],
+        message: `Held past the next note at beat ${beatsLabel(next)}; the sheet music writes it shorter (one voice per staff).`,
+        hint: "Shorten `len`, or put the held notes on a track of their own.",
+      });
+      note.end = next;
+    }
+    if (note.end <= note.start) note.end = note.start + 3;
+    note.pitches.sort((a, b) => midiOf(a) - midiOf(b));
+  });
+}
+
+/** A track's notes as written: rounded onsets, chords merged, lengths from `len` or the next onset. */
+function trackNotes(score: ScoreData, track: number, events: readonly NoteEvent[], barEnd: (steps: number) => number, warnings: Issue[]): TrackNotes {
+  const ctx: TrackContext = { score, track, lyrics: lyricsOf(events), warnings };
+  const byStart = new Map<number, Written>();
+  let lastHarmony: string | undefined;
+  for (const event of events) {
+    const harmony = event.chord !== undefined && event.chord !== lastHarmony ? event.chord : undefined;
+    lastHarmony = event.chord ?? lastHarmony;
+    const written = writtenOf(event, harmony, ctx);
+    const existing = byStart.get(written.start);
+    if (existing) merge(existing, written);
+    else byStart.set(written.start, written);
+  }
+  const notes = [...byStart.values()].sort((a, b) => a.start - b.start);
+  closeNotes(notes, barEnd, warnings);
+  const scoreTrack = score.tracks[track];
+  const name = scoreTrack?.name ?? scoreTrack?.instrument ?? "";
+  return {
+    track,
+    instrument: scoreTrack?.instrument ?? "",
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    clef: scoreTrack?.clef ?? clefOf(notes.flatMap((n) => n.pitches)),
+    notes,
+  };
+}
+
+/** Bars from the pickup to the end of the last note. */
+function measuresOf(pickup: number, bar: number, end: number): NotationMeasure[] {
+  const measures: NotationMeasure[] = [];
+  if (pickup > 0) measures.push({ number: 0, start: 0, length: pickup, implicit: true });
+  for (let start = pickup, number = 1; start < end || measures.length === 0; start += bar, number++)
+    measures.push({ number, start, length: bar, implicit: false });
+  return measures;
+}
+
+/** Values a note may take outside a triplet, longest first, in grid steps. */
+const STRAIGHT: readonly [number, NoteValue][] = [
+  [96, { type: "whole", dots: 0, triplet: false }],
+  [72, { type: "half", dots: 1, triplet: false }],
+  [48, { type: "half", dots: 0, triplet: false }],
+  [36, { type: "quarter", dots: 1, triplet: false }],
+  [24, { type: "quarter", dots: 0, triplet: false }],
+  [18, { type: "eighth", dots: 1, triplet: false }],
+  [12, { type: "eighth", dots: 0, triplet: false }],
+  [9, { type: "16th", dots: 1, triplet: false }],
+  [6, { type: "16th", dots: 0, triplet: false }],
+  [3, { type: "32nd", dots: 0, triplet: false }],
+];
+/** Values within a triplet quarter beat. */
+const TRIPLET: readonly [number, NoteValue][] = [
+  [16, { type: "quarter", dots: 0, triplet: true }],
+  [8, { type: "eighth", dots: 0, triplet: true }],
+  [4, { type: "16th", dots: 0, triplet: true }],
+];
+
+interface BeatGrid {
+  /** Where the bar's beats are counted from (a pickup bar counts back from its end). */
+  origin: number;
+  beat: number;
+  compound: boolean;
+  /** Beat indexes (from origin) written as triplets. */
+  triplets: ReadonlySet<number>;
+}
+
+/**
+ * Splits [start, end) — within one bar — into note values that show the beat: a value longer than
+ * a beat starts on a beat (and in 6/8 lasts whole dotted beats); a shorter one stays inside its
+ * beat; triplet beats use triplet values.
+ */
+function valuesOf(start: number, end: number, grid: BeatGrid, rest = false): { start: number; duration: number; value: NoteValue }[] {
+  const pieces: { start: number; duration: number; value: NoteValue }[] = [];
+  let at = start;
+  while (at < end) {
+    const position = at - grid.origin;
+    const beatIndex = Math.floor(position / grid.beat);
+    const beatEnd = grid.origin + (beatIndex + 1) * grid.beat;
+    const left = end - at;
+    let chosen: [number, NoteValue] | undefined;
+    if (grid.triplets.has(beatIndex)) {
+      chosen = TRIPLET.find(([d]) => d <= Math.min(left, beatEnd - at));
+    } else {
+      chosen = STRAIGHT.find(([d]) => {
+        if (d > left) return false;
+        // Longer than a beat: a note starts on a beat (in compound time it also lasts whole dotted
+        // beats); a rest shows the bar's halves, so it starts on a multiple of itself.
+        if (d > grid.beat) return rest ? position % d === 0 : position % grid.beat === 0 && (!grid.compound || d % grid.beat === 0);
+        return at + d <= beatEnd;
+      });
+    }
+    // Off every value (rounding left an odd remainder): take the smallest step that fits.
+    const [duration, value] = chosen ?? [Math.min(left, 3), { type: "32nd", dots: 0, triplet: false }];
+    pieces.push({ start: at, duration, value });
+    at += duration;
+  }
+  return pieces;
+}
+
+const tripletBoundary = (steps: number): boolean => steps % 3 !== 0;
+
+/** Beats of a bar whose notes fall on the triplet grid; times in them are moved onto it. */
+function beatGrid(measure: NotationMeasure, meter: Meter, bar: number, boundaries: number[]): BeatGrid {
+  const compound = isCompound(meter);
+  const beat = compound ? (DIVISIONS * 4 * 3) / meter.beatType : (DIVISIONS * 4) / meter.beatType;
+  const origin = measure.implicit ? measure.start + measure.length - bar : measure.start;
+  const triplets = new Set<number>();
+  // Triplets only in quarter-note beats; a compound beat already divides in three.
+  if (!compound && beat === DIVISIONS) {
+    for (const b of boundaries)
+      if (b > measure.start && b < measure.start + measure.length && tripletBoundary(b - origin)) triplets.add(Math.floor((b - origin) / beat));
+  }
+  return { origin, beat, compound, triplets };
+}
+
+/** Moves times inside triplet beats onto the triplet grid (multiples of 4 from the beat). */
+function onTripletGrid(steps: number, grid: BeatGrid): number {
+  const beatIndex = Math.floor((steps - grid.origin) / grid.beat);
+  if (!grid.triplets.has(beatIndex)) return steps;
+  const beatStart = grid.origin + beatIndex * grid.beat;
+  return beatStart + Math.round((steps - beatStart) / 4) * 4;
+}
+
+function itemOf(start: number, duration: number, value: NoteValue | undefined, pitches: NotationPitch[]): NotationItem {
+  return {
+    start,
+    duration,
+    pitches,
+    accidentals: pitches.map(() => undefined),
+    measureRest: false,
+    value,
+    tieStart: false,
+    tieStop: false,
+    tuplet: undefined,
+    lyric: undefined,
+    harmony: undefined,
+  };
+}
+
+/** One bar of a staff: its notes (clipped to the bar), the rests between them, as note values. */
+function measureItems(notes: readonly Written[], measure: NotationMeasure, grid: BeatGrid): NotationItem[] {
+  const barStart = measure.start;
+  const barEnd = measure.start + measure.length;
+  const inBar = notes.filter((n) => n.start < barEnd && n.end > barStart);
+  if (inBar.length === 0 && !measure.implicit) return [{ ...itemOf(barStart, measure.length, undefined, []), measureRest: true }];
+  const items: NotationItem[] = [];
+  let at = barStart;
+  const pushRest = (until: number): void => {
+    for (const piece of valuesOf(at, until, grid, true)) items.push(itemOf(piece.start, piece.duration, piece.value, []));
+  };
+  for (const note of inBar) {
+    const from = Math.max(barStart, onTripletGrid(note.start, grid));
+    const to = Math.min(barEnd, onTripletGrid(note.end, grid));
+    if (from > at) pushRest(from);
+    if (to <= from) continue;
+    const pieces = valuesOf(from, to, grid);
+    pieces.forEach((piece, i) => {
+      const item = itemOf(
+        piece.start,
+        piece.duration,
+        piece.value,
+        note.pitches.map((p) => ({ ...p })),
+      );
+      item.tieStop = i > 0 || note.start < barStart;
+      item.tieStart = i < pieces.length - 1 || note.end > barEnd;
+      if (i === 0 && note.start >= barStart) {
+        item.lyric = note.lyric;
+        item.harmony = note.harmony;
+      }
+      items.push(item);
+    });
+    at = to;
+  }
+  if (at < barEnd) pushRest(barEnd);
+  markTuplets(items, grid);
+  return items;
+}
+
+/** Brackets each triplet beat: the first item in it opens, the last closes. */
+function markTuplets(items: NotationItem[], grid: BeatGrid): void {
+  for (const beatIndex of grid.triplets) {
+    const inBeat = items.filter((item) => item.value?.triplet && Math.floor((item.start - grid.origin) / grid.beat) === beatIndex);
+    const first = inBeat[0];
+    const last = inBeat.at(-1);
+    if (first === undefined || last === undefined || first === last) continue;
+    first.tuplet = "start";
+    last.tuplet = "stop";
+  }
+}
+
+/** Steps (C D E …) the key signature alters, and how. */
+function signatureAlters(key: KeySignature): Map<string, number> {
+  const sharps = ["F", "C", "G", "D", "A", "E", "B"];
+  const alters = new Map<string, number>();
+  if (key.fifths > 0) for (const step of sharps.slice(0, key.fifths)) alters.set(step, 1);
+  if (key.fifths < 0) for (const step of [...sharps].reverse().slice(0, -key.fifths)) alters.set(step, -1);
+  return alters;
+}
+
+/** Prints an accidental where the key signature and the bar so far do not already give the pitch. */
+function markAccidentals(items: NotationItem[], key: KeySignature): void {
+  const signature = signatureAlters(key);
+  const inBar = new Map<string, number>();
+  for (const item of items) {
+    item.pitches.forEach((pitch, i) => {
+      const line = `${pitch.step}${pitch.octave}`;
+      const current = inBar.get(line) ?? signature.get(pitch.step) ?? 0;
+      if (!item.tieStop && current !== pitch.alter) item.accidentals[i] = ACCIDENTALS[pitch.alter];
+      inBar.set(line, pitch.alter);
+    });
+  }
+}
+
+function staffOf(notes: readonly Written[], clef: Clef, measures: readonly NotationMeasure[], meter: Meter, bar: number, key: KeySignature): NotationStaff {
+  const boundaries = notes.flatMap((n) => [n.start, n.end]);
+  return {
+    clef,
+    measures: measures.map((measure) => {
+      const items = measureItems(notes, measure, beatGrid(measure, meter, bar, boundaries));
+      markAccidentals(items, key);
+      return items;
+    }),
+  };
+}
+
+/** Tracks shown on sheet music: pitched, not hidden. */
+function shownTracks(score: ScoreData, events: readonly NoteEvent[]): number[] {
+  const withPitches = new Set(events.filter((e) => e.pitches.length > 0).map((e) => e.track));
+  return score.tracks.flatMap((track, i) => (track.notation !== false && withPitches.has(i) ? [i] : []));
+}
+
+/**
+ * Sheet music for a valid score, or undefined when it has nothing to show (only sound effects, or
+ * every track hidden). Rounding and cutting are reported in `warnings`.
+ */
+export function scoreToNotation(score: ScoreData): Notation | undefined {
+  const expanded = expandScore(score);
+  const meter = parseMeter(score.meter ?? DEFAULT_METER) ?? { beats: 4, beatType: 4 };
+  const key = parseKey(score.key ?? DEFAULT_KEY) ?? { fifths: 0, mode: "major" };
+  const bar = barQuarters(meter) * DIVISIONS;
+  const pickup = snap(toSteps(score.pickup ?? 0));
+  const barEnd = (steps: number): number => (steps < pickup ? pickup : pickup + (Math.floor((steps - pickup) / bar) + 1) * bar);
+  const shown = shownTracks(score, expanded.events);
+  if (shown.length === 0) return undefined;
+  const warnings: Issue[] = [];
+  const tracks = shown.map((track) =>
+    trackNotes(
+      score,
+      track,
+      expanded.events.filter((e) => e.track === track && e.pitches.length > 0),
+      barEnd,
+      warnings,
+    ),
+  );
+  const end = Math.max(...tracks.flatMap((t) => t.notes.map((n) => n.end)));
+  const measures = measuresOf(pickup, bar, end);
+  const parts: NotationPart[] = [];
+  for (let i = 0; i < tracks.length; i++) {
+    const upper = tracks[i];
+    if (upper === undefined) continue;
+    const lower = tracks[i + 1];
+    const grand =
+      lower !== undefined && KEYBOARDS.has(upper.instrument) && lower.instrument === upper.instrument && upper.clef === "treble" && lower.clef === "bass";
+    const members = grand ? [upper, lower] : [upper];
+    parts.push({
+      id: `P${parts.length + 1}`,
+      name: grand ? "Piano" : upper.name,
+      tracks: members.map((t) => t.track),
+      staves: members.map((t) => staffOf(t.notes, t.clef, measures, meter, bar, key)),
+    });
+    if (grand) i++;
+  }
+  return { title: score.title, composer: score.author, rights: score.copyright, tempo: score.tempo, meter, key, measures, parts, warnings };
+}

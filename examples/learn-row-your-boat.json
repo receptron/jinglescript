@@ -1,0 +1,182 @@
+{
+  "format": "jinglescript/1",
+  "title": "Row, Row, Row Your Boat",
+  "tempo": 96,
+  "meter": "6/8",
+  "key": "C",
+  "length": {
+    "beats": 26
+  },
+  "tracks": [
+    {
+      "instrument": "marimba",
+      "name": "melody",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "C4",
+          "len": 1.5,
+          "lyric": "Row,"
+        },
+        {
+          "at": 1.5,
+          "pitch": "C4",
+          "len": 1.5,
+          "lyric": "row,"
+        },
+        {
+          "at": 3,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "row"
+        },
+        {
+          "at": 4,
+          "pitch": "D4",
+          "len": 0.5,
+          "lyric": "your"
+        },
+        {
+          "at": 4.5,
+          "pitch": "E4",
+          "len": 1.5,
+          "lyric": "boat"
+        },
+        {
+          "at": 6,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "Gent-"
+        },
+        {
+          "at": 7,
+          "pitch": "D4",
+          "len": 0.5,
+          "lyric": "ly"
+        },
+        {
+          "at": 7.5,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "down"
+        },
+        {
+          "at": 8.5,
+          "pitch": "F4",
+          "len": 0.5,
+          "lyric": "the"
+        },
+        {
+          "at": 9,
+          "pitch": "G4",
+          "len": 3,
+          "lyric": "stream.",
+          "lineEnd": true
+        },
+        {
+          "at": 12,
+          "pitch": "C5",
+          "len": 0.5,
+          "lyric": "Mer-"
+        },
+        {
+          "at": 12.5,
+          "pitch": "C5",
+          "len": 0.5,
+          "lyric": "ri-"
+        },
+        {
+          "at": 13,
+          "pitch": "C5",
+          "len": 0.5,
+          "lyric": "ly,"
+        },
+        {
+          "at": 13.5,
+          "pitch": "G4",
+          "len": 0.5,
+          "lyric": "mer-"
+        },
+        {
+          "at": 14,
+          "pitch": "G4",
+          "len": 0.5,
+          "lyric": "ri-"
+        },
+        {
+          "at": 14.5,
+          "pitch": "G4",
+          "len": 0.5,
+          "lyric": "ly,"
+        },
+        {
+          "at": 15,
+          "pitch": "E4",
+          "len": 0.5,
+          "lyric": "mer-"
+        },
+        {
+          "at": 15.5,
+          "pitch": "E4",
+          "len": 0.5,
+          "lyric": "ri-"
+        },
+        {
+          "at": 16,
+          "pitch": "E4",
+          "len": 0.5,
+          "lyric": "ly,"
+        },
+        {
+          "at": 16.5,
+          "pitch": "C4",
+          "len": 0.5,
+          "lyric": "mer-"
+        },
+        {
+          "at": 17,
+          "pitch": "C4",
+          "len": 0.5,
+          "lyric": "ri-"
+        },
+        {
+          "at": 17.5,
+          "pitch": "C4",
+          "len": 0.5,
+          "lyric": "ly,",
+          "lineEnd": true
+        },
+        {
+          "at": 18,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "Life"
+        },
+        {
+          "at": 19,
+          "pitch": "F4",
+          "len": 0.5,
+          "lyric": "is"
+        },
+        {
+          "at": 19.5,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "but"
+        },
+        {
+          "at": 20.5,
+          "pitch": "D4",
+          "len": 0.5,
+          "lyric": "a"
+        },
+        {
+          "at": 21,
+          "pitch": "C4",
+          "len": 3,
+          "lyric": "dream."
+        }
+      ]
+    }
+  ]
+}

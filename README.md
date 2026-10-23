@@ -53,7 +53,13 @@ node src/cli.ts demo ukulele -o out/   # hear a sound across its range (or an ef
 node src/cli.ts instruments            # every instrument and sound effect
 node src/cli.ts guide                  # how to write a score (for LLMs)
 node src/cli.ts schema                 # the JSON Schema (also in schema/jinglescript-1.json)
+node src/cli.ts notation examples/learn-happy-birthday.json -o out/birthday.musicxml
+#   the score as sheet music, for MuseScore and the like
 ```
+
+The `learn-*` examples are short lessons written for sheet music: the C major scale with its
+solfège, note values from quarters to triplets, Twinkle Twinkle and Happy Birthday on a piano
+grand staff, and Row, Row, Row Your Boat in 6/8.
 
 `examples/piano/` holds fifteen full-length public-domain piano pieces (Debussy, Chopin, Liszt,
 Beethoven, Rachmaninoff, Schubert, Satie, Tchaikovsky, Joplin) written for `grandpiano` — what a
@@ -70,7 +76,9 @@ file, relative to the directory the server runs in or absolute), so a long score
 in the tool call; renders are then named after the file.
 `renderScore` answers with a summary of the timing map (tempo, duration, cues, `audibleUntil`,
 notes per track) and the path of the full `timing.json`; pass `includeTiming: true` to get every
-beat, note and lyric in the answer too.
+beat, note and lyric in the answer too. A score written for sheet music (one with a `meter`,
+`key` or `pickup`, or rendered with `view: "notation"`) also gets a `.musicxml` file next to the
+audio.
 
 Claude Code:
 
@@ -122,7 +130,11 @@ lyrics, with ffmpeg's ASS subtitles.
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,
 `manageJingleScript`, for hosts such as MulmoTerminal and MulmoClaude. A rendered jingle opens in a
 **player view**: waveform, beats, named cues you can click to jump to, and a lane of notes per
-track, with downloads of the audio and of the music as MIDI. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
+track, with downloads of the audio and of the music as MIDI. For teaching, the same view shows
+**sheet music** with a cursor following playback: `renderScore` takes `view: "notation"` (or
+`"waveform"`, the default), `autoplay: true` to start playing as the card appears, and
+`notifyWhenDone: true` to have the view tell the LLM, in one chat message, when the user has
+heard it to the end — so a lesson can go on by itself. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
 
 ## Library
 
@@ -148,14 +160,25 @@ pistol as Gunshot). A custom instrument gets its base's sound. Effects with no G
 cues are markers, lyrics are lyric events. Pitches are as they sound (a glockenspiel's written C5
 is C6).
 
+`scoreToMusicXml(score)` gives the music as sheet music (MusicXML 4.0, a string), and
+`scoreToNotation(score)` the bars, notes and rests it is written from, with a warning (and the
+note's path) for every time it had to round onto the grid and every note it had to shorten. A score
+sets its `meter`, `key` and `pickup` for this; they never change the sound. Times are rounded to
+32nd notes and triplets, a note without `len` is written up to the next one, one staff holds one
+line of notes, a piano's right and left hand share a grand staff, chords written by name are
+spelled from their root and print their symbol, lyrics go under their notes, and sound effects are
+left off.
+
 For LLMs and agents: `getSchema(part?)`, `getAuthoringGuide()`, `listInstruments()`,
-`getInstrument(name)` and `checkScore(json)` (never throws; returns errors with JSON paths and
-hints, plus the resolved cue times).
+`getInstrument(name)` and `checkScore(json, { notation? })` (never throws; returns errors with JSON
+paths and hints, plus the resolved cue times; with `notation: true`, or for a score with a `meter`,
+also what the sheet music would round or shorten).
 
 ### In the browser
 
 `jinglescript/browser` is the same library without the parts that need Node (files, ffmpeg, the
-MCP tool): parse and check, `render`, `toWav`, `scoreToMidi`, the timing map, and the API for LLMs.
+MCP tool): parse and check, `render`, `toWav`, `scoreToMidi`, `scoreToMusicXml`, the timing map,
+and the API for LLMs.
 It renders in the page, with no server, to the same bit-identical audio.
 
 ```ts
@@ -439,6 +462,58 @@ melody; the words are text on its notes, timed exactly by them.
   { "at": 2.5, "pitch": "D5", "lyric": "mor-" },
   { "at": 3, "pitch": "C5", "lyric": "ning!", "lineEnd": true }
 ] }
+```
+
+### Sheet music (teaching and reading music)
+
+A score can also be shown as sheet music, for a lesson: a scale, a rhythm, a song to sing along to.
+The score only needs the fields below; how the player shows it is chosen **in the renderScore call,
+not in the score**: `{ "action": "renderScore", "score": { … }, "view": "notation", "autoplay": true,
+"notifyWhenDone": true }`. `"view": "notation"` shows the notes on staves with a cursor that
+follows playback; `"autoplay": true` starts it by itself; `"notifyWhenDone": true` sends you a
+message when the user has heard it to the end, so you can ask about it or go on to the next
+exercise. The sound is the same either way: sheet music is drawn from the score you wrote.
+
+- Set `"meter"` ("4/4", "3/4", "2/4", "6/8") and `"key"` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
+  They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).
+- `"pickup": n` when the tune starts before the first full bar ("Hap-py" of Happy Birthday is a
+  pickup of 1 beat in 3/4; many songs start this way). Bar lines fall at pickup, pickup + a bar, …
+- For a triplet, `len` is a third of the beat it shares (0.333 for a triplet eighth).
+- Time in beats (quarter notes), on the grid: whole beats, halves, quarters (0.25), eighths of a
+  beat, or triplets (12, 12.333, 12.667). Use a tempo and plain beat numbers rather than seconds
+  or cues. In 6/8 a bar is still 3 beats: six eighths are 0.5 beats each.
+- Give every note its written length with `len` in beats (1 a quarter, 2 a half, 1.5 a dotted
+  quarter, 0.5 an eighth). Without it a note is written up to the next one.
+- One line of notes per track: a melody track and an accompaniment track. Chords (`pitch` lists)
+  are fine; notes that overlap at different times are not (the later one cuts the earlier).
+- Piano music: a "right hand" and a "left hand" track, both `piano` (or `grandpiano`), side by
+  side, become one grand staff. A track mostly below A3 gets a bass clef (or set `"clef"`).
+- `lyric`s are printed under their notes. A chord written by name (`chord`) prints its symbol
+  above the staff.
+- Sound effects are never drawn; `"notation": false` on a track leaves it off the page too.
+- checkScore with `"view": "notation"` warns about notes off the grid or held into the next note;
+  fix them so the page shows what you meant.
+
+```json
+{
+  "format": "jinglescript/1",
+  "title": "Twinkle, Twinkle (first line)",
+  "tempo": 100, "meter": "4/4", "key": "C",
+  "length": { "beats": 10 },
+  "tracks": [
+    { "instrument": "piano", "name": "right hand", "notes": [
+      { "at": 0, "pitch": "C4", "len": 1, "lyric": "Twin-" }, { "at": 1, "pitch": "C4", "len": 1, "lyric": "kle" },
+      { "at": 2, "pitch": "G4", "len": 1, "lyric": "twin-" }, { "at": 3, "pitch": "G4", "len": 1, "lyric": "kle" },
+      { "at": 4, "pitch": "A4", "len": 1, "lyric": "lit-" }, { "at": 5, "pitch": "A4", "len": 1, "lyric": "tle" },
+      { "at": 6, "pitch": "G4", "len": 2, "lyric": "star" }
+    ] },
+    { "instrument": "piano", "name": "left hand", "gain": -4, "notes": [
+      { "at": 0, "pitch": ["C3", "G3"], "len": 4 },
+      { "at": 4, "pitch": ["F2", "C3"], "len": 2 },
+      { "at": 6, "pitch": ["C3", "G3"], "len": 2 }
+    ] }
+  ]
+}
 ```
 
 ### What makes a jingle work

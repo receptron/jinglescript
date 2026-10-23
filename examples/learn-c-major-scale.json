@@ -1,0 +1,109 @@
+{
+  "format": "jinglescript/1",
+  "title": "The C major scale",
+  "tempo": 96,
+  "meter": "4/4",
+  "key": "C",
+  "length": {
+    "beats": 18
+  },
+  "tracks": [
+    {
+      "instrument": "piano",
+      "name": "scale",
+      "notes": [
+        {
+          "at": 0,
+          "pitch": "C4",
+          "len": 1,
+          "lyric": "Do"
+        },
+        {
+          "at": 1,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "Re"
+        },
+        {
+          "at": 2,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "Mi"
+        },
+        {
+          "at": 3,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "Fa"
+        },
+        {
+          "at": 4,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "So"
+        },
+        {
+          "at": 5,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "La"
+        },
+        {
+          "at": 6,
+          "pitch": "B4",
+          "len": 1,
+          "lyric": "Ti"
+        },
+        {
+          "at": 7,
+          "pitch": "C5",
+          "len": 1,
+          "lyric": "Do",
+          "lineEnd": true
+        },
+        {
+          "at": 8,
+          "pitch": "B4",
+          "len": 1,
+          "lyric": "Ti"
+        },
+        {
+          "at": 9,
+          "pitch": "A4",
+          "len": 1,
+          "lyric": "La"
+        },
+        {
+          "at": 10,
+          "pitch": "G4",
+          "len": 1,
+          "lyric": "So"
+        },
+        {
+          "at": 11,
+          "pitch": "F4",
+          "len": 1,
+          "lyric": "Fa"
+        },
+        {
+          "at": 12,
+          "pitch": "E4",
+          "len": 1,
+          "lyric": "Mi"
+        },
+        {
+          "at": 13,
+          "pitch": "D4",
+          "len": 1,
+          "lyric": "Re"
+        },
+        {
+          "at": 14,
+          "pitch": "C4",
+          "len": 2,
+          "lyric": "Do"
+        }
+      ]
+    }
+  ]
+}

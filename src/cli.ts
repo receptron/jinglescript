@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The jinglescript CLI: a thin wrapper over the library.
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import { parseArgs } from "node:util";
 import { demoScore } from "./demo.ts";
@@ -9,6 +9,9 @@ import { fileProblem, userFacingMessage } from "./cli-errors.ts";
 import { isInstrumentName } from "./instruments/index.ts";
 import { checkScore, formatProblem, getAuthoringGuide, getInstrument, getSchema, listInstruments, parseScore, SCHEMA_PARTS } from "./index.ts";
 import { isSchemaPart } from "./llm.ts";
+import { notationToMusicXml } from "./musicxml.ts";
+import { scoreToNotation } from "./notation.ts";
+import { formatPath } from "./score.ts";
 import { renderToFiles } from "./output.ts";
 import { SAMPLE_RATES, type SampleRate } from "./render.ts";
 import { packageVersion } from "./version.ts";
@@ -17,7 +20,11 @@ import { WAV_BITS } from "./wav.ts";
 const USAGE = `Usage:
   jinglescript render <score.json> -o <out.wav|.mp3|.ogg> [--seed <n>] [--rate 48000|44100] [--bits 24|16]
                        writes the audio and <out>.timing.json next to it (MP3/OGG need ffmpeg)
-  jinglescript check <score.json> [--json]   validate; print errors with hints and the resolved cue times
+  jinglescript check <score.json> [--json] [--notation]
+                       validate; print errors with hints and the resolved cue times
+                       (--notation: also what sheet music would round or shorten)
+  jinglescript notation <score.json> -o <out.musicxml>
+                       write the score as sheet music (MusicXML, for MuseScore and the like)
   jinglescript schema [${SCHEMA_PARTS.join("|")}]   print the JSON Schema (for LLM prompts)
   jinglescript guide                          print the authoring guide for LLMs
   jinglescript instruments [name] [--json]    list instruments and sound effects
@@ -48,6 +55,7 @@ function parseCli() {
         rate: { type: "string" },
         bits: { type: "string" },
         json: { type: "boolean" },
+        notation: { type: "boolean" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -130,7 +138,7 @@ async function demoCommand(name: string | undefined): Promise<void> {
 }
 
 async function checkCommand(file: string | undefined): Promise<void> {
-  const result = checkScore(await readJson(file));
+  const result = checkScore(await readJson(file), { notation: args.notation === true });
   if (args.json) {
     console.log(JSON.stringify(result, null, 2));
   } else if (result.ok) {
@@ -141,6 +149,19 @@ async function checkCommand(file: string | undefined): Promise<void> {
     console.log(`${result.errors.length} error${result.errors.length > 1 ? "s" : ""}:\n${result.errors.map(formatProblem).join("\n")}`);
   }
   if (!result.ok) process.exitCode = 1;
+}
+
+async function notationCommand(file: string | undefined): Promise<void> {
+  const out = args.out ?? fail(`notation needs -o <out.musicxml>\n\n${USAGE}`);
+  if (!/\.(musicxml|xml)$/i.test(out)) fail("-o must end in .musicxml (or .xml).");
+  const score = parseScore(await readJson(file));
+  const notation = scoreToNotation(score) ?? fail("Nothing to write as sheet music: no track plays pitched notes.");
+  await writeFile(out, notationToMusicXml(notation));
+  console.log(`wrote ${out}: ${notation.measures.length} bars, ${notation.parts.length} part${notation.parts.length > 1 ? "s" : ""}`);
+  for (const warning of notation.warnings)
+    console.log(
+      `warning:${formatProblem({ path: formatPath(warning.path), message: warning.message, ...(warning.hint === undefined ? {} : { hint: warning.hint }) })}`,
+    );
 }
 
 function instrumentsCommand(name: string | undefined): void {
@@ -181,6 +202,8 @@ async function main(): Promise<void> {
     await renderCommand(target);
   } else if (command === "check") {
     await checkCommand(target);
+  } else if (command === "notation") {
+    await notationCommand(target);
   } else if (command === "schema") {
     const part = target ?? "score";
     if (!isSchemaPart(part)) fail(`Unknown schema part "${part}". Parts: ${SCHEMA_PARTS.join(", ")}`);

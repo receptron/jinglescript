@@ -10,6 +10,23 @@ karaoke-style: the line being played and the next, each syllable filling in as i
 The audio and the music as MIDI (the library's `scoreToMidi`) can be downloaded from the view;
 the data also carries the score that was rendered. Every other action answers the LLM in text and shows no card.
 
+**Sheet music, for teaching.** `renderScore` takes three options for the view:
+
+- `view`: `"waveform"` (default) or `"notation"`: sheet music drawn by
+  [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) from the library's MusicXML, with a
+  cursor on the note being played and a bar to seek. A score that sets `meter`, `key` or `pickup`
+  carries its sheet music either way, and the view offers a Waveform / Sheet music switch; the
+  MusicXML can be downloaded. The renderer is loaded only when sheet music is shown.
+- `autoplay: true`: the card starts playing when it appears. Only a fresh render does (one made in
+  the last two minutes), and only once: the card remembers it in the result's `viewState`, so a
+  chat reopened or replayed never plays old cards. When the browser wants a click first, the card
+  says "Press play to listen".
+- `notifyWhenDone: true`: when playback first reaches the end, the view sends the chat one message
+  (`"<title>" finished playing (12.0 s): the user has heard it to the end.`) through the host's
+  `sendTextMessage`, so the LLM can go on — ask a question, play the next exercise. Also
+  remembered in `viewState`, so it is sent once. The view writes `viewState` through
+  `onUpdateResult` with the whole result, as hosts expect.
+
 A score can also be passed as a file (`path` instead of `score`). The plugin reads it through the
 host's `files.byPath` capability — the one presentDocument uses — so the host decides what a path
 may reach and what a relative path is relative to. A host that does not provide `files.byPath` to
@@ -19,7 +36,8 @@ may reach and what a relative path is relative to. A host that does not provide 
   (`execute` renders on the host's server). The audio is embedded as a data URI — MP3 when ffmpeg
   is on the server, otherwise 16-bit WAV — so no file serving is needed.
 - **`"@gui-chat-plugin/jinglescript/vue"`** (browser): `plugin` with `viewComponent` and
-  `previewComponent`. It does not load the library.
+  `previewComponent`. It does not load the library. `opensheetmusicdisplay` is a dependency the
+  host's bundler resolves (it is not bundled in), loaded on demand.
 
 ## Adding it to MulmoTerminal
 

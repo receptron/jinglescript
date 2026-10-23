@@ -61,11 +61,11 @@ describe("the plugin's instructions to the LLM", () => {
     tracks: [{ instrument: "marimba", notes: [{ at: 0, pitch: "C4", len: 4 }] }],
   };
 
-  it("say what the user sees, whether it plays by itself, and that a message will come", async () => {
+  it("say what the user sees, whether it plays by itself, and to stay quiet until the message comes", async () => {
     const result = await executeManage({}, { action: "renderScore", score, view: "notation", autoplay: true, notifyWhenDone: true });
     expect(result.data?.musicxml).toContain("<score-partwise");
     expect(result.instructions).toBe(
-      "The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. When the user has heard it to the end, a message saying it finished playing arrives; then go on. Until then, say briefly what to listen for.",
+      "The music is shown to the user as sheet music, with a cursor that follows playback. It starts playing by itself. Do not speak while it plays: say nothing until a message saying it finished playing arrives, then go on.",
     );
   });
 

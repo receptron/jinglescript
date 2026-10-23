@@ -1474,3 +1474,8 @@ Decided:
   grandpiano part is printed "Piano". Real-sample renders: −14.0 to −14.4 LUFS, −1.8 dBTP, except
   riser-reveal at −15.6 LUFS (peak-held, −16.2 with the old piano). Not yet: the user's listen to
   `out/grandpiano/` (old piano in `out/old-piano/`), and the evaluation rerun with "piano" gone.
+- 2026-10-23 — 0.11.0 published; MulmoChat's Artist role teaches with sheet music (its branch
+  `jinglescript-0.11`). User, after a lesson there: the model talked while the music played; it
+  should speak only after it ends. The plugin's instruction for `notifyWhenDone` said "Until then,
+  say briefly what to listen for"; it now says to say nothing until the "finished playing" message,
+  and the guide and the tool description say to speak before renderScore (0.11.1).

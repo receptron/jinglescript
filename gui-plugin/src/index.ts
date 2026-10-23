@@ -42,7 +42,7 @@ export function instructionsFor(player: PlayerData): string {
       : "The jingle is shown to the user in a player with its waveform, cues and beats.";
   const playing = presentation?.autoplay ? " It starts playing by itself." : "";
   const next = presentation?.notifyWhenDone
-    ? " When the user has heard it to the end, a message saying it finished playing arrives; then go on. Until then, say briefly what to listen for."
+    ? " Do not speak while it plays: say nothing until a message saying it finished playing arrives, then go on."
     : " Ask whether it fits, and offer changes.";
   return `${shown}${playing}${next}`;
 }

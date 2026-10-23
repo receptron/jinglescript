@@ -218,10 +218,19 @@ function writtenOf(event: NoteEvent, harmony: string | undefined, ctx: TrackCont
   return { start, end, pitches, lyric: ctx.lyrics.get(event), harmony, path, fromLen: beats !== undefined };
 }
 
-/** Events that start together become one chord, held as long as its longest note. */
-function merge(into: Written, other: Written): void {
+/** Events that start together become one chord, held as long as its longest note (a shorter `len` is warned). */
+function merge(into: Written, other: Written, warnings: Issue[]): void {
   for (const pitch of other.pitches) if (!into.pitches.some((p) => midiOf(p) === midiOf(pitch))) into.pitches.push(pitch);
+  if (into.fromLen && other.fromLen && into.end !== other.end) {
+    const shorter = into.end < other.end ? into : other;
+    warnings.push({
+      path: [...shorter.path, "len"],
+      message: `Starts with a longer note at beat ${beatsLabel(into.start)}; the sheet music writes them as one chord, held as long as the longer (one voice per staff).`,
+      hint: "Give notes that start together the same `len`, or put the shorter one on a track of its own.",
+    });
+  }
   into.end = Math.max(into.end, other.end);
+  into.fromLen ||= other.fromLen;
   into.lyric ??= other.lyric;
   into.harmony ??= other.harmony;
 }
@@ -254,7 +263,7 @@ function trackNotes(score: ScoreData, track: number, events: readonly NoteEvent[
     lastHarmony = event.chord ?? lastHarmony;
     const written = writtenOf(event, harmony, ctx);
     const existing = byStart.get(written.start);
-    if (existing) merge(existing, written);
+    if (existing) merge(existing, written, warnings);
     else byStart.set(written.start, written);
   }
   const notes = [...byStart.values()].sort((a, b) => a.start - b.start);
@@ -549,5 +558,7 @@ export function scoreToNotation(score: ScoreData): Notation | undefined {
     });
     if (grand) i++;
   }
-  return { title: score.title, composer: score.author, rights: score.copyright, tempo: score.tempo, meter, key, measures, parts, warnings };
+  // A repeated note warns once, for its first repetition, not once per repetition (the hint names the kind).
+  const unique = [...new Map(warnings.map((w) => [`${w.path.join(".")} ${w.hint ?? w.message}`, w])).values()];
+  return { title: score.title, composer: score.author, rights: score.copyright, tempo: score.tempo, meter, key, measures, parts, warnings: unique };
 }

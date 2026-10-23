@@ -204,6 +204,21 @@ describe("scoreToNotation", () => {
     expect(notation.warnings[0]?.message).toContain("written as 0.25");
   });
 
+  it("warns once when notes that start together have different lengths, and a repeat does not warn again", () => {
+    const together = [
+      { at: 0, pitch: "C4", len: 1 },
+      { at: 0, pitch: "E4", len: 2 },
+    ];
+    expect(notationOf({}, [melody(together)]).warnings.map((w) => w.path.join("."))).toEqual(["tracks.0.notes.0.len"]);
+    const mixed = [
+      { at: 0, pitch: "C4", len: 0.25 },
+      { at: 0.25, pitch: "D4", len: 0.25 },
+      { at: 0.5, pitch: "E4", len: 0.333 },
+    ];
+    const repeated = notationOf({}, [melody(mixed.map((n) => ({ ...n, repeat: { every: 1, count: 3 } })))]);
+    expect(repeated.warnings.map((w) => w.path.join("."))).toEqual(["tracks.0.notes.0.len", "tracks.0.notes.1.at"]);
+  });
+
   it("writes notes at their written time, before humanize moves them", () => {
     const humanized = notationOf({}, [melody([0, 1, 2, 3].map((at) => ({ at, pitch: "C4", len: 1, humanize: 30 })))]);
     expect(bars(humanized)).toEqual(["C4:q C4:q C4:q C4:q"]);

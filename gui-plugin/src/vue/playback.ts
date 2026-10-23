@@ -32,6 +32,21 @@ export function shouldAutoplay(presentation: Presentation | undefined, memory: P
   return age >= 0 && age < FRESH_MS;
 }
 
+/** How long the host's voice must have been silent before the player starts or resumes by itself. */
+export const QUIET_MS = 1500;
+
+/**
+ * How long to wait before playing by itself, given the host's voice (its `isAudioPlaying`): undefined
+ * while it speaks, else what is left of QUIET_MS since it stopped (0: play now). A voice host speaks a
+ * reply and calls renderScore in one turn, and the card appears before the speech has finished, so
+ * playing at once would put the music under the voice.
+ */
+export function quietWait(speaking: boolean, stoppedAt: number | undefined, now: number): number | undefined {
+  if (speaking) return undefined;
+  if (stoppedAt === undefined) return 0;
+  return Math.max(0, QUIET_MS - (now - stoppedAt));
+}
+
 /** The one message sent to the LLM when playback first reaches the end, if it asked for it. */
 export function finishedMessage(presentation: Presentation | undefined, memory: PlayerMemory, title: string, duration: number): string | undefined {
   if (presentation?.notifyWhenDone !== true || memory.notified) return undefined;

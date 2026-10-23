@@ -1,7 +1,7 @@
 import type { Presentation } from "jinglescript";
 import { describe, expect, it } from "vitest";
 import { executeManage, instructionsFor } from "../src/index.ts";
-import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, shouldAutoplay } from "../src/vue/playback.ts";
+import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, QUIET_MS, quietWait, shouldAutoplay } from "../src/vue/playback.ts";
 
 const NOW = 1_800_000_000_000;
 const asked = (fields: Partial<Presentation> = {}): Presentation => ({
@@ -12,6 +12,24 @@ const asked = (fields: Partial<Presentation> = {}): Presentation => ({
   ...fields,
 });
 const fresh = memoryOf(undefined);
+
+describe("waiting for the host's voice", () => {
+  it("never plays over the voice", () => {
+    expect(quietWait(true, undefined, NOW)).toBeUndefined();
+    expect(quietWait(true, NOW - 10 * QUIET_MS, NOW)).toBeUndefined();
+  });
+
+  it("plays at once when the voice has not spoken", () => {
+    expect(quietWait(false, undefined, NOW)).toBe(0);
+  });
+
+  it("waits until the voice has been quiet for QUIET_MS", () => {
+    expect(quietWait(false, NOW, NOW)).toBe(QUIET_MS);
+    expect(quietWait(false, NOW - 500, NOW)).toBe(QUIET_MS - 500);
+    expect(quietWait(false, NOW - QUIET_MS, NOW)).toBe(0);
+    expect(quietWait(false, NOW - 10 * QUIET_MS, NOW)).toBe(0);
+  });
+});
 
 describe("autoplay", () => {
   it("plays a fresh render once when asked", () => {

@@ -1479,3 +1479,10 @@ Decided:
   should speak only after it ends. The plugin's instruction for `notifyWhenDone` said "Until then,
   say briefly what to listen for"; it now says to say nothing until the "finished playing" message,
   and the guide and the tool description say to speak before renderScore (0.11.1).
+- 2026-10-23 — Still talking over the music in MulmoChat's voice mode, prompt or not: a voice model
+  speaks and calls renderScore in one turn, and the card appeared and autoplayed while that speech
+  was still playing. The view now takes the protocol's `isAudioPlaying`: what plays by itself waits
+  until the host's voice has been quiet for 1.5 s (`QUIET_MS`, `quietWait`), and pauses while the
+  voice speaks again, resuming where it was; a click on play or the bar hands control to the user.
+  Checked in a browser with a simulated voice (wait, start, pause at 1.9 s, resume, no pause after
+  a click). Not yet heard in MulmoChat itself.

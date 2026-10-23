@@ -20,9 +20,12 @@ the data also carries the score that was rendered. Every other action answers th
 - `autoplay: true`: the card starts playing when it appears. Only a fresh render does (one made in
   the last two minutes), and only once: the card remembers it in the result's `viewState`, so a
   chat reopened or replayed never plays old cards. When the browser wants a click first, the card
-  says "Press play to listen". In a voice host that passes `isAudioPlaying`, it waits until the
-  voice has been quiet for 1.5 s (the model usually speaks in the same turn it renders) and pauses
-  while the voice speaks again; once the user clicks play or the bar, the voice no longer pauses it.
+  says "Press play to listen". In a voice host that passes `isAudioPlaying`, it waits for the
+  model's spoken answer to the render (up to 3.5 s after the card appears, or after the voice it
+  appeared during), then until the voice has been quiet for 1.5 s, and pauses while the voice speaks
+  again; once the user clicks play, the bar or a cue, the voice no longer pauses it.
+- `autoplayDelay: n`: wait n seconds (0–30) after the card appears before playing by itself,
+  instead of waiting for the answer; in any host.
 - `notifyWhenDone: true`: when playback first reaches the end, the view sends the chat one message
   (`"<title>" finished playing (12.0 s): the user has heard it to the end.`) through the host's
   `sendTextMessage`, so the LLM can go on — ask a question, play the next exercise. Also

@@ -27,6 +27,7 @@ const PlayerSchema = z.object({
     .object({
       view: z.enum(["waveform", "notation"]),
       autoplay: z.boolean(),
+      autoplayDelay: z.number().optional(),
       notifyWhenDone: z.boolean(),
       renderedAt: z.number().optional(),
     })

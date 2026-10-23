@@ -261,7 +261,8 @@ not in the score**: \`{ "action": "renderScore", "score": { … }, "view": "nota
 follows playback; \`"autoplay": true\` starts it by itself; \`"notifyWhenDone": true\` sends you a
 message when the user has heard it to the end, so you can ask about it or go on to the next
 exercise. Say what to listen for before renderScore, and say nothing while it plays: speech over
-the music drowns it out. The sound is the same either way: sheet music is drawn from the score you
+the music drowns it out. In a voice chat the player waits until you have answered the render and
+fallen quiet; \`"autoplayDelay": n\` makes it wait n seconds after it appears instead. The sound is the same either way: sheet music is drawn from the score you
 wrote.
 
 - Set \`"meter"\` ("4/4", "3/4", "2/4", "6/8") and \`"key"\` ("C", "G", "F", "D", "Bb", "Am", "Em" …).

@@ -32,19 +32,36 @@ export function shouldAutoplay(presentation: Presentation | undefined, memory: P
   return age >= 0 && age < FRESH_MS;
 }
 
-/** How long the host's voice must have been silent before the player starts or resumes by itself. */
+/** How long the host's voice must have been silent, after it answered, before the player starts or resumes by itself. */
 export const QUIET_MS = 1500;
+/** How long a new card waits for the voice to answer the render before it plays anyway. */
+export const REPLY_MS = 3500;
+
+/** What the card knows about the host's voice (its `isAudioPlaying`), since it appeared. */
+export interface VoiceState {
+  /** The host has a voice: it passes `isAudioPlaying`. */
+  voiced: boolean;
+  speaking: boolean;
+  /** It has started speaking since the card appeared: the reply to the render has come. */
+  answered: boolean;
+  shownAt: number;
+  /** When it last stopped speaking, if it has since the card appeared. */
+  stoppedAt?: number;
+}
 
 /**
- * How long to wait before playing by itself, given the host's voice (its `isAudioPlaying`): undefined
- * while it speaks, else what is left of QUIET_MS since it stopped (0: play now). A voice host speaks a
- * reply and calls renderScore in one turn, and the card appears before the speech has finished, so
- * playing at once would put the music under the voice.
+ * How long to wait before playing by itself: undefined while the voice speaks, else what is left of
+ * the wait (0: play now). A voice host speaks and calls renderScore in one turn, and then answers the
+ * render's result with a few more words, a moment after the card appears. Playing before that answer
+ * puts the music under it, so the card first waits up to REPLY_MS for it, then QUIET_MS after it.
+ * `delayMs` (the LLM's autoplayDelay) replaces that first wait, and is kept in any host.
  */
-export function quietWait(speaking: boolean, stoppedAt: number | undefined, now: number): number | undefined {
-  if (speaking) return undefined;
-  if (stoppedAt === undefined) return 0;
-  return Math.max(0, QUIET_MS - (now - stoppedAt));
+export function quietWait(voice: VoiceState, now: number, delayMs?: number): number | undefined {
+  if (voice.speaking) return undefined;
+  const delay = delayMs === undefined ? 0 : delayMs - (now - voice.shownAt);
+  const quietSince = voice.stoppedAt ?? voice.shownAt;
+  const first = voice.answered ? QUIET_MS : (delayMs ?? (voice.voiced ? REPLY_MS : 0));
+  return Math.max(0, delay, first - (now - quietSince));
 }
 
 /** The one message sent to the LLM when playback first reaches the end, if it asked for it. */

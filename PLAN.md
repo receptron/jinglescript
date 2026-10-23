@@ -1491,3 +1491,13 @@ Decided:
   what to listen for there) was rejected and dropped. User: the line was simply wrong; a few words
   like "preparing the sheet music" / "here comes the sound" is all it takes. The instruction now
   asks for exactly that, then nothing until the "finished playing" message.
+- 2026-10-23 — 0.11.1 published; MulmoChat #283 merged. User, in Japanese voice mode: the model said
+  "Here comes the sound" in English (the instruction quoted it), and the music's first note played
+  before it, then paused for it. The card appeared after the earlier speech had ended, so the view
+  played at once, and the model's answer to the render came a moment later. Now a voice host's card
+  waits up to 3.5 s (`REPLY_MS`) for that answer, then 1.5 s of quiet; the instruction says to
+  speak in the user's language, with no quoted example. User: make the timing settable — renderScore
+  takes `autoplayDelay` (seconds, 0–30), which replaces the wait for the answer, in any host.
+  Found on the way: Vue turned a missing `isAudioPlaying` into false, so every host counted as a
+  voice host; it now defaults to undefined. Browser checks: answer at 1.0–2.5 s → plays at 4.0 s;
+  no answer → 3.5 s; autoplayDelay 2 without a voice → 2 s; autoplayDelay 1 with a voice → 1 s (0.11.2).

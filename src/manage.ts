@@ -93,6 +93,14 @@ export const ManageInputSchema = z
       .boolean()
       .optional()
       .describe("renderScore: true to start playing as soon as the player appears (once). Only where a player view shows the result."),
+    autoplayDelay: z
+      .number()
+      .min(0)
+      .max(30)
+      .optional()
+      .describe(
+        "renderScore with autoplay: seconds the player waits after it appears before it plays. Default: at once, or in a voice chat until you have spoken and fallen quiet. Set it when you will say more than a few words after renderScore.",
+      ),
     notifyWhenDone: z
       .boolean()
       .optional()
@@ -212,7 +220,13 @@ async function writeNotation(score: Score, dir: string, stem: string): Promise<s
 
 /** What the player was asked to do with the render. */
 function presentationOf(input: ManageInput): Presentation {
-  return { view: input.view ?? "waveform", autoplay: input.autoplay === true, notifyWhenDone: input.notifyWhenDone === true, renderedAt: Date.now() };
+  return {
+    view: input.view ?? "waveform",
+    autoplay: input.autoplay === true,
+    ...(input.autoplayDelay === undefined ? {} : { autoplayDelay: input.autoplayDelay }),
+    notifyWhenDone: input.notifyWhenDone === true,
+    renderedAt: Date.now(),
+  };
 }
 
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {

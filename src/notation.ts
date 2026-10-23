@@ -422,12 +422,15 @@ function measureItems(notes: readonly Written[], measure: NotationMeasure, grid:
     });
   };
   for (const note of inBar) {
-    const from = Math.max(barStart, onGrid(note.start, grid));
-    const to = Math.min(barEnd, onGrid(note.end, grid));
-    if (note.start >= barStart) moved("at", note, note.start, from);
-    if (note.fromLen && note.end <= barEnd) moved("len", note, note.end, to);
-    if (from > at) pushRest(from);
+    const start = onGrid(note.start, grid);
+    const end = onGrid(note.end, grid);
+    if (note.start >= barStart) moved("at", note, note.start, start);
+    if (note.fromLen && note.end <= barEnd) moved("len", note, note.end, end);
+    // Never back over what is written: rounding may move a start before the last note's end.
+    const from = Math.max(barStart, at, start);
+    const to = Math.min(barEnd, end);
     if (to <= from) continue;
+    if (from > at) pushRest(from);
     const pieces = valuesOf(from, to, grid);
     pieces.forEach((piece, i) => {
       const item = itemOf(

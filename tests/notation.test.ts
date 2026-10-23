@@ -153,6 +153,32 @@ describe("scoreToNotation", () => {
     }
   });
 
+  it("fills every bar exactly, whatever the rhythm rounds to", () => {
+    // Deterministic rhythms from straight, triplet and off-grid steps, in every meter and with pickups.
+    const steps = [0.125, 0.25, 0.333, 0.5, 0.667, 0.75, 1, 1.5, 0.1, 0.29];
+    let seed = 7;
+    const next = (n: number): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    for (const meter of ["4/4", "3/4", "2/4", "2/2", "6/8", "3/8", "9/8", "5/4"]) {
+      for (let round = 0; round < 12; round++) {
+        let at = 0;
+        const notes = [];
+        while (at < 8) {
+          at += next(3) === 0 ? (steps[next(steps.length)] ?? 0.5) : 0;
+          notes.push({ at, pitch: "C4", len: steps[next(steps.length)] ?? 1 });
+          at += steps[next(steps.length)] ?? 1;
+        }
+        const pickup = [undefined, 0.333, 0.5, 1][next(4)];
+        const notation = notationOf({ meter, ...(pickup === undefined ? {} : { pickup }), length: { beats: 12 } }, [melody(notes)]);
+        const bars = notation.parts[0]?.staves[0]?.measures ?? [];
+        expect(bars.map((items) => items.reduce((sum, i) => sum + i.duration, 0))).toEqual(notation.measures.map((m) => m.length));
+        expect(bars.flat().every((i) => i.duration > 0 && i.start >= 0)).toBe(true);
+      }
+    }
+  });
+
   it("warns when a quarter note mixes straight notes with triplets", () => {
     const notation = notationOf({}, [
       melody([

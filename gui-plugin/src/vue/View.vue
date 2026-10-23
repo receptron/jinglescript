@@ -125,7 +125,8 @@ function followVoice(): void {
   if (!automatic) return;
   const wait = quietWait(props.isAudioPlaying === true, voiceStoppedAt, Date.now());
   if (wait === undefined) {
-    if (playing.value) pause();
+    // `paused` turns false as soon as play() is called, so this also stops a start still pending.
+    if (playing.value || audio.value?.paused === false) pause();
     return;
   }
   if (wait > 0) {
@@ -142,7 +143,9 @@ function followVoice(): void {
     // Remembered before it starts: a host may remount the card at once.
     remember({ autoplayed: true });
   }
-  play().catch(() => {
+  play().catch((error: unknown) => {
+    // Paused for the voice before it started: it starts again when the voice is quiet.
+    if (error instanceof DOMException && error.name === "AbortError") return;
     // The browser wants a click first.
     automatic = false;
     blocked.value = true;

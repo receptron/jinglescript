@@ -20,6 +20,11 @@ export interface RenderOptions {
   seed?: number;
   /** Recorded samples for sampled instruments (grandpiano), from `await loadSamples(score)`. */
   samples?: SampleSource;
+  /**
+   * Tracks already rendered elsewhere (the singer, which runs an ONNX model and so is async): mono
+   * PCM at `sampleRate` from time 0, mixed in place of the track's own instrument, before mastering.
+   */
+  prerendered?: ReadonlyMap<number, Float32Array>;
 }
 
 export interface RenderResult {
@@ -179,7 +184,7 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
   const cuts = damperCuts(expanded, sampleRate);
   expanded.events.forEach((event, index) => {
     const instrument = expanded.instruments.get(event.instrument);
-    if (instrument === undefined) return;
+    if (instrument === undefined || options.prerendered?.has(event.track)) return;
     const voices = synthesizeEvent(instrument, event, seed, sampleRate, options.samples ?? NO_SAMPLES);
     voices.forEach((voice, k) => {
       const cut = cuts.get(`${index}/${k}`);
@@ -187,6 +192,14 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
     });
     mixEvent(voices, event, score.tracks[event.track]?.reverb === false ? dry : wet);
   });
+  for (const [track, pcm] of options.prerendered ?? []) {
+    const bus = score.tracks[track]?.reverb === false ? dry : wet;
+    const n = Math.min(length, pcm.length);
+    for (let i = 0; i < n; i++) {
+      bus[0][i] = (bus[0][i] ?? 0) + (pcm[i] ?? 0) * Math.SQRT1_2;
+      bus[1][i] = (bus[1][i] ?? 0) + (pcm[i] ?? 0) * Math.SQRT1_2;
+    }
+  }
   const { audio, stats } = master(wet, dry, {
     sampleRate,
     seed,

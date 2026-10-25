@@ -20,7 +20,10 @@ export const SingerManifestSchema = z.object({
   hopSize: z.number().int().positive(),
   melBins: z.number().int().positive(),
   phonemes: z.array(z.string()).min(1),
-  files: z.object({ acoustic: z.string(), vocoder: z.string(), pitch: z.string().optional() }),
+  /** How the acoustic model's frames are to be read when there is no neural vocoder (built-in DSP vocoder). */
+  envelope: z.object({ kind: z.literal("band-log-power"), fftSize: z.number().int().positive(), maxHz: z.number().positive() }).optional(),
+  /** No `vocoder` file: the built-in harmonic + noise vocoder (src/singer/vocoder.ts) reads `envelope` frames. */
+  files: z.object({ acoustic: z.string(), vocoder: z.string().optional(), pitch: z.string().optional() }),
   sha256: z.record(z.string(), z.string().regex(/^[0-9a-f]{64}$/)),
 });
 export type SingerManifest = z.infer<typeof SingerManifestSchema>;
@@ -78,6 +81,7 @@ export async function readSingerManifest(model: string, cacheDir?: string): Prom
 /** The part of onnxruntime-node the singer uses. */
 export interface OnnxRuntime {
   InferenceSession: { create(path: string): Promise<unknown> };
+  Tensor: new (type: "float32", data: Float32Array, dims: readonly number[]) => unknown;
 }
 
 function isOnnxRuntime(value: unknown): value is OnnxRuntime {

@@ -100,12 +100,21 @@ manifest の検証で強制する。
 | # | 内容 | 状態 |
 | --- | --- | --- |
 | S0 | 計画、データ準備スクリプト、TS の土台（かな→音素、フレーム、manifest、ORT の遅延読込） | このPR |
-| S1 | vocatab engine-web の推論部を移植（MIT 表記）、ダミー ONNX で配線テスト | |
+| S1 | CPU だけで「`lyric` 付き楽譜 → ONNX → WAV」を一周（仮モデル `tiny-placeholder`、下記 6.1） | 済（このPR） |
 | S2 | 事前学習（Common Voice + つくよみ）、アライナー選定 | |
 | S3 | 自前収録（同意書）と微調整、最初の公開モデル（CC0 または MIT） | |
 | S4 | `render()` への統合、スキーマ、モデルのダウンロード、`instruments` 表示 | |
 | S4b | 後処理チェーン（5章）：ライド、EQ＋自動ノッチ、アップワード・コンプ＋ゲート、M/S、既存リミッター／LUFS の流用、各段の単体テスト | |
 | S5 | ブラウザ版（onnxruntime-web）、LLM 評価に歌詞入りの課題を追加 | |
+
+### 6.1 S1 の実装（仮モデルで一周）
+
+- **データ**：録音は使っていない。`training/singing/tiny_placeholder.py` が教科書的なフォルマント合成（母音フォルマント＋子音は整形ノイズ）で 36 音素 × 15 音高のクリップを自作し、それを学習データにする。第三者の権利を含まないので CC0（receptron）。Common Voice は Mozilla Data Collective の API キー（`MDC_API_KEY`）が要るため S2 に回した。
+- **モデル**：(音素 one-hot, log2(F0/440), 有声, 音素内位置) → 32 帯域の対数パワー包絡を出す 2 層 MLP（numpy + Adam、CPU 約 10 秒）。`acoustic.onnx` と `manifest.json` を `~/.cache/jinglescript/singer/tiny-placeholder/` に書く。重みはリポジトリに入れない。
+- **ボコーダー**：ニューラルではなく組み込み DSP（`src/singer/vocoder.ts`）。有声フレームは F0 の倍音（Chebyshev 漸化式、`src/dsp/math.ts` のみ）、無声フレームはシード付き PRNG の整形ノイズの重畳加算。学習側の解析（Hann 窓 STFT の帯域平均パワー）の逆変換。manifest の `files.vocoder` を省くとこれが使われる。
+- **配線**：`renderWithSinger(score, { track, model })`（`src/singer/sing.ts`）が指定トラックの音符と `lyric` を歌わせ、PCM を `render()` の新オプション `prerendered` に渡す。そのトラックの楽器音は鳴らさず、マスター（リバーブ・LUFS・リミッター）とタイミングマップは通常どおり。スコアのスキーマはまだ変えていない（オプトイン、S4 で正式化）。
+- **デモ**：`node scripts/sing-demo.ts out.wav`（「かえるのうた」）。測定値：NaN なし、-14 LUFS、true peak 約 -4.6 dBTP、各音の基本周波数が楽譜どおり（C4 261 Hz … F4 350 Hz）。音質は意図的に仮のもの（ロボット的）で、聴いての判断はユーザーに委ねる。
+- **注意**：ONNX Runtime の CPU 演算は CPU によってビット単位で一致するとは限らないため、singer 出力はまだゴールデンテスト（ハッシュ）の対象にしていない。
 
 ## 7. 未決事項（ユーザー判断）
 

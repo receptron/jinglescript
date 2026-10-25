@@ -3,3 +3,5 @@ export * from "./types.ts";
 export * from "./kana.ts";
 export * from "./frames.ts";
 export * from "./model.ts";
+export * from "./vocoder.ts";
+export * from "./sing.ts";

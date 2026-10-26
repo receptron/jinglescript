@@ -164,9 +164,9 @@ export interface ManageOptions {
   player?: boolean;
   /**
    * With `player`: when the audio takes longer than `waitMs` (default DEFER_WAIT_MS), answer
-   * renderScore without it. The PlayerData is then `pending` (the score, sheet music and timing,
-   * no audio) and the view collects the finished one with awaitDeferredPlayer. Only for a carrier
-   * whose view can call back.
+   * renderScore without it; with `waitMs` 0, always. The PlayerData is then `pending` (the score,
+   * sheet music and timing, no audio) and the view collects the finished one with
+   * awaitDeferredPlayer. Only for a carrier whose view can call back.
    */
   deferAudio?: boolean | { waitMs: number };
 }
@@ -324,14 +324,16 @@ const FULL_TIMING_AT = "render again with includeTiming: true to get them";
 
 /**
  * renderScore for a view that can collect the audio later: the finished result when the audio is
- * ready within `waitMs`, else a `pending` player at once while the render goes on.
+ * ready within `waitMs`, else (and always when `waitMs` is 0) a `pending` player at once while the
+ * render goes on.
  */
 async function deferredRenderAction(input: ManageInput, score: Score, stem: string, warnings: readonly ScoreProblem[], waitMs: number): Promise<ManageResult> {
   const presentation = presentationOf(input);
   const rendering = renderPlayer(score, stem, presentation);
   let done: { result: RenderResult; player: PlayerData } | undefined;
   try {
-    done = await Promise.race([rendering, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), waitMs))]);
+    // A render that runs in place (no worker) can finish before even a 0 ms timer: 0 does not wait at all.
+    done = waitMs <= 0 ? undefined : await Promise.race([rendering, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), waitMs))]);
   } catch (error) {
     if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;

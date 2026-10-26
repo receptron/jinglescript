@@ -36,12 +36,12 @@ describe("check catches what NEUTRINO cannot sing", () => {
     );
     expect(result.ok).toBe(true);
   });
-  it("parseScore and render throw a JingleScriptError before running NEUTRINO", () => {
+  it("parseScore and render throw a JingleScriptError before running NEUTRINO", async () => {
     const raw = base([sungTrack([{ at: 1, pitch: "C4", lyric: "la" }]), sungTrack([{ at: 1, pitch: "C4", lyric: "か" }])]);
     expect(() => parseScore(raw)).toThrow(JingleScriptError);
     const valid = parseScore(base([sungTrack([{ at: 1, pitch: "C4", lyric: "か" }])]));
     const twoSung = { ...valid, tracks: [valid.tracks[0], valid.tracks[0]] } as Score;
-    expect(() => render(twoSung)).toThrow(JingleScriptError);
+    await expect(render(twoSung)).rejects.toThrow(JingleScriptError);
   });
   it("warns when a sung note starts before 0.1 s", () => {
     const result = checkScore(

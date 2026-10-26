@@ -10,7 +10,7 @@ import type { Score } from "../score.ts";
 import { isBundledKey, loadBundledSamples } from "./bundled.ts";
 import { fetchSample, matches, SampleDownloadError } from "./fetch-sample.ts";
 import { PIANO_SAMPLES } from "./piano-samples.ts";
-import { loadInBatches, type SampleData, type SampleSource } from "./source.ts";
+import { loadInBatches, sampleSourceOf, type SampleData, type SampleSource } from "./source.ts";
 import { PIANO_SET, PREFIX_SECONDS, vcslUrl, type CatalogEntry } from "./vcsl.ts";
 import { decodeWavMono } from "./wav-read.ts";
 
@@ -99,5 +99,10 @@ export async function loadSamples(score: Score, options: LoadSamplesOptions = {}
   });
   const remote = await loadRemoteSamples(samples, options);
   const bundled = await loadBundledSamples(keys.filter(isBundledKey));
-  return { get: (key) => bundled.get(key) ?? remote.get(key) };
+  const loaded = new Map<string, SampleData>();
+  for (const key of keys) {
+    const data = bundled.get(key) ?? remote.get(key);
+    if (data !== undefined) loaded.set(key, data);
+  }
+  return sampleSourceOf(loaded);
 }

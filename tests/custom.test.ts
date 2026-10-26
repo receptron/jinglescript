@@ -133,19 +133,19 @@ describe("custom instruments in a score", () => {
     ],
   );
 
-  it("validates, renders deterministically, and names them in the timing map", () => {
+  it("validates, renders deterministically, and names them in the timing map", async () => {
     expect(checkScore(score)).toMatchObject({ ok: true, errors: [] });
-    const first = render(parseScore(score), { samples: fixtureSamples });
-    const second = render(parseScore(score), { samples: fixtureSamples });
+    const first = await render(parseScore(score), { samples: fixtureSamples });
+    const second = await render(parseScore(score), { samples: fixtureSamples });
     expect(first.audio[0].every(Number.isFinite)).toBe(true);
     expect(hash(first.audio[0])).toBe(hash(second.audio[0]));
     expect(first.timing.notes.map((n) => n.instrument)).toEqual(["softBell", "zap", "zap", "bigHit"]);
     expect(first.stats.loudness).toBeGreaterThan(-14.6);
   });
 
-  it("do not change scores without them", () => {
+  it("do not change scores without them", async () => {
     const plain = { ...base, tracks: [{ instrument: "marimba", notes: [{ at: 0, pitch: "C5" }] }] };
-    expect(hash(render(parseScore(plain)).audio[0])).toBe(hash(render(parseScore({ ...plain, instruments: {} })).audio[0]));
+    expect(hash((await render(parseScore(plain))).audio[0])).toBe(hash((await render(parseScore({ ...plain, instruments: {} }))).audio[0]));
   });
 });
 

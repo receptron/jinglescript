@@ -42,22 +42,22 @@ describe("recorded sound effects", () => {
 
   it("loads from the package without the network, and renders", async () => {
     const score = scoreWith("door", [{ at: 0 }, { at: 1, variant: "creak" }]);
-    expect(() => render(score)).toThrow(/loadSamples/);
+    await expect(render(score)).rejects.toThrow(/loadSamples/);
     const samples = await loadSamples(score, { fetch: noNetwork, download: false });
-    const { audio, stats } = render(score, { samples });
+    const { audio, stats } = await render(score, { samples });
     expect(audio[0]?.some((v) => Math.abs(v) > 0.01)).toBe(true);
     expect(Number.isFinite(stats.truePeak)).toBe(true);
   });
 
   it("plays footstep surfaces from recordings and left/right steps from the model", async () => {
     const synthesized = scoreWith("footsteps", [{ at: 0, variant: "left" }]);
-    expect(() => render(synthesized)).not.toThrow();
+    await expect(render(synthesized)).resolves.toBeDefined();
     const surfaces = scoreWith("footsteps", [{ at: 0, variant: ["wood", "snow"], repeat: { every: 1, count: 4 } }]);
     const samples = await loadSamples(surfaces, { fetch: noNetwork, download: false });
-    expect(render(surfaces, { samples }).audio[0]?.some((v) => Math.abs(v) > 0.01)).toBe(true);
+    expect((await render(surfaces, { samples })).audio[0]?.some((v) => Math.abs(v) > 0.01)).toBe(true);
   });
 
-  it("chooses among a variant's takes by the seed: both get played, and the same seed gives the same audio", () => {
+  it("chooses among a variant's takes by the seed: both get played, and the same seed gives the same audio", async () => {
     const door = INSTRUMENTS.door;
     const firsts = new Set<number>();
     for (let seed = 1; seed <= 12; seed++) {
@@ -75,6 +75,6 @@ describe("recorded sound effects", () => {
     }
     expect(firsts.size).toBe(2);
     const score = scoreWith("dice", [{ at: 0, repeat: { every: 0.5, count: 6 } }]);
-    expect(hash(render(score, { samples: fixtureSamples }).audio)).toBe(hash(render(score, { samples: fixtureSamples }).audio));
+    expect(hash((await render(score, { samples: fixtureSamples })).audio)).toBe(hash((await render(score, { samples: fixtureSamples })).audio));
   });
 });

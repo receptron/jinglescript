@@ -76,6 +76,6 @@ const score = parseScore({
 if (process.env.PRINT_SCORE) console.log(JSON.stringify(score));
 const out = process.argv[2] ?? join(homedir(), "Desktop", "neutrino_demo3.wav");
 const started = performance.now();
-const result = render(score);
+const result = await render(score);
 await writeFile(out, toWav(result.audio, result.sampleRate, 16));
 console.log(`${out}: ${((performance.now() - started) / 1000).toFixed(1)}s to render, ${JSON.stringify(result.stats)}`);

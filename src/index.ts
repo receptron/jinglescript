@@ -3,12 +3,16 @@
 export * from "./core.ts";
 // Registers NEUTRINO as render()'s singer for tracks with `sing` (a score feature, not an API).
 import "./singer/neutrino.ts";
+// Sends render() to worker threads, so it never blocks the caller's event loop.
+import "./render-pool.ts";
 export { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 export { loadSamples, defaultCacheDir } from "./samples/load.ts";
 export type { LoadSamplesOptions } from "./samples/load.ts";
 export { renderToFiles } from "./output.ts";
 export { manage, ManageInputSchema, manageInputJsonSchema, MANAGE_TOOL, MANAGE_ACTIONS, MANAGE_DESCRIPTION } from "./manage.ts";
 export type { ManageInput, ManageResult, ManageOptions, ManageAction } from "./manage.ts";
+export { awaitDeferredPlayer, DEFERRED_KEEP_MS } from "./deferred-renders.ts";
+export type { DeferredOutcome } from "./deferred-renders.ts";
 export { FfmpegMissingError } from "./encode.ts";
 export { AUDIO_FORMATS } from "./audio-format.ts";
 export type { AudioFormat } from "./audio-format.ts";

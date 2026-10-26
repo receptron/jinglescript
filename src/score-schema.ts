@@ -173,7 +173,7 @@ export const TrackSchema = z
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     sing: SingSchema.optional().describe(
-      "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. An uncached render blocks the process for tens of seconds.",
+      "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. The first render of a sung track takes tens of seconds (NEUTRINO); the same one again is instant.",
     ),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
     clef: z

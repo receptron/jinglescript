@@ -15,7 +15,7 @@ async function renderRequest({ id, score: input, name, sfxBaseUrl }: RenderReque
     onDownload: (file) => reply({ id, kind: "downloading", file, count: ++downloads }),
   });
   reply({ id, kind: "rendering", seconds: check.duration ?? 0 });
-  const result = render(score, { samples });
+  const result = await render(score, { samples });
   const wav = toWav(result.audio, result.sampleRate, 16, tagsOf(score));
   const player = toPlayerData(score, result, name, { audio: "", mimeType: "audio/wav" });
   return { id, kind: "done", player, wav: wav.buffer, warnings: check.warnings, downloads, ms: Math.round(performance.now() - started) };

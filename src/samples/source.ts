@@ -18,6 +18,21 @@ export function sampleKey(set: string, file: string): string {
 
 const PARALLEL_LOADS = 6;
 
+/** Every sample a source loaded, for sources this module built: what a render on a worker thread is sent. */
+const LOADED = new WeakMap<SampleSource, ReadonlyMap<string, SampleData>>();
+
+/** A SampleSource over `samples`, which loadedSamples() can list. */
+export function sampleSourceOf(samples: ReadonlyMap<string, SampleData>): SampleSource {
+  const source: SampleSource = { get: (key) => samples.get(key) };
+  LOADED.set(source, samples);
+  return source;
+}
+
+/** All the samples in `source` when it was built by sampleSourceOf(), else undefined (a source of the caller's own). */
+export function loadedSamples(source: SampleSource): ReadonlyMap<string, SampleData> | undefined {
+  return LOADED.get(source);
+}
+
 /** Loads each sample, a few at a time, into a SampleSource keyed by `sample.key`. */
 export async function loadInBatches<T extends { key: string }>(samples: readonly T[], load: (sample: T) => Promise<SampleData>): Promise<SampleSource> {
   const loaded = new Map<string, SampleData>();
@@ -29,11 +44,11 @@ export async function loadInBatches<T extends { key: string }>(samples: readonly
       if (d !== undefined) loaded.set(sample.key, d);
     });
   }
-  return { get: (key) => loaded.get(key) };
+  return sampleSourceOf(loaded);
 }
 
 /** No samples at all: what render() uses when it is given none. */
-export const NO_SAMPLES: SampleSource = { get: () => undefined };
+export const NO_SAMPLES: SampleSource = sampleSourceOf(new Map());
 
 /** A sampled instrument was played without its samples loaded. */
 export class SamplesNotLoadedError extends Error {

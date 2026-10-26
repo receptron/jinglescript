@@ -6,13 +6,14 @@ import { scoreToMusicXml } from "./musicxml.ts";
 import type { RenderResult } from "./render.ts";
 import type { Score } from "./score.ts";
 import { tagsOf } from "./tags.ts";
-import type { TimingMap } from "./timing.ts";
+import { buildTiming, type TimingMap } from "./timing.ts";
+import { expandScore } from "./events.ts";
 import { toWav } from "./wav.ts";
 
 /** What a player view needs to play a rendered jingle and show its timing. */
 export interface PlayerData {
   title: string;
-  /** The audio as a data URI. */
+  /** The audio as a data URI; "" while `pending`. */
   audio: string;
   mimeType: string;
   duration: number;
@@ -30,6 +31,12 @@ export interface PlayerData {
   musicxml?: string;
   /** How the view shows it; absent in results rendered before 0.10 (a view then shows the waveform). */
   presentation?: Presentation;
+  /**
+   * The audio is still rendering on the server, under this id: the view shows the score at once
+   * and fetches the finished PlayerData (manage's awaitDeferredPlayer) to play it. Until then
+   * `audio` is "", `peaks` is empty, `loudness` is 0 and `timing.audibleUntil` is the duration.
+   */
+  pending?: string;
 }
 
 /** How a player view shows the jingle: what the LLM asked for when it rendered it. */
@@ -92,6 +99,24 @@ export function wavPlayerAudio(result: RenderResult, score: Score): PlayerAudio 
 /** One decimal, as loudness is reported to the LLM and in the view. */
 export const round1 = (x: number): number => Math.round(x * 10) / 10;
 
+/** What PlayerData says about the score itself, whether or not its audio is there yet. */
+function scorePart(
+  score: Score,
+  title: string,
+  presentation: Presentation,
+): Pick<PlayerData, "title" | "tracks" | "score" | "midi" | "musicxml" | "presentation"> {
+  const musicxml = wantsNotation(score, presentation.view) ? scoreToMusicXml(score) : undefined;
+  return {
+    title: score.title ?? title,
+    tracks: score.tracks.map((t) => t.name ?? t.instrument),
+    score,
+    midi: dataUri(MIDI_MIME_TYPE, scoreToMidi(score)),
+    ...(musicxml === undefined ? {} : { musicxml }),
+    // Without sheet music to show, the view shows the waveform whatever was asked.
+    presentation: { ...presentation, view: musicxml === undefined ? "waveform" : presentation.view },
+  };
+}
+
 /** PlayerData for a render of `score`, with `audio` embedded (WAV unless the caller encoded something smaller). */
 export function toPlayerData(
   score: Score,
@@ -100,19 +125,22 @@ export function toPlayerData(
   audio: PlayerAudio = wavPlayerAudio(result, score),
   presentation: Presentation = DEFAULT_PRESENTATION,
 ): PlayerData {
-  const musicxml = wantsNotation(score, presentation.view) ? scoreToMusicXml(score) : undefined;
   return {
-    title: score.title ?? title,
+    ...scorePart(score, title, presentation),
     ...audio,
     duration: result.timing.duration,
     peaks: peaksOf(result.audio),
     timing: result.timing,
-    tracks: score.tracks.map((t) => t.name ?? t.instrument),
     loudness: round1(result.stats.loudness),
-    score,
-    midi: dataUri(MIDI_MIME_TYPE, scoreToMidi(score)),
-    ...(musicxml === undefined ? {} : { musicxml }),
-    // Without sheet music to show, the view shows the waveform whatever was asked.
-    presentation: { ...presentation, view: musicxml === undefined ? "waveform" : presentation.view },
   };
+}
+
+/**
+ * PlayerData for `score` before its audio exists (see `pending`): the score, sheet music and timing
+ * map are computed from the score alone; only `audibleUntil`, measured on the audio, is a stand-in.
+ */
+export function pendingPlayerData(score: Score, title: string, presentation: Presentation, id: string): PlayerData {
+  const expanded = expandScore(score);
+  const timing = buildTiming(expanded, expanded.duration);
+  return { ...scorePart(score, title, presentation), audio: "", mimeType: "", duration: timing.duration, peaks: [], timing, loudness: 0, pending: id };
 }

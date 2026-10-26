@@ -153,10 +153,10 @@ describe("NEUTRINO through render() (mocked)", () => {
   it("without NEUTRINO, or without the voice: a clear error, no fallback", async () => {
     const sung = parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] });
     configureNeutrino({ dir: "/nonexistent" });
-    expect(() => render(sung)).toThrow(NeutrinoMissingError);
-    expect(() => render(sung)).toThrow(/\/nonexistent.*NEUTRINO_DIR=.*\.env/s);
+    await expect(render(sung)).rejects.toThrow(NeutrinoMissingError);
+    await expect(render(sung)).rejects.toThrow(/\/nonexistent.*NEUTRINO_DIR=.*\.env/s);
     configureNeutrino({ dir: await fakeInstall(["MERROW"]) });
-    expect(() => render(sung)).toThrow(/"REINA".*Installed: MERROW/);
+    await expect(render(sung)).rejects.toThrow(/"REINA".*Installed: MERROW/);
   });
   it("takes the sung track, voice and level from the score's `sing`", async () => {
     const dir = await fakeInstall();
@@ -169,12 +169,12 @@ describe("NEUTRINO through render() (mocked)", () => {
     };
     const sung = parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino", voice: "merrow", level: 6 } }] });
     configureNeutrino({ dir, cacheDir, exec });
-    render(sung);
+    await render(sung);
     expect(voices[0]).toBe(join(dir, "model", "MERROW") + "/");
     const ghost = parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino", voice: "ghost" } }] });
-    expect(() => render(ghost)).toThrow(NeutrinoVoiceMissingError);
+    await expect(render(ghost)).rejects.toThrow(NeutrinoVoiceMissingError);
     configureNeutrino({ dir: "/nonexistent", cacheDir, exec });
-    expect(() => render(sung)).toThrow(NeutrinoMissingError);
+    await expect(render(sung)).rejects.toThrow(NeutrinoMissingError);
   });
   it("renders at the render's rate: the vocal lands on its score time", async () => {
     const dir = await fakeInstall();
@@ -186,7 +186,7 @@ describe("NEUTRINO through render() (mocked)", () => {
       writeFileSync(args[4] ?? "", toWav([pcm, pcm], 48000, 16));
     };
     configureNeutrino({ dir, cacheDir, exec, vocalLevel: null });
-    const result = render(parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] }));
+    const result = await render(parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] }));
     expect(result.sampleRate).toBe(48000);
     const left = result.audio[0];
     const first = left.findIndex((v) => Math.abs(v) > 1e-3);
@@ -195,12 +195,12 @@ describe("NEUTRINO through render() (mocked)", () => {
 });
 
 describe("without a registered singer (browser builds)", () => {
-  it("a track with `sing` throws SingerUnavailableError; other scores render", () => {
+  it("a track with `sing` throws SingerUnavailableError; other scores render", async () => {
     setSinger(undefined);
     try {
       const sung = parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] });
-      expect(() => render(sung)).toThrow(SingerUnavailableError);
-      expect(render(score).audio[0].length).toBeGreaterThan(0);
+      await expect(render(sung)).rejects.toThrow(SingerUnavailableError);
+      expect((await render(score)).audio[0].length).toBeGreaterThan(0);
     } finally {
       reinstallNeutrino();
     }

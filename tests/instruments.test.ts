@@ -180,9 +180,9 @@ describe("every shipped example", () => {
   const dir = new URL("../examples/", import.meta.url);
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
 
-  it.each(files)("%s renders cleanly at the loudness target (or says why not)", (file) => {
+  it.each(files)("%s renders cleanly at the loudness target (or says why not)", async (file) => {
     const score = parseScore(JSON.parse(readFileSync(new URL(file, dir), "utf8")));
-    const { audio, stats, timing } = render(score, { samples: fixtureSamples });
+    const { audio, stats, timing } = await render(score, { samples: fixtureSamples });
     expect(audio.every((channel) => channel.every(Number.isFinite))).toBe(true);
     expect(truePeak(audio)).toBeLessThanOrEqual(-1.5);
     if (!stats.limitedByPeak) expect(Math.abs(integratedLoudness(audio, RATE) - score.master.loudness)).toBeLessThanOrEqual(0.5);

@@ -5,12 +5,16 @@
 // autoplay, a message when it has been heard) is in `presentation`; what already happened is kept
 // in the result's viewState, so a card shown again never replays or re-sends by itself. In a voice
 // host (`isAudioPlaying`), what plays by itself waits until the voice has been quiet a moment, and
-// pauses while it speaks again.
+// pauses while it speaks again. A card shown while its audio still renders (`pending`) shows the
+// score at once, collects the audio through the host's runtime dispatch, keeps it in the result, and
+// only then can play (by itself too, when that was asked for).
 import type { ToolResult, ToolResultComplete } from "gui-chat-protocol";
+import { PLUGIN_RUNTIME_KEY } from "gui-chat-protocol/vue";
 import type { PlayerData, PlayerView } from "jinglescript";
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { AUDIO_REQUEST, parseAudioReply } from "../audio-request.ts";
 import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
-import { finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory, type VoiceState } from "./playback.ts";
+import { failedMessage, finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory, type VoiceState } from "./playback.ts";
 
 // The default keeps a host that never passes isAudioPlaying apart from one whose voice is quiet:
 // Vue would otherwise turn a missing boolean prop into false.
@@ -27,7 +31,14 @@ const props = withDefaults(
 
 const Notation = defineAsyncComponent(() => import("./Notation.vue"));
 
-const data = computed(() => props.selectedResult.data);
+/** The host's runtime, when it gives this view one: how a pending card collects its audio. */
+const runtime = inject(PLUGIN_RUNTIME_KEY, null);
+/** The audio this mount collected for a pending card, until the host has saved it in the result. */
+const collected = ref<PlayerData | undefined>(undefined);
+/** Why a pending card has no audio to play. */
+const failure = ref<string | undefined>(undefined);
+const data = computed(() => collected.value ?? props.selectedResult.data);
+const pending = computed(() => data.value?.pending !== undefined);
 const memory = ref<PlayerMemory>(memoryOf(props.selectedResult.viewState));
 /** The view a result opens in: as last shown, else as the LLM asked; the waveform when there is no sheet music. */
 const firstView = (): PlayerView => (data.value?.musicxml === undefined ? "waveform" : (memory.value.view ?? data.value.presentation?.view ?? "waveform"));
@@ -42,6 +53,8 @@ let voice: VoiceState = { voiced: false, speaking: false, answered: false, shown
 /** Playing, or waiting to play, by itself: it yields to the voice. A click hands control to the user. */
 let automatic = false;
 let quietTimer: ReturnType<typeof setTimeout> | undefined;
+/** Unmounted: a reply that arrives later is left to whichever mount shows the card now. */
+let disposed = false;
 
 const WAVE_HEIGHT = 140;
 const LANE_HEIGHT = 18;
@@ -78,7 +91,7 @@ function tick(): void {
 
 async function play(from?: number): Promise<void> {
   const element = audio.value;
-  if (!element) return;
+  if (!element || pending.value) return;
   if (from !== undefined) element.currentTime = Math.max(0, from);
   await element.play();
   blocked.value = false;
@@ -130,11 +143,56 @@ function ended(): void {
   props.sendTextMessage(message);
 }
 
-function autoplay(): void {
-  if (!shouldAutoplay(data.value?.presentation, memory.value, Date.now())) return;
+/** The card has appeared (or shows another result): the voice is followed from now. */
+function appeared(): void {
   voice = { voiced: props.isAudioPlaying !== undefined, speaking: props.isAudioPlaying === true, answered: false, shownAt: Date.now() };
+}
+
+function autoplay(): void {
+  if (pending.value || !shouldAutoplay(data.value?.presentation, memory.value, Date.now())) return;
   automatic = true;
   followVoice();
+}
+
+/** A pending card: waits for its audio on the server, keeps it in the result, then may play it. */
+async function collect(): Promise<void> {
+  const id = data.value?.pending;
+  if (id === undefined) return;
+  const uuid = props.selectedResult.uuid;
+  let reply: ReturnType<typeof parseAudioReply>;
+  try {
+    if (runtime === null) throw new Error("this host gives the player no way to fetch it");
+    reply = parseAudioReply(await runtime.dispatch({ kind: AUDIO_REQUEST, id }));
+  } catch (error) {
+    reply = { outcome: "failed", message: `The audio could not be fetched: ${error instanceof Error ? error.message : String(error)}` };
+  }
+  // Gone, shown again meanwhile with another result, or the audio came another way (another mount saved it).
+  if (disposed || props.selectedResult.uuid !== uuid || data.value?.pending !== id) return;
+  if (reply?.outcome !== "ready") {
+    fail(reply?.message ?? "The server answered something the player does not understand.");
+    return;
+  }
+  collected.value = reply.data;
+  props.onUpdateResult?.({ ...props.selectedResult, data: reply.data, viewState: { ...props.selectedResult.viewState, ...memory.value } });
+  await nextTick(); // the audio element has its source
+  if (!disposed) autoplay();
+}
+
+/** No audio after all: shown in the card, and told to the LLM once when it expected it to play. */
+function fail(reason: string): void {
+  failure.value = reason;
+  // Fresh as of when the card appeared: the render may have taken minutes to fail.
+  const message = failedMessage(data.value?.presentation, memory.value, data.value?.title ?? "The jingle", reason, voice.shownAt);
+  if (message === undefined || props.sendTextMessage === undefined) return;
+  remember({ reported: true });
+  props.sendTextMessage(message);
+}
+
+/** What a card does when it appears: collect its audio, or play by itself when asked. */
+function start(): void {
+  appeared();
+  if (pending.value) void collect();
+  else autoplay();
 }
 
 /** Plays what plays by itself once the voice has been quiet long enough; pauses it while the voice speaks. */
@@ -179,7 +237,12 @@ watch(
   },
 );
 
-onMounted(autoplay);
+onMounted(start);
+
+// Another mount of this card collected the audio and the host saved it: this one can play it too.
+watch(pending, (now, before) => {
+  if (before && !now) void nextTick(autoplay);
+});
 
 // A host may reuse this card for another result: start over with that result's own memory.
 watch(
@@ -190,14 +253,17 @@ watch(
     pause();
     now.value = 0;
     blocked.value = false;
+    collected.value = undefined;
+    failure.value = undefined;
     memory.value = memoryOf(props.selectedResult.viewState);
     view.value = firstView();
     // After the audio element has the new source.
-    void nextTick(autoplay);
+    void nextTick(start);
   },
 );
 
 onBeforeUnmount(() => {
+  disposed = true;
   cancelAnimationFrame(frame);
   clearTimeout(quietTimer);
 });
@@ -207,7 +273,7 @@ onBeforeUnmount(() => {
   <div v-if="data" class="jingle">
     <header>
       <h2>{{ data.title }}</h2>
-      <span class="meta">{{ formatTime(data.duration) }} · {{ data.loudness }} LUFS · {{ data.timing.tempo }} BPM</span>
+      <span class="meta">{{ formatTime(data.duration) }} · {{ pending ? "" : `${data.loudness} LUFS · ` }}{{ data.timing.tempo }} BPM</span>
       <span v-if="data.musicxml !== undefined" class="views" role="group" aria-label="View">
         <button
           v-for="(label, name) in VIEW_LABELS"
@@ -286,7 +352,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="controls">
-      <button type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" @click="toggle">
+      <button type="button" class="play" :aria-label="playing ? 'Pause' : 'Play'" :disabled="pending" @click="toggle">
         <svg v-if="playing" viewBox="0 0 16 16" aria-hidden="true">
           <rect x="3" y="2" width="3.5" height="12" />
           <rect x="9.5" y="2" width="3.5" height="12" />
@@ -294,21 +360,23 @@ onBeforeUnmount(() => {
         <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </button>
       <span class="time">{{ formatTime(now) }} / {{ formatTime(data.duration) }}</span>
+      <span v-if="failure" class="failure">{{ failure }}</span>
+      <span v-else-if="pending" class="rendering" role="status">Rendering the audio…</span>
       <span v-if="blocked" class="blocked">Press play to listen</span>
       <span class="downloads">
-        <a :href="data.audio" :download="`${data.title}.${extension}`">Download {{ extension.toUpperCase() }}</a>
+        <a v-if="!pending" :href="data.audio" :download="`${data.title}.${extension}`">Download {{ extension.toUpperCase() }}</a>
         <a :href="data.midi" :download="`${data.title}.mid`">Download MIDI</a>
         <a v-if="musicxmlHref" :href="musicxmlHref" :download="`${data.title}.musicxml`">Download MusicXML</a>
       </span>
     </div>
 
     <div v-if="cues.length > 0" class="cues">
-      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" @click="playFrom(cue.t - 0.5)">
+      <button v-for="cue in cues" :key="cue.name" type="button" class="chip" :disabled="pending" @click="playFrom(cue.t - 0.5)">
         {{ cue.name }} <span>{{ cue.t.toFixed(3) }} s</span>
       </button>
     </div>
 
-    <audio ref="audio" :src="data.audio" preload="auto" @ended="ended" @pause="playing = false" />
+    <audio v-if="!pending" ref="audio" :src="data.audio" preload="auto" @ended="ended" @pause="playing = false" />
   </div>
 </template>
 
@@ -525,8 +593,29 @@ h2 {
   height: 100%;
   background: var(--wave);
 }
-.blocked {
+.blocked,
+.failure {
   color: var(--cue);
   font-size: 0.85rem;
+}
+.rendering {
+  color: var(--muted);
+  font-size: 0.85rem;
+  animation: breathe 1.6s ease-in-out infinite;
+}
+@keyframes breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rendering {
+    animation: none;
+  }
+}
+.play:disabled,
+.chip:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 </style>

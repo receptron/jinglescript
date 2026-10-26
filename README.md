@@ -143,13 +143,16 @@ import { parseScore, render, loadSamples, toWav, checkScore, getSchema, getAutho
 
 const score = parseScore(json); // zod-validated; throws with every problem, each with a path and a hint
 const samples = await loadSamples(score); // grandpiano's recordings (cached; nothing when it is not used)
-const { audio, sampleRate, timing } = render(score, { samples }); // audio: [left, right] Float32Array
+const { audio, sampleRate, timing } = await render(score, { samples }); // audio: [left, right] Float32Array
 await writeFile("out/jingle.wav", toWav(audio, sampleRate));
 await writeFile("out/jingle.timing.json", JSON.stringify(timing, null, 2));
 ```
 
-`render` is synchronous and never touches the network; `loadSamples` fetches what a score's
-`grandpiano` notes play (or reads it from the cache; `{ download: false }` keeps it offline).
+`render` returns a Promise and never touches the network. In Node it renders on a worker thread,
+so a long piece, or a vocal sung by NEUTRINO, never blocks your event loop (a server keeps
+answering); the audio is the same, bit for bit, as rendering in place. `loadSamples` fetches what
+a score's `grandpiano` notes play (or reads it from the cache; `{ download: false }` keeps it
+offline).
 `renderToFiles(score, dir, stem)`, the CLI and the MCP tool do this for you.
 
 `scoreToMidi(score)` gives the music as a Standard MIDI File (`Uint8Array`, type 1) to edit in a
@@ -179,14 +182,16 @@ also what the sheet music would round or shorten).
 `jinglescript/browser` is the same library without the parts that need Node (files, ffmpeg, the
 MCP tool): parse and check, `render`, `toWav`, `scoreToMidi`, `scoreToMusicXml`, the timing map,
 and the API for LLMs.
-It renders in the page, with no server, to the same bit-identical audio.
+It renders in the page, with no server, to the same bit-identical audio. There `render` works on
+the page's own thread (its Promise resolves when it is done); run it in a Web Worker to keep a long
+render from holding up the page.
 
 ```ts
 import { parseScore, render, loadSamples, toWav } from "jinglescript/browser";
 
 const score = parseScore(json);
 const samples = await loadSamples(score); // only when it plays grandpiano or a recorded effect
-const { audio, sampleRate, timing } = render(score, { samples });
+const { audio, sampleRate, timing } = await render(score, { samples });
 const context = new AudioContext({ sampleRate });
 const buffer = context.createBuffer(2, audio[0].length, sampleRate);
 audio.forEach((channel, i) => buffer.copyToChannel(channel, i));

@@ -24,23 +24,25 @@ const sumAbs = (x: Float32Array) => x.reduce((s, v) => s + Math.abs(v), 0);
 describe("prerendered tracks follow the track's pan, gain and dynamics", () => {
   const pcm = Float32Array.from({ length: SR }, (_, i) => 0.1 * Math.sin(i / 10));
   /** Level of track 0 relative to the reference. */
-  const level = (track: Record<string, unknown>, note?: Record<string, unknown>) => {
-    const [left, right] = render(twoTracks(track, note), {
-      prerendered: new Map([
-        [0, pcm],
-        [1, pcm],
-      ]),
-    }).audio;
+  const level = async (track: Record<string, unknown>, note?: Record<string, unknown>) => {
+    const [left, right] = (
+      await render(twoTracks(track, note), {
+        prerendered: new Map([
+          [0, pcm],
+          [1, pcm],
+        ]),
+      })
+    ).audio;
     return sumAbs(left) / sumAbs(right);
   };
 
-  it("pans like an instrument", () => {
-    expect(level({})).toBeCloseTo(1, 3);
-    expect(level({ pan: 1 })).toBeLessThan(1e-6);
+  it("pans like an instrument", async () => {
+    expect(await level({})).toBeCloseTo(1, 3);
+    expect(await level({ pan: 1 })).toBeLessThan(1e-6);
   });
 
-  it("applies the track gain and the note velocity", () => {
-    expect(level({ gain: -6 })).toBeCloseTo(0.501, 2);
-    expect(level({}, { vel: 0.4 })).toBeCloseTo(0.5, 2);
+  it("applies the track gain and the note velocity", async () => {
+    expect(await level({ gain: -6 })).toBeCloseTo(0.501, 2);
+    expect(await level({}, { vel: 0.4 })).toBeCloseTo(0.5, 2);
   });
 });

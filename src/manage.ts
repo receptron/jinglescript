@@ -10,12 +10,25 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderToFiles } from "./output.ts";
 import { scoreToMusicXml } from "./musicxml.ts";
-import { dataUri, round1, toPlayerData, VIEWS, wantsNotation, wavPlayerAudio, type PlayerAudio, type PlayerData, type Presentation } from "./player.ts";
+import { deferRender } from "./deferred-renders.ts";
+import {
+  dataUri,
+  pendingPlayerData,
+  round1,
+  toPlayerData,
+  VIEWS,
+  wantsNotation,
+  wavPlayerAudio,
+  type PlayerAudio,
+  type PlayerData,
+  type Presentation,
+} from "./player.ts";
 import { render, type RenderResult } from "./render.ts";
+import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
-import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
-import { checkScore, parseScore, type Score } from "./score.ts";
+import { checkSinger, NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
+import { checkScore, parseScore, type Score, type ScoreProblem } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
 
@@ -149,7 +162,17 @@ export interface ManageOptions {
   outDir?: string;
   /** Build PlayerData for a view (GUI Chat Protocol). */
   player?: boolean;
+  /**
+   * With `player`: when the audio takes longer than `waitMs` (default DEFER_WAIT_MS), answer
+   * renderScore without it; with `waitMs` 0, always. The PlayerData is then `pending` (the score,
+   * sheet music and timing, no audio) and the view collects the finished one with
+   * awaitDeferredPlayer. Only for a carrier whose view can call back.
+   */
+  deferAudio?: boolean | { waitMs: number };
 }
+
+/** How long a deferred renderScore waits for the audio before answering without it: a short jingle is done by then. */
+export const DEFER_WAIT_MS = 1000;
 
 /** MP3 when ffmpeg is there (small), otherwise 16-bit WAV. */
 async function embeddedAudio(result: RenderResult, score: Score): Promise<PlayerAudio> {
@@ -237,6 +260,26 @@ const isSetupError = (error: unknown): error is Error =>
   error instanceof NeutrinoMissingError ||
   error instanceof NeutrinoVoiceMissingError;
 
+/** What to tell the user when the score sings and NEUTRINO or its voice is missing; checked before rendering, so it never surfaces only later (a deferred render). */
+function missingSinger(score: Score): ManageResult | undefined {
+  try {
+    checkSinger(score);
+    return undefined;
+  } catch (error) {
+    if (isSetupError(error)) return { text: error.message, isError: true };
+    throw error;
+  }
+}
+
+/** The name of the render's files and its title when the score has none. */
+const stemFor = (input: ManageInput): string => input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
+
+/** How long renderScore waits for the audio before answering without it, or undefined when it always waits. */
+function deferWait(options: ManageOptions): number | undefined {
+  if (options.player !== true || options.outDir !== undefined || options.deferAudio === undefined || options.deferAudio === false) return undefined;
+  return options.deferAudio === true ? DEFER_WAIT_MS : options.deferAudio.waitMs;
+}
+
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
   const source = await scoreOf(input, options);
   if (!source.ok) return source.result;
@@ -245,31 +288,79 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   const check = checkScore(raw, { notation: view === "notation" });
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
   const score = parseScore(raw);
-  const stem = input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
+  const stem = stemFor(input);
+  const missing = missingSinger(score);
+  if (missing !== undefined) return missing;
+  const waitMs = deferWait(options);
+  if (waitMs !== undefined) return deferredRenderAction(input, score, stem, check.warnings, waitMs);
   let files: { audio: string; timing: string } | undefined;
   let result: RenderResult;
   try {
-    if (options.outDir === undefined) result = render(score, { samples: await loadSamples(score) });
+    if (options.outDir === undefined) result = await render(score, { samples: await loadSamples(score) });
     else ({ result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" }));
   } catch (error) {
     if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;
   }
   const notationFile = files && options.outDir !== undefined && wantsNotation(score, view) ? await writeNotation(score, options.outDir, stem) : undefined;
-  const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : "render again with includeTiming: true to get them";
+  const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : FULL_TIMING_AT;
   const summary = {
     ok: true,
     ...(files ? { audio: files.audio, timingFile: files.timing } : {}),
     ...(notationFile === undefined ? {} : { notationFile }),
+    ...renderSummary(input, score, result, check.warnings, fullTimingAt),
+  };
+  if (!options.player) return { text: json(summary), isError: false };
+  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input));
+  return { text: json(summary), isError: false, player };
+}
+
+function renderSummary(input: ManageInput, score: Score, result: RenderResult, warnings: readonly ScoreProblem[], fullTimingAt: string) {
+  return {
     loudness: round1(result.stats.loudness),
     truePeak: round1(result.stats.truePeak),
     limitingDb: round1(result.stats.limitingDb),
     belowLoudnessTarget: result.stats.limitedByPeak,
-    warnings: check.warnings,
+    warnings,
     timing: input.includeTiming ? result.timing : timingSummary(result.timing, score.tracks.length, fullTimingAt),
   };
-  if (!options.player) return { text: json(summary), isError: false };
-  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input));
+}
+
+/** The audio for a player, rendered and embedded; `renderedAt` is when it was ready. */
+async function renderPlayer(score: Score, stem: string, presentation: Presentation): Promise<{ result: RenderResult; player: PlayerData }> {
+  const result = await render(score, { samples: await loadSamples(score) });
+  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), { ...presentation, renderedAt: Date.now() });
+  return { result, player };
+}
+
+const FULL_TIMING_AT = "render again with includeTiming: true to get them";
+
+/**
+ * renderScore for a view that can collect the audio later: the finished result when the audio is
+ * ready within `waitMs`, else (and always when `waitMs` is 0) a `pending` player at once while the
+ * render goes on.
+ */
+async function deferredRenderAction(input: ManageInput, score: Score, stem: string, warnings: readonly ScoreProblem[], waitMs: number): Promise<ManageResult> {
+  const presentation = presentationOf(input);
+  const rendering = renderPlayer(score, stem, presentation);
+  let done: { result: RenderResult; player: PlayerData } | undefined;
+  try {
+    // A render that runs in place (no worker) can finish before even a 0 ms timer: 0 does not wait at all.
+    done = waitMs <= 0 ? undefined : await Promise.race([rendering, new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), waitMs))]);
+  } catch (error) {
+    if (isSetupError(error)) return { text: error.message, isError: true };
+    throw error;
+  }
+  if (done !== undefined)
+    return { text: json({ ok: true, ...renderSummary(input, score, done.result, warnings, FULL_TIMING_AT) }), isError: false, player: done.player };
+  const id = deferRender(rendering.then(({ player }) => player));
+  const player = pendingPlayerData(score, stem, presentation, id);
+  const summary = {
+    ok: true,
+    audio: "still rendering: the player shows the score now and plays it when the audio is ready (loudness and true peak are not known yet)",
+    warnings,
+    timing: input.includeTiming ? player.timing : timingSummary(player.timing, score.tracks.length, FULL_TIMING_AT),
+  };
   return { text: json(summary), isError: false, player };
 }
 

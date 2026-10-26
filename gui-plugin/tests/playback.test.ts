@@ -1,7 +1,18 @@
 import type { Presentation } from "jinglescript";
 import { describe, expect, it } from "vitest";
 import { executeManage, instructionsFor } from "../src/index.ts";
-import { cursorIndex, finishedMessage, FRESH_MS, memoryOf, QUIET_MS, quietWait, REPLY_MS, shouldAutoplay, type VoiceState } from "../src/vue/playback.ts";
+import {
+  cursorIndex,
+  failedMessage,
+  finishedMessage,
+  FRESH_MS,
+  memoryOf,
+  QUIET_MS,
+  quietWait,
+  REPLY_MS,
+  shouldAutoplay,
+  type VoiceState,
+} from "../src/vue/playback.ts";
 
 const NOW = 1_800_000_000_000;
 const asked = (fields: Partial<Presentation> = {}): Presentation => ({
@@ -82,9 +93,30 @@ describe("the message when it has been heard", () => {
   });
 });
 
+describe("the message when a pending card's audio could not be made", () => {
+  it("is sent once, and only for a card that was fresh when it appeared", () => {
+    expect(failedMessage(asked(), fresh, "Twinkle", "NEUTRINO crashed", NOW)).toBe(
+      '"Twinkle" could not be rendered after all, so it did not play: NEUTRINO crashed',
+    );
+    expect(failedMessage(asked(), { ...fresh, reported: true }, "Twinkle", "x", NOW)).toBeUndefined();
+    expect(failedMessage(asked({ renderedAt: NOW - FRESH_MS }), fresh, "Twinkle", "x", NOW)).toBeUndefined(); // a card from history
+    expect(failedMessage(asked({ renderedAt: undefined }), fresh, "Twinkle", "x", NOW)).toBeUndefined();
+  });
+
+  it("is sent however long the render took to fail after a fresh card appeared", () => {
+    // The card appeared a second after renderScore; the render failed ten minutes later.
+    expect(failedMessage(asked({ renderedAt: NOW - 1000 }), fresh, "Twinkle", "x", NOW)).toBeDefined();
+  });
+});
+
 describe("memoryOf", () => {
   it("reads only what it wrote, and ignores anything else in viewState", () => {
-    expect(memoryOf({ autoplayed: true, notified: "yes", view: "notation", other: 1 })).toEqual({ autoplayed: true, notified: false, view: "notation" });
+    expect(memoryOf({ autoplayed: true, notified: "yes", view: "notation", other: 1 })).toEqual({
+      autoplayed: true,
+      notified: false,
+      reported: false,
+      view: "notation",
+    });
     expect(memoryOf({ view: "piano roll" }).view).toBeUndefined();
   });
 });

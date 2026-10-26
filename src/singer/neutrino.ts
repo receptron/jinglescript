@@ -12,7 +12,7 @@ import { parseEnv } from "node:util";
 import * as dmath from "../dsp/math.ts";
 import { resample } from "../dsp/resample.ts";
 import { pitchToMidi } from "../pitch.ts";
-import { DEFAULT_SAMPLE_RATE, expandOrThrow, render, setSinger, type RenderOptions } from "../render.ts";
+import { DEFAULT_SAMPLE_RATE, expandOrThrow, renderNow, setSinger, sungTrack, type RenderOptions } from "../render.ts";
 import { defaultCacheDir } from "../samples/load.ts";
 import { decodeWavMono } from "../samples/wav-read.ts";
 import type { Score } from "../score.ts";
@@ -246,8 +246,8 @@ export const VOCAL_LEVEL_DB = 4;
 export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => void;
 
 /**
- * Runs synchronously (execFileSync), because render() is sync: the whole process, an MCP server
- * included, blocks while NEUTRINO runs (tens of seconds for an uncached render). Cached renders are instant.
+ * Runs synchronously (execFileSync) inside renderNow, which in Node runs on a render worker thread
+ * (render-pool.ts): only that worker waits for NEUTRINO (tens of seconds uncached), not the caller.
  */
 const defaultExec: NeutrinoExec = (file, args, env, cwd) => {
   try {
@@ -380,6 +380,20 @@ export function singTrack(
 }
 
 let configured: NeutrinoOptions = {};
+
+/**
+ * Throws NeutrinoMissingError or NeutrinoVoiceMissingError when `score` sings and NEUTRINO or its
+ * voice is not installed; nothing otherwise. Cheap (a few file checks): a carrier calls it before a
+ * render starts, so the user hears about a missing install at once, not from a render that failed later.
+ */
+export function checkSinger(score: Score): void {
+  const track = sungTrack(score);
+  if (track === undefined) return;
+  const dir = configured.dir ?? neutrinoDir();
+  const install = findNeutrino(dir);
+  if (install === undefined) throw new NeutrinoMissingError(dir);
+  resolveVoice(install, configured.voice ?? score.tracks[track]?.sing?.voice ?? DEFAULT_NEUTRINO_VOICE);
+}
 /** Internal (tests): overrides for the NEUTRINO folder, cache, exec and level. Not part of the public API. */
 export function configureNeutrino(options: NeutrinoOptions): void {
   configured = options;
@@ -402,7 +416,7 @@ export function reinstallNeutrino(): void {
 
 /** Pre-master loudness of a render (its loudness less the master's gain), LUFS. */
 function premasterLoudness(score: Score, options: RenderOptions, prerendered: Map<number, Float32Array>): number {
-  const { stats } = render(score, { ...options, prerendered });
+  const { stats } = renderNow(score, { ...options, prerendered });
   return stats.loudness - stats.gainDb;
 }
 

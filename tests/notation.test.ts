@@ -445,15 +445,15 @@ describe("sheet music through the tool and the player", () => {
     expect(ManageInputSchema.safeParse({ action: "renderScore", score, autoplayDelay: 31 }).success).toBe(false);
   });
 
-  it("adds sheet music for a score that sets a meter, and shows the waveform when there is nothing to draw", () => {
-    const result = render(birthday, { samples: fixtureSamples });
+  it("adds sheet music for a score that sets a meter, and shows the waveform when there is nothing to draw", async () => {
+    const result = await render(birthday, { samples: fixtureSamples });
     expect(toPlayerData(birthday, result, "b").musicxml).toBeDefined();
     const effects = parseScore(base({}, [{ instrument: "clap", notes: [{ at: 0 }] }]));
-    const data = toPlayerData(effects, render(effects), "e", undefined, { view: "notation", autoplay: false, notifyWhenDone: false, renderedAt: 0 });
+    const data = toPlayerData(effects, await render(effects), "e", undefined, { view: "notation", autoplay: false, notifyWhenDone: false, renderedAt: 0 });
     expect(data.musicxml).toBeUndefined();
     expect(data.presentation?.view).toBe("waveform");
     const jingle = parseScore(base({}, [melody([{ at: 0, pitch: "C4" }])]));
-    expect(toPlayerData(jingle, render(jingle, { samples: fixtureSamples }), "j").musicxml).toBeUndefined();
+    expect(toPlayerData(jingle, await render(jingle, { samples: fixtureSamples }), "j").musicxml).toBeUndefined();
   });
 });
 

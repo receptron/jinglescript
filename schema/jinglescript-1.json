@@ -961,7 +961,7 @@
             "type": "boolean"
           },
           "sing": {
-            "description": "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. An uncached render blocks the process for tens of seconds.",
+            "description": "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. The first render of a sung track takes tens of seconds (NEUTRINO); the same one again is instant.",
             "type": "object",
             "properties": {
               "engine": {

@@ -101,9 +101,9 @@ describe("grandpiano picks its samples", () => {
 });
 
 describe("grandpiano renders from loaded samples only", () => {
-  it("says how to load them when they were not", () => {
-    expect(() => render(scoreWith([{ at: 0, pitch: "C4" }]))).toThrow(SamplesNotLoadedError);
-    expect(() => render(scoreWith([{ at: 0, pitch: "C4" }]))).toThrow(/loadSamples/);
+  it("says how to load them when they were not", async () => {
+    await expect(render(scoreWith([{ at: 0, pitch: "C4" }]))).rejects.toThrow(SamplesNotLoadedError);
+    await expect(render(scoreWith([{ at: 0, pitch: "C4" }]))).rejects.toThrow(/loadSamples/);
   });
 
   it("moves its sample by exactly the interval asked for: a semitone up or down, or a detune", () => {
@@ -131,11 +131,13 @@ describe("grandpiano renders from loaded samples only", () => {
     }
   });
 
-  it("cuts a key's ringing note when the same track strikes it again, and only then", () => {
-    const dry = (tracks: unknown[]) =>
-      render(parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 2 }, master: { reverb: "none", fadeOut: 0 }, tracks }), {
-        samples: pianoFixture,
-      }).audio[0];
+  it("cuts a key's ringing note when the same track strikes it again, and only then", async () => {
+    const dry = async (tracks: unknown[]) =>
+      (
+        await render(parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 2 }, master: { reverb: "none", fadeOut: 0 }, tracks }), {
+          samples: pianoFixture,
+        })
+      ).audio[0];
     const track = (notes: unknown[]) => ({ instrument: "grandpiano", reverb: false, notes });
     /** RMS-normalized shape of x over [from, to) seconds: equal shapes mean the same sound at any level. */
     const shape = (x: Float32Array, from: number, to: number) => {
@@ -144,12 +146,12 @@ describe("grandpiano renders from loaded samples only", () => {
       return Array.from(w, (v) => v / rms);
     };
     const distance = (a: number[], b: number[]) => Math.sqrt(a.reduce((sum, v, i) => sum + (v - (b[i] ?? 0)) ** 2, 0) / a.length);
-    const alone = shape(dry([track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5);
+    const alone = shape(await dry([track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5);
     // Struck again 0.5 s later on the same track: once the 80 ms fade is over, only the new note sounds.
     expect(
       distance(
         shape(
-          dry([
+          await dry([
             track([
               { at: 0, pitch: "C4" },
               { at: 1, pitch: "C4" },
@@ -162,11 +164,11 @@ describe("grandpiano renders from loaded samples only", () => {
       ),
     ).toBeLessThan(0.01);
     // On two tracks (two pianos), or another key, the first note rings on.
-    expect(distance(shape(dry([track([{ at: 0, pitch: "C4" }]), track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5), alone)).toBeGreaterThan(0.1);
+    expect(distance(shape(await dry([track([{ at: 0, pitch: "C4" }]), track([{ at: 1, pitch: "C4" }])]), 0.7, 1.5), alone)).toBeGreaterThan(0.1);
     expect(
       distance(
         shape(
-          dry([
+          await dry([
             track([
               { at: 0, pitch: "D4" },
               { at: 1, pitch: "C4" },
@@ -181,43 +183,45 @@ describe("grandpiano renders from loaded samples only", () => {
     // By actual onset: a down-strum at 1 s puts its G4 at ~1.16 s, after a lone G4 at 1.05 s
     // written later in the score. The lone G4 is the one cut; the chord sounds as if alone.
     const chord = { at: { seconds: 1 }, pitch: ["C4", "E4", "G4"], strum: { pattern: "down", spread: 80 } };
-    const chordAlone = shape(dry([track([chord])]), 1.3, 1.9);
-    expect(distance(shape(dry([track([chord, { at: { seconds: 1.05 }, pitch: "G4" }])]), 1.3, 1.9), chordAlone)).toBeLessThan(0.01);
+    const chordAlone = shape(await dry([track([chord])]), 1.3, 1.9);
+    expect(distance(shape(await dry([track([chord, { at: { seconds: 1.05 }, pitch: "G4" }])]), 1.3, 1.9), chordAlone)).toBeLessThan(0.01);
   });
 
-  it("stops a note when its key is released (len), unless the pedal holds it until it lifts", () => {
+  it("stops a note when its key is released (len), unless the pedal holds it until it lifts", async () => {
     const rms = (x: Float32Array, from: number, to: number) => {
       const w = x.subarray(Math.round(from * RATE), Math.round(to * RATE));
       return Math.sqrt(w.reduce((sum, v) => sum + v * v, 0) / w.length);
     };
-    const play = (note: Record<string, unknown>, pedal?: unknown[]) =>
-      render(
-        parseScore({
-          format: "jinglescript/1",
-          tempo: 120,
-          length: { seconds: 3 },
-          // Quiet enough that loudness normalization never limits, so levels compare across renders.
-          master: { reverb: "none", fadeOut: 0, limiter: false, loudness: -30 },
-          tracks: [{ instrument: "grandpiano", reverb: false, notes: [{ at: 0, pitch: "C4", ...note }], ...(pedal === undefined ? {} : { pedal }) }],
-        }),
-        { samples: pianoFixture },
+    const play = async (note: Record<string, unknown>, pedal?: unknown[]) =>
+      (
+        await render(
+          parseScore({
+            format: "jinglescript/1",
+            tempo: 120,
+            length: { seconds: 3 },
+            // Quiet enough that loudness normalization never limits, so levels compare across renders.
+            master: { reverb: "none", fadeOut: 0, limiter: false, loudness: -30 },
+            tracks: [{ instrument: "grandpiano", reverb: false, notes: [{ at: 0, pitch: "C4", ...note }], ...(pedal === undefined ? {} : { pedal }) }],
+          }),
+          { samples: pianoFixture },
+        )
       ).audio[0];
-    const ringing = play({});
+    const ringing = await play({});
     // Held for one beat (0.5 s): silent once the 120 ms damper fade is over, ringing before.
-    const released = play({ len: 1 });
+    const released = await play({ len: 1 });
     expect(rms(released, 0.1, 0.45)).toBeGreaterThan(0.2 * rms(ringing, 0.1, 0.45));
     expect(rms(released, 0.65, 1.5)).toBe(0);
     // The pedal down until 1.2 s keeps it ringing after the key is released, then lifts.
-    const pedalled = play({ len: 1 }, [{ at: 0, until: { seconds: 1.2 } }]);
+    const pedalled = await play({ len: 1 }, [{ at: 0, until: { seconds: 1.2 } }]);
     expect(rms(pedalled, 0.7, 1.15)).toBeGreaterThan(0.2 * rms(ringing, 0.7, 1.15));
     expect(rms(pedalled, 1.35, 2)).toBe(0);
     // A pedal that goes down after the key is released does not bring the note back.
-    expect(rms(play({ len: 1 }, [{ at: 2, until: 4 }]), 0.65, 1.5)).toBe(0);
+    expect(rms(await play({ len: 1 }, [{ at: 2, until: 4 }]), 0.65, 1.5)).toBe(0);
     // Without len the note rings out, pedal or not.
-    expect(rms(play({}, [{ at: 0, until: 1 }]), 0.7, 1.5)).toBeGreaterThan(0.2 * rms(ringing, 0.7, 1.5));
+    expect(rms(await play({}, [{ at: 0, until: 1 }]), 0.7, 1.5)).toBeGreaterThan(0.2 * rms(ringing, 0.7, 1.5));
   });
 
-  it("holds each voice of a strummed chord its full len from its own onset", () => {
+  it("holds each voice of a strummed chord its full len from its own onset", async () => {
     const score = parseScore({
       format: "jinglescript/1",
       tempo: 120,
@@ -233,7 +237,7 @@ describe("grandpiano renders from loaded samples only", () => {
     });
     const last = expandScore(score).events[0]?.strum?.offsets.at(-1) ?? 0;
     expect(last).toBeGreaterThan(0.12);
-    const audio = render(score, { samples: pianoFixture }).audio[0];
+    const audio = (await render(score, { samples: pianoFixture })).audio[0];
     const peak = (from: number, to: number) => audio.subarray(Math.round(from * RATE), Math.round(to * RATE)).reduce((m, v) => Math.max(m, Math.abs(v)), 0);
     const g4 = 0.5 + last;
     // Released 0.1 s after its own onset, then a 120 ms fade: sounding until then, silent after.
@@ -241,7 +245,7 @@ describe("grandpiano renders from loaded samples only", () => {
     expect(peak(g4 + 0.23, 2)).toBe(0);
   });
 
-  it("is bit-identical on every render", () => {
+  it("is bit-identical on every render", async () => {
     const score = scoreWith([
       { at: 0, chord: "Am7", vel: 0.7 },
       { at: 1, pitch: "E6" },
@@ -251,7 +255,7 @@ describe("grandpiano renders from loaded samples only", () => {
       for (const channel of audio) h.update(new Uint8Array(channel.buffer, channel.byteOffset, channel.byteLength));
       return h.digest("hex");
     };
-    expect(hash(render(score, { samples: pianoFixture }).audio)).toBe(hash(render(score, { samples: pianoFixture }).audio));
+    expect(hash((await render(score, { samples: pianoFixture })).audio)).toBe(hash((await render(score, { samples: pianoFixture })).audio));
   });
 });
 

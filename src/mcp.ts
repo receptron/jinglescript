@@ -30,7 +30,7 @@ export function createMcpServer(outDir: string): McpServer {
   server.registerTool(
     MCP_TOOL,
     {
-      description: `Write and render jingles: learn the format, list sounds, check a score, render it to audio + timing map (files go to ${dir}). Rendering a score with \`sing\` runs NEUTRINO synchronously: the server answers nothing until it finishes (tens of seconds uncached).`,
+      description: `Write and render jingles: learn the format, list sounds, check a score, render it to audio + timing map (files go to ${dir}). Rendering a score with \`sing\` runs NEUTRINO, which takes tens of seconds the first time.`,
       inputSchema: ManageInputSchema,
     },
     (input) => handleManage(input, dir),

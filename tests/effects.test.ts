@@ -12,11 +12,11 @@ const score = (tracks: unknown[], master: Record<string, unknown> = {}) => ({
 });
 
 describe("effects with a length", () => {
-  it("can be placed by `end`: a riser of 4 beats ends exactly on the cue", () => {
+  it("can be placed by `end`: a riser of 4 beats ends exactly on the cue", async () => {
     const s = parseScore(score([{ instrument: "riser", notes: [{ end: "hit", len: 4 }] }]));
     const [event] = expandScore(s).events;
     expect(event).toMatchObject({ seconds: 1, end: 3, hold: 2 });
-    const { timing } = render(s);
+    const { timing } = await render(s);
     expect(timing.notes[0]).toMatchObject({ t: 1, end: 3, instrument: "riser" });
   });
 
@@ -52,10 +52,10 @@ describe("effects with a length", () => {
 });
 
 describe('tracks with "reverb": false', () => {
-  it("bypass the reverb: a dry track sounds the same whatever the reverb", () => {
+  it("bypass the reverb: a dry track sounds the same whatever the reverb", async () => {
     const tracks = [{ instrument: "clock", reverb: false, notes: [{ at: 0, repeat: { every: 1, count: 4 } }] }];
-    const room = render(parseScore(score(tracks, { reverb: "room" }))).audio[0];
-    const none = render(parseScore(score(tracks, { reverb: "none" }))).audio[0];
+    const room = (await render(parseScore(score(tracks, { reverb: "room" })))).audio[0];
+    const none = (await render(parseScore(score(tracks, { reverb: "none" })))).audio[0];
     expect(room).toEqual(none);
   });
 });

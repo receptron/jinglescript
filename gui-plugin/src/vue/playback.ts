@@ -77,10 +77,18 @@ export function finishedMessage(presentation: Presentation | undefined, memory: 
 
 /**
  * The one message sent to the LLM when the audio of a card shown while it rendered could not be
- * made: its answer to renderScore said it would play. Only for a fresh render, never one from history.
+ * made: its answer to renderScore said it would play. Only for a card that was fresh when it
+ * appeared (`shownAt`), never one from history — however long the render then took to fail, since
+ * the LLM may be waiting for a message about it (notifyWhenDone).
  */
-export function failedMessage(presentation: Presentation | undefined, memory: PlayerMemory, title: string, reason: string, now: number): string | undefined {
-  if (memory.reported || presentation?.renderedAt === undefined || now - presentation.renderedAt >= FRESH_MS) return undefined;
+export function failedMessage(
+  presentation: Presentation | undefined,
+  memory: PlayerMemory,
+  title: string,
+  reason: string,
+  shownAt: number,
+): string | undefined {
+  if (memory.reported || presentation?.renderedAt === undefined || shownAt - presentation.renderedAt >= FRESH_MS) return undefined;
   return `"${title}" could not be rendered after all, so it did not play: ${reason}`;
 }
 

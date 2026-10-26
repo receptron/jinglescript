@@ -94,13 +94,18 @@ describe("the message when it has been heard", () => {
 });
 
 describe("the message when a pending card's audio could not be made", () => {
-  it("is sent once, and only for a fresh render", () => {
+  it("is sent once, and only for a card that was fresh when it appeared", () => {
     expect(failedMessage(asked(), fresh, "Twinkle", "NEUTRINO crashed", NOW)).toBe(
       '"Twinkle" could not be rendered after all, so it did not play: NEUTRINO crashed',
     );
     expect(failedMessage(asked(), { ...fresh, reported: true }, "Twinkle", "x", NOW)).toBeUndefined();
-    expect(failedMessage(asked({ renderedAt: NOW - FRESH_MS }), fresh, "Twinkle", "x", NOW)).toBeUndefined();
+    expect(failedMessage(asked({ renderedAt: NOW - FRESH_MS }), fresh, "Twinkle", "x", NOW)).toBeUndefined(); // a card from history
     expect(failedMessage(asked({ renderedAt: undefined }), fresh, "Twinkle", "x", NOW)).toBeUndefined();
+  });
+
+  it("is sent however long the render took to fail after a fresh card appeared", () => {
+    // The card appeared a second after renderScore; the render failed ten minutes later.
+    expect(failedMessage(asked({ renderedAt: NOW - 1000 }), fresh, "Twinkle", "x", NOW)).toBeDefined();
   });
 });
 

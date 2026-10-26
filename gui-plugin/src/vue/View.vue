@@ -181,7 +181,8 @@ async function collect(): Promise<void> {
 /** No audio after all: shown in the card, and told to the LLM once when it expected it to play. */
 function fail(reason: string): void {
   failure.value = reason;
-  const message = failedMessage(data.value?.presentation, memory.value, data.value?.title ?? "The jingle", reason, Date.now());
+  // Fresh as of when the card appeared: the render may have taken minutes to fail.
+  const message = failedMessage(data.value?.presentation, memory.value, data.value?.title ?? "The jingle", reason, voice.shownAt);
   if (message === undefined || props.sendTextMessage === undefined) return;
   remember({ reported: true });
   props.sendTextMessage(message);

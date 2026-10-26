@@ -6,3 +6,4 @@ export * from "./model.ts";
 export * from "./vocoder.ts";
 export * from "./sing.ts";
 export * from "./post.ts";
+export * from "./neutrino.ts";

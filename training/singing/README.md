@@ -71,7 +71,10 @@ node scripts/sing-demo.ts out.wav my-singer --post
 
 ```sh
 pip install -r training/singing/requirements-train.txt   # datacollective SDK を含む
-python training/singing/fetch_common_voice.py --dataset <ID またはスラッグ>
+python training/singing/fetch_common_voice.py --dataset <ID またはスラッグ> --check   # 情報とライセンス確認のみ
+python training/singing/fetch_common_voice.py --dataset <ID またはスラッグ>           # ~/.cache/jinglescript/common_voice_ja に保存
 ```
 
-スクリプトはまずデータセットのライセンスを確認し、CC0 以外なら中止します。SDK の内部では `POST https://mozilladatacollective.com/api/datasets/{id}/download`（`Authorization: Bearer <キー>`）が署名付き URL を返し、そこからダウンロードします。**ダウンロードは 1 日 30 回まで**です。CC0 でも生の音声を再配布（リホスト）せず、話者の特定も試みないこと。出力は `data/` 以下にとどめ、公開するのは学習済みの重みだけです。テストはモックで行います：`python training/singing/test_fetch_common_voice.py`
+スクリプトはまずデータセットのライセンスを確認し、CC0 以外なら中止します。SDK の内部では `POST https://mozilladatacollective.com/api/datasets/{id}/download`（`Authorization: Bearer <キー>`）が署名付き URL を返し、そこからダウンロードします。**ダウンロードは 1 日 30 回まで**です。CC0 でも生の音声を再配布（リホスト）せず、話者の特定も試みないこと。出力は `~/.cache/jinglescript/common_voice_ja` に置き（リポジトリには入れない）、公開するのは学習済みの重みだけです。テストはモックで行います：`python training/singing/test_fetch_common_voice.py`
+
+確認済み（2026-10-25）：最新は「Common Voice Scripted Speech 27.0 - Japanese」、ID `cmu5xbhnf00fmnq07z9p3aa70`、スラッグ `common-voice-scripted-speech-27-0-japane-ea5ad4e9`、ライセンス `CC0-1.0`、15.4 GB。

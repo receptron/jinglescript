@@ -11,7 +11,7 @@ Two routes, both through Mozilla's official distribution:
 The dataset's license is checked before downloading: only CC0 is accepted.
 
 Terms that bind us even though the data is CC0: do not re-host or redistribute the raw clips, and
-do not attempt to identify speakers. So the output stays under data/ and only derived model weights
+do not attempt to identify speakers. So the output stays under ~/.cache/jinglescript/ and only derived model weights
 are ever published. Nothing is downloaded unless you run it.
 """
 from __future__ import annotations
@@ -23,7 +23,7 @@ import sys
 import tarfile
 from pathlib import Path
 
-DATA = Path(__file__).resolve().parent / "data" / "common_voice_ja"
+DATA = Path.home() / ".cache" / "jinglescript" / "common_voice_ja"  # never inside the repo
 
 
 def is_cc0(details: object) -> bool:
@@ -33,7 +33,7 @@ def is_cc0(details: object) -> bool:
     return "CC0" in text
 
 
-def download_via_sdk(dataset: str, out: Path) -> Path:
+def download_via_sdk(dataset: str, out: Path, check_only: bool = False) -> Path:
     """Check the license, then download the archive with the official SDK. Returns the archive path."""
     try:
         from datacollective import download_dataset, get_dataset_details
@@ -45,7 +45,14 @@ def download_via_sdk(dataset: str, out: Path) -> Path:
     if not is_cc0(details):
         lic = getattr(details, "licenseAbbreviation", None) or getattr(details, "license", None)
         sys.exit(f"Refusing {dataset}: license is {lic!r}, only CC0 is allowed.")
-    return Path(download_dataset(dataset, download_directory=str(out)))
+    size = getattr(details, "sizeBytes", None) or 0
+    print(f"{getattr(details, 'name', dataset)}: {getattr(details, 'licenseAbbreviation', '?')}, {size / 1e9:.1f} GB")
+    if check_only:
+        sys.exit(0)
+    try:
+        return Path(download_dataset(dataset, download_directory=str(out)))
+    except PermissionError as e:
+        sys.exit(f"{e}\nAccept the dataset's terms on mozilladatacollective.com first (403).")
 
 
 def extract(archive: Path, out: Path) -> Path:
@@ -75,10 +82,11 @@ def main() -> None:
     source.add_argument("--archive", type=Path)
     source.add_argument("--dataset", help="MDC dataset ID or slug (from Connect API on the dataset page)")
     parser.add_argument("--out", type=Path, default=DATA)
+    parser.add_argument("--check", action="store_true", help="only show details and check the license; no download")
     parser.add_argument("--min-up-votes", type=int, default=2)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
-    archive = download_via_sdk(args.dataset, args.out) if args.dataset else args.archive
+    archive = download_via_sdk(args.dataset, args.out, args.check) if args.dataset else args.archive
     root = extract(archive, args.out)
     print(f"{write_manifest(root, args.out, args.min_up_votes)} clips → {args.out / 'manifest.tsv'}")
 

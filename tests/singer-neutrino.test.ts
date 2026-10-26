@@ -13,6 +13,7 @@ import {
   renderWithNeutrino,
   resolveVoice,
   singTrackNeutrino,
+  vocalGainDb,
   type NeutrinoExec,
 } from "../src/singer/index.ts";
 import { toWav } from "../src/wav.ts";
@@ -144,5 +145,43 @@ describe("singTrackNeutrino (mocked NEUTRINO)", () => {
       renderWithNeutrino(score, { track: 0, candidates: ["/nonexistent"], fallbackModel: "missing", cacheDir, warn: (m) => warnings.push(m) }),
     ).rejects.toThrow();
     expect(warnings[0]).toContain('built-in model "missing"');
+  });
+  it("renders at the render's rate: the vocal lands on its score time", async () => {
+    const dir = await fakeInstall();
+    const cacheDir = await mkdtemp(join(tmpdir(), "neutrino-cache-"));
+    const exec: NeutrinoExec = async (file, args) => {
+      if (!file.endsWith("neutrino")) return;
+      const pcm = new Float32Array(48000 * 6);
+      for (let i = 48000 * 3; i < pcm.length; i++) pcm[i] = 0.3 * Math.sin(i / 20); // from score time 1 s
+      await writeFile(args[4] ?? "", toWav([pcm, pcm], 48000, 16));
+    };
+    const result = await renderWithNeutrino(score, { track: 0, candidates: [dir], cacheDir, exec, vocalLevel: null });
+    expect(result.sampleRate).toBe(48000);
+    const left = result.audio[0];
+    const first = left.findIndex((v) => Math.abs(v) > 1e-3);
+    expect(Math.abs(first - 48000)).toBeLessThan(48); // within 1 ms
+  });
+});
+
+describe("vocalGainDb", () => {
+  const duet = parseScore({
+    format: "jinglescript/1",
+    tempo: 120,
+    meter: "4/4",
+    length: { beats: 8 },
+    tracks: [
+      { instrument: "organ", gain: -2, notes: [{ at: 0, pitch: "C4", len: 8, lyric: "あ" }] },
+      { instrument: "vibraphone", notes: [{ at: 0, pitch: ["C4", "E4", "G4"], len: 8 }] },
+    ],
+  });
+  const vocal = Float32Array.from({ length: 48000 * 4 }, (_, i) => 0.01 * Math.sin((2 * Math.PI * 220 * i) / 48000));
+  it("puts the vocal `level` LU over the rest, shifted by the track's gain", () => {
+    const gainDb = vocalGainDb(duet, 0, vocal, {}, 4);
+    const scaled = vocal.map((v) => v * 10 ** (gainDb / 20));
+    // Scaled, it sits 4 + (−2) = 2 LU over the vibraphone: asking for 2 again adds only the track gain.
+    expect(vocalGainDb(duet, 0, scaled, {}, 2)).toBeCloseTo(-2, 1);
+  });
+  it("leaves a solo vocal alone", () => {
+    expect(vocalGainDb(parseScore({ ...duet, tracks: [duet.tracks[0]] } as never), 0, vocal, {}, 4)).toBe(0);
   });
 });

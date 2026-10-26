@@ -46,7 +46,8 @@ const melody: [string, string, number][] = [
   ["C4", "っ", 0.5],
   ["C4", "く", 1.5],
 ];
-let at = 0;
+// One beat of rest first, so the first consonant (sung before the beat) is not cut at time 0.
+let at = 1;
 const voice = melody.flatMap(([pitch, lyric, len]) => {
   const start = at;
   at += len;
@@ -71,10 +72,10 @@ const score = parseScore({
   length: { beats: at + 2 },
   tracks: [
     { instrument: "organ", name: "voice", notes: voice },
-    { instrument: "vibraphone", name: "vibes", gain: 0.5, notes: chords.map(([t, pitch]) => ({ at: t, pitch, len: 3.8 })) },
+    { instrument: "vibraphone", name: "vibes", gain: 0.5, notes: chords.map(([t, pitch]) => ({ at: t + 1, pitch, len: 3.8 })) },
   ],
 });
-const out = process.argv[2] ?? join(homedir(), "Desktop", "neutrino_demo.wav");
+const out = process.argv[2] ?? join(homedir(), "Desktop", "neutrino_demo2.wav");
 const started = performance.now();
 const result = await renderWithNeutrino(score, { track: 0, voice: process.argv[3] ?? "reina", fallbackModel: "tiny-placeholder" });
 await writeFile(out, toWav(result.audio, result.sampleRate, 16));

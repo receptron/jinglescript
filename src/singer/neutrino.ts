@@ -9,8 +9,9 @@ import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir, cpus } from "node:os";
 import { join } from "node:path";
+import * as dmath from "../dsp/math.ts";
 import { resample } from "../dsp/resample.ts";
-import { render, type RenderOptions, type RenderResult } from "../render.ts";
+import { DEFAULT_SAMPLE_RATE, render, type RenderOptions, type RenderResult } from "../render.ts";
 import { defaultCacheDir } from "../samples/load.ts";
 import { decodeWavMono } from "../samples/wav-read.ts";
 import type { Score } from "../score.ts";
@@ -219,7 +220,15 @@ export interface NeutrinoOptions {
   /** Replaces child_process.execFile (tests). */
   exec?: NeutrinoExec;
   warn?: (message: string) => void;
+  /**
+   * Loudness of the vocal over the rest of the mix, LU (default VOCAL_LEVEL_DB), measured after the
+   * tracks' gain, velocity and reverb; the sung track's `gain` then shifts it. null: NEUTRINO's own level.
+   */
+  vocalLevel?: number | null;
 }
+
+/** Default loudness of a NEUTRINO vocal over its accompaniment, LU. */
+export const VOCAL_LEVEL_DB = 4;
 
 /** Runs a NEUTRINO tool; `cwd` is the install (musicXMLtoLabel reads settings/dic relative to it). */
 export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => Promise<void>;
@@ -303,7 +312,7 @@ export function alignNeutrinoPcm(data: Float32Array, rate: number, sampleRate: n
 export async function singTrackNeutrino(
   score: Score,
   options: NeutrinoOptions,
-  sampleRate = 44100,
+  sampleRate = DEFAULT_SAMPLE_RATE,
 ): Promise<{ pcm: Float32Array; sampleRate: number; voice: string; cached: boolean }> {
   const install = findNeutrino(options.candidates ?? neutrinoCandidates());
   if (install === undefined) throw new NeutrinoMissingError(options.candidates ?? neutrinoCandidates());
@@ -320,7 +329,7 @@ export async function singTrackNeutrino(
  * `fallbackModel` (the built-in singer) when given, else throws NeutrinoMissingError.
  */
 export async function renderWithNeutrino(score: Score, sing: NeutrinoOptions, options: RenderOptions = {}): Promise<RenderResult> {
-  const sampleRate = options.sampleRate ?? 44100;
+  const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   const candidates = sing.candidates ?? neutrinoCandidates();
   if (findNeutrino(candidates) === undefined) {
     if (sing.fallbackModel === undefined) throw new NeutrinoMissingError(candidates);
@@ -328,5 +337,27 @@ export async function renderWithNeutrino(score: Score, sing: NeutrinoOptions, op
     return renderWithSinger(score, { track: sing.track, model: sing.fallbackModel, cacheDir: sing.cacheDir }, options);
   }
   const { pcm } = await singTrackNeutrino(score, { ...sing, candidates }, sampleRate);
-  return render(score, { ...options, prerendered: new Map([[sing.track, pcm]]) });
+  const level = sing.vocalLevel === undefined ? VOCAL_LEVEL_DB : sing.vocalLevel;
+  const gainDb = level === null ? 0 : vocalGainDb(score, sing.track, pcm, { ...options, sampleRate }, level);
+  const gain = dmath.dbToGain(gainDb);
+  return render(score, { ...options, sampleRate, prerendered: new Map([[sing.track, pcm.map((v) => v * gain)]]) });
+}
+
+/** Pre-master loudness of a render (its loudness less the master's gain), LUFS. */
+function premasterLoudness(score: Score, options: RenderOptions, prerendered: Map<number, Float32Array>): number {
+  const { stats } = render(score, { ...options, prerendered });
+  return stats.loudness - stats.gainDb;
+}
+
+/**
+ * dB to scale the vocal `pcm` of `track` by so it sits `level` LU over the other tracks (plus the
+ * track's own gain); 0 when either side is silent.
+ */
+export function vocalGainDb(score: Score, track: number, pcm: Float32Array, options: RenderOptions, level: number): number {
+  const silence = new Float32Array(pcm.length);
+  const others = new Map(score.tracks.map((_, i) => [i, i === track ? pcm : silence] as const));
+  const vocal = premasterLoudness(score, options, others);
+  const accompaniment = premasterLoudness(score, options, new Map([[track, silence]]));
+  if (!Number.isFinite(vocal) || !Number.isFinite(accompaniment) || score.tracks.length < 2) return 0;
+  return accompaniment + level + (score.tracks[track]?.gain ?? 0) - vocal;
 }

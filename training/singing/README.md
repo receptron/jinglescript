@@ -13,3 +13,49 @@ Python scripts that prepare training data for the singer instrument (see
 
 Models trained from these must be released under MIT, CC0-1.0 or CC-BY-4.0 only
 (`SINGER_MODEL_LICENSES` in `src/singer/model.ts`).
+
+## S2: PyTorch で音響モデルを学習する（Mac / DGX Spark）
+
+`train_torch.py` は特徴量 → 帯域エンベロープの音響モデルを学習し、既存ランタイムがそのまま読める ONNX（入力 `features`、出力 `envelope`）とマニフェスト（sha256 付き）を `~/.cache/jinglescript/singer/<name>/` に書き出します。デバイスは自動選択（cuda > mps > cpu）、`--device` で上書きできます。重みや音声はコミットしないでください。
+
+### MacBook Pro（Apple Silicon, MPS）— 普段はこちら
+
+```sh
+python3 -m venv ~/.venvs/singer && source ~/.venvs/singer/bin/activate
+pip install -r training/singing/requirements-train.txt   # PyPI の torch は MPS 対応
+python training/singing/train_torch.py --data placeholder --tiny   # 動作確認（数秒〜十数秒）
+PYTORCH_ENABLE_MPS_FALLBACK=1 python training/singing/train_torch.py --data <データ> --name my-singer
+```
+
+MPS 未対応の演算が出た場合は `PYTORCH_ENABLE_MPS_FALLBACK=1` で CPU にフォールバックします。
+
+### NVIDIA DGX Spark（CUDA, aarch64）— 重い学習用
+
+NGC の PyTorch コンテナ（`nvcr.io/nvidia/pytorch`）を使うのが確実です。venv の場合は CUDA 版 wheel を入れてから requirements を入れます：
+
+```sh
+pip install torch --index-url https://download.pytorch.org/whl/cu128
+pip install -r training/singing/requirements-train.txt
+python training/singing/train_torch.py --data <データ> --name my-singer --device cuda --batch 64
+```
+
+学習後、`~/.cache/jinglescript/singer/my-singer/` フォルダごと描画するマシンの同じ場所へコピーします（例：`rsync -a spark:~/.cache/jinglescript/singer/my-singer ~/.cache/jinglescript/singer/`）。
+
+### データの用意
+
+録音（wav）・音素ラベル（.lab）・F0（.f0.npy）を特徴量／エンベロープのペアに変換します：
+
+```sh
+python training/singing/to_envelope_dataset.py <入力フォルダ> <出力フォルダ>
+python training/singing/train_torch.py --data <出力フォルダ>
+```
+
+使えるのは商用利用可能なライセンスのデータのみです（JSUT・JVS・きりたん等は不可）。
+
+### 描画とポスト処理
+
+```sh
+node scripts/sing-demo.ts out.wav my-singer --post
+```
+
+`--post`（API では `post: true`）で §5 のボーカルチェーン（`src/singer/post.ts`）を通します。

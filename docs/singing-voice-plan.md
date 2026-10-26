@@ -101,10 +101,10 @@ manifest の検証で強制する。
 | --- | --- | --- |
 | S0 | 計画、データ準備スクリプト、TS の土台（かな→音素、フレーム、manifest、ORT の遅延読込） | このPR |
 | S1 | CPU だけで「`lyric` 付き楽譜 → ONNX → WAV」を一周（仮モデル `tiny-placeholder`、下記 6.1） | 済（このPR） |
-| S2 | 事前学習（Common Voice + つくよみ）、アライナー選定 | |
+| S2 | 事前学習（Common Voice + つくよみ）、アライナー選定 | 学習経路のみ済（6.2）。データ・アライナーは未着手 |
 | S3 | 自前収録（同意書）と微調整、最初の公開モデル（CC0 または MIT） | |
 | S4 | `render()` への統合、スキーマ、モデルのダウンロード、`instruments` 表示 | |
-| S4b | 後処理チェーン（5章）：ライド、EQ＋自動ノッチ、アップワード・コンプ＋ゲート、M/S、既存リミッター／LUFS の流用、各段の単体テスト | |
+| S4b | 後処理チェーン（5章）：ライド、EQ＋自動ノッチ、アップワード・コンプ＋ゲート、M/S、既存リミッター／LUFS の流用、各段の単体テスト | 済（6.3） |
 | S5 | ブラウザ版（onnxruntime-web）、LLM 評価に歌詞入りの課題を追加 | |
 
 ### 6.1 S1 の実装（仮モデルで一周）
@@ -123,3 +123,17 @@ manifest の検証で強制する。
 - 歌い手（自分か協力者か）と歌唱データの量。
 - 後処理チェーンを singer 専用にするか、他の楽器やマスターでも選べる共通の段にするか。LUFS 目標（-14 / -16）の既定値と、マスターとの役割分担。
 - 規約の原文確認（Common Voice / Mozilla Data Collective、つくよみちゃん）。法的助言ではない。
+
+### 6.2 S2 の学習経路（PyTorch）
+
+- `training/singing/train_torch.py`：dilated Conv1d 残差ブロック（GroupNorm＋GELU）の音響モデル。デバイスは cuda > mps > cpu を自動選択。主に MacBook Pro（MPS）、重い学習は DGX Spark（CUDA）。
+- ONNX（opset 17、frames 可変）に書き出し、onnxruntime と PyTorch の差（< 1e-3）を確認してからマニフェストを書く。既存ランタイム・ボコーダーはそのまま使える。
+- `to_envelope_dataset.py`：wav＋.lab＋.f0.npy → 学習ペア。
+- 検証：CPU で `--tiny`（約 6 秒）→ `sing-demo.ts` で描画まで通した。MPS・DGX Spark 上では未検証。
+- 残り：商用可の実録音データ（Common Voice は `MDC_API_KEY` 待ち）とアライナー。
+
+### 6.3 S4b の後処理チェーン
+
+- `src/singer/post.ts` の `vocalChain`（決定的、オプトイン：`singTrack({ post: true })`、`sing-demo.ts --post`）。
+- 段：ライド（-20 dB 目標、+6／-9 dB、ノイズ床・無声区間はブーストしない）→ 90 Hz HPF＋自動ノッチ（最大 6 dB、Q 8）＋10 kHz エア → アップワード・コンプ（-35 dB、2:1、最大 6 dB、ゲート付き）→ M/S（200 Hz 以下のサイドを削り幅 1.5 まで）→ 単体出力時のみ LUFS（下げるだけ）＋既存リミッター。
+- テスト：`tests/singer-post.test.ts`。

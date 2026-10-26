@@ -127,6 +127,17 @@ describe("renderWithSinger", () => {
     expect({ ...sung.timing, audibleUntil: 0 }).toEqual({ ...render(score).timing, audibleUntil: 0 });
   });
 
+  it("runs the optional vocal chain when asked", async () => {
+    const cacheDir = await installFake();
+    const { singTrack } = await import("../src/singer/index.ts");
+    const plain = await singTrack(score, { track: 0, model: "fake", cacheDir, loadRuntime: fakeRuntime({}) });
+    const post = await singTrack(score, { track: 0, model: "fake", cacheDir, loadRuntime: fakeRuntime({}), post: true });
+    expect(plain.post).toBeUndefined();
+    expect(post.post?.ride).toBeDefined();
+    expect(post.pcm.every(Number.isFinite)).toBe(true);
+    expect(post.pcm).not.toEqual(plain.pcm);
+  });
+
   it("render() skips a prerendered track's instrument", () => {
     const silent = render(score, { prerendered: new Map([[0, new Float32Array(0)]]) });
     expect(silent.audio[0].every((s) => s === 0)).toBe(true);

@@ -1,5 +1,5 @@
 // S1 demo: one score with `lyric`s, sung by an installed singer model, written as a WAV.
-//   node scripts/sing-demo.ts [out.wav] [model]
+//   node scripts/sing-demo.ts [out.wav] [model] [--post]
 // The model is not in the repo: make the placeholder with training/singing/tiny_placeholder.py.
 import { writeFile } from "node:fs/promises";
 import { parseScore } from "../src/score.ts";
@@ -38,6 +38,6 @@ const score = parseScore({
   ],
 });
 const out = process.argv[2] ?? "out/singer-demo.wav";
-const result = await renderWithSinger(score, { track: 0, model: process.argv[3] ?? "tiny-placeholder" });
+const result = await renderWithSinger(score, { track: 0, model: process.argv[3] ?? "tiny-placeholder", post: process.argv.includes("--post") });
 await writeFile(out, toWav(result.audio, result.sampleRate, 16));
 console.log(`${out}: ${result.timing.duration ?? ""}s, ${JSON.stringify(result.stats)}`);

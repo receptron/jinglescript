@@ -10,6 +10,7 @@ import type { Score } from "../score.ts";
 import { notesToFrames } from "./frames.ts";
 import { loadOnnxRuntime, readSingerManifest, singerFolder, type OnnxRuntime, type SingerManifest } from "./model.ts";
 import type { SingerFrames, SingerNote } from "./types.ts";
+import { vocalChain, type VocalChainOptions, type VocalChainStats } from "./post.ts";
 import { synthesizeEnvelope } from "./vocoder.ts";
 
 export interface SingOptions {
@@ -20,6 +21,8 @@ export interface SingOptions {
   cacheDir?: string;
   /** Replaces the onnxruntime-node import (tests). */
   loadRuntime?: () => Promise<unknown>;
+  /** The optional vocal chain (post.ts): true for its defaults. Off unless asked for. */
+  post?: boolean | VocalChainOptions;
 }
 
 /** The sung notes of one track: onset to onset + hold, first pitch, the lyric ("" when none). */
@@ -75,7 +78,11 @@ async function acousticEnvelope(runtime: OnnxRuntime, manifest: SingerManifest, 
 }
 
 /** Mono PCM of the track sung by the model, at the model's sample rate, from time 0. */
-export async function singTrack(score: Score, options: SingOptions, seed = score.seed): Promise<{ pcm: Float32Array; sampleRate: number }> {
+export async function singTrack(
+  score: Score,
+  options: SingOptions,
+  seed = score.seed,
+): Promise<{ pcm: Float32Array; sampleRate: number; post?: VocalChainStats }> {
   const manifest = await readSingerManifest(options.model, options.cacheDir);
   if (manifest.files.vocoder !== undefined || manifest.envelope === undefined)
     throw new Error(`${manifest.name}: only envelope models with the built-in vocoder are supported yet`);
@@ -87,7 +94,11 @@ export async function singTrack(score: Score, options: SingOptions, seed = score
   const folder = singerFolder(options.model, options.cacheDir);
   const env = await acousticEnvelope(runtime, manifest, folder, singerFeatures(frames, manifest.phonemes), count);
   const format = { sampleRate: manifest.sampleRate, hopSize: manifest.hopSize, bands: manifest.melBins, ...manifest.envelope };
-  return { pcm: synthesizeEnvelope(env, frames.f0, format, streamRng(seed, "singer", options.track)), sampleRate: manifest.sampleRate };
+  const sung = synthesizeEnvelope(env, frames.f0, format, streamRng(seed, "singer", options.track));
+  if (options.post === undefined || options.post === false) return { pcm: sung, sampleRate: manifest.sampleRate };
+  const voicing = { voiced: Uint8Array.from(frames.f0, (hz) => (hz > 0 ? 1 : 0)), hop: manifest.hopSize };
+  const chain = vocalChain(sung, manifest.sampleRate, { voicing, ...(options.post === true ? {} : options.post) });
+  return { pcm: chain.pcm, sampleRate: manifest.sampleRate, post: chain.stats };
 }
 
 /** render(), with one track sung by a singer model. The model's sample rate must be the render's. */

@@ -1524,6 +1524,6 @@ Decided:
   note names from the user or a page), otherwise say so and ask or offer an original; for a new
   melody, plan phrases, a motif and its variations, steps and leaps, mixed rhythm, chords first,
   word accents, range; how to sing with `sing`; an original sung example (rendered with NEUTRINO
-  REINA: −14.0 LUFS, −1.7 dBTP; not yet heard by the user). Lyrics: melody first, words onto its
+  REINA: −14.0 LUFS, −1.7 dBTP; the user: it is a song). Lyrics: melody first, words onto its
   notes. The early-sung-note hint also adds a beat of `pickup`, so the bars stay put. A test
   checks every whole-score example in the guide. The eval still does not judge melodies.

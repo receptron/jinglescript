@@ -15,3 +15,5 @@ package-lock.json
 __pycache__/
 # local MulmoTerminal agent config (machine-specific paths)
 .agents/
+# local settings (NEUTRINO_DIR); .env.example is the template
+.env

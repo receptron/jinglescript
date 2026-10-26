@@ -3,19 +3,19 @@
 // of NEUTRINO is bundled or downloaded here (its EULA forbids redistribution); its output is
 // subject to NEUTRINO's EULA and the voice library's terms (no AI training / voice conversion).
 // The NEUTRINO folder is only read: labels, f0, mel and wav are written to a work dir in the cache.
-import { execFile } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, statSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { homedir, cpus } from "node:os";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpus } from "node:os";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
 import * as dmath from "../dsp/math.ts";
 import { resample } from "../dsp/resample.ts";
-import { DEFAULT_SAMPLE_RATE, render, type RenderOptions, type RenderResult } from "../render.ts";
+import { pitchToMidi } from "../pitch.ts";
+import { DEFAULT_SAMPLE_RATE, expandOrThrow, render, setSinger, type RenderOptions } from "../render.ts";
 import { defaultCacheDir } from "../samples/load.ts";
 import { decodeWavMono } from "../samples/wav-read.ts";
 import type { Score } from "../score.ts";
-import { singerNotes, renderWithSinger } from "./sing.ts";
 import { toHiragana } from "./kana.ts";
 import type { SingerNote } from "./types.ts";
 
@@ -39,35 +39,51 @@ export interface NeutrinoInstall {
 }
 
 export class NeutrinoMissingError extends Error {
-  constructor(tried: readonly string[]) {
+  readonly dir: string;
+  constructor(dir: string) {
     super(
-      `NEUTRINO is not installed. Download it yourself from https://studio-neutrino.com/downloads/ (accept its EULA), unzip it, and put the NEUTRINO folder in /Applications or set NEUTRINO_DIR. Looked in: ${tried.join(", ")}`,
+      `NEUTRINO was not found at ${dir} (it needs bin/neutrino, bin/musicXMLtoLabel and model/). Download it yourself from https://studio-neutrino.com/downloads/ (accept its EULA) and unzip it to ${DEFAULT_NEUTRINO_DIR}, or set its folder with NEUTRINO_DIR=/path/to/NEUTRINO in a .env file in the project directory (or in the environment).`,
     );
     this.name = "NeutrinoMissingError";
+    this.dir = dir;
   }
 }
 
-export class NeutrinoVoiceError extends Error {
-  constructor(voice: string, voices: readonly string[]) {
-    super(`NEUTRINO has no voice "${voice}". Installed: ${voices.join(", ") || "(none)"}`);
-    this.name = "NeutrinoVoiceError";
+export class NeutrinoVoiceMissingError extends Error {
+  readonly voice: string;
+  readonly installed: readonly string[];
+  constructor(voice: string, installed: readonly string[], dir: string) {
+    super(
+      `The NEUTRINO voice "${voice}" is not installed in ${join(dir, "model")}. Installed: ${installed.join(", ") || "(none)"}. Set "voice" in the track's "sing" to one of them, or add the voice library to NEUTRINO's model folder.`,
+    );
+    this.name = "NeutrinoVoiceMissingError";
+    this.voice = voice;
+    this.installed = installed;
   }
 }
 
-/** Where to look, in order: NEUTRINO_DIR, /Applications/NEUTRINO, <cache>/neutrino. */
-export function neutrinoCandidates(env: NodeJS.ProcessEnv = process.env, home = homedir()): string[] {
-  const cache = env.JINGLESCRIPT_CACHE ?? join(env.XDG_CACHE_HOME || join(home, ".cache"), "jinglescript");
-  return [...(env.NEUTRINO_DIR ? [env.NEUTRINO_DIR] : []), "/Applications/NEUTRINO", join(cache, "neutrino")];
+/** The voice used when a score names none. */
+export const DEFAULT_NEUTRINO_VOICE = "REINA";
+
+export const DEFAULT_NEUTRINO_DIR = "/Applications/NEUTRINO";
+
+/**
+ * The NEUTRINO folder: NEUTRINO_DIR from the environment, else from `envFile` (.env in the current
+ * directory), else DEFAULT_NEUTRINO_DIR. The .env file is only read, never loaded into process.env.
+ */
+export function neutrinoDir(env: NodeJS.ProcessEnv = process.env, envFile = join(process.cwd(), ".env")): string {
+  if (env.NEUTRINO_DIR) return env.NEUTRINO_DIR;
+  const fromFile = existsSync(envFile) ? parseEnv(readFileSync(envFile, "utf8")).NEUTRINO_DIR : undefined;
+  return fromFile || DEFAULT_NEUTRINO_DIR;
 }
 
 function isInstall(dir: string): boolean {
   return existsSync(join(dir, "bin", "neutrino")) && existsSync(join(dir, "bin", "musicXMLtoLabel")) && existsSync(join(dir, "model"));
 }
 
-/** The first NEUTRINO install found, or undefined. */
-export function findNeutrino(candidates: readonly string[] = neutrinoCandidates()): NeutrinoInstall | undefined {
-  const dir = candidates.find(isInstall);
-  if (dir === undefined) return undefined;
+/** The NEUTRINO install in `dir`, or undefined when it is not one. */
+export function findNeutrino(dir: string = neutrinoDir()): NeutrinoInstall | undefined {
+  if (!isInstall(dir)) return undefined;
   const voices = readdirSync(join(dir, "model"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && existsSync(join(dir, "model", entry.name, "info.toml")))
     .map((entry) => entry.name)
@@ -83,7 +99,7 @@ export function findNeutrino(candidates: readonly string[] = neutrinoCandidates(
 /** The install's folder name for a voice given case-insensitively ("reina" → "REINA"). */
 export function resolveVoice(install: NeutrinoInstall, voice: string): string {
   const found = install.voices.find((name) => name.toLowerCase() === voice.toLowerCase());
-  if (found === undefined) throw new NeutrinoVoiceError(voice, install.voices);
+  if (found === undefined) throw new NeutrinoVoiceMissingError(voice, install.voices, install.dir);
   return found;
 }
 
@@ -201,10 +217,9 @@ function noteXml(piece: Piece): string {
   return `<note><pitch><step>${STEPS[pc]}</step>${alter}<octave>${octave}</octave></pitch><duration>${piece.dur}</duration>${tieXml}<voice>1</voice>${tied}${lyric}</note>`;
 }
 
-export interface NeutrinoOptions {
-  /** Index of the track to sing (its notes' `lyric`s, in kana, are the words). */
-  track: number;
-  /** A voice under model/ ("reina", "merrow", …; case-insensitive). Default "REINA" when installed, else the first. */
+/** How a sung track is rendered; voice and level come from the score's `sing`, the rest from configureNeutrino (tests). */
+interface NeutrinoOptions {
+  /** A voice under model/ ("reina", "merrow", …; case-insensitive). Default DEFAULT_NEUTRINO_VOICE (REINA); NeutrinoVoiceMissingError when not installed. */
   voice?: string;
   /** Semitones to render the whole part up (NEUTRINO -f). */
   transpose?: number;
@@ -212,14 +227,11 @@ export interface NeutrinoOptions {
   styleShift?: number;
   /** CPU threads (NEUTRINO -n); default: all cores. */
   threads?: number;
-  /** NEUTRINO folders to try (default: neutrinoCandidates()). */
-  candidates?: readonly string[];
+  /** The NEUTRINO folder (default: neutrinoDir(): NEUTRINO_DIR from the environment or .env, else /Applications/NEUTRINO). */
+  dir?: string;
   cacheDir?: string;
-  /** Built-in singer model to use, with a warning, when NEUTRINO is not installed; none: throw. */
-  fallbackModel?: string;
   /** Replaces child_process.execFile (tests). */
   exec?: NeutrinoExec;
-  warn?: (message: string) => void;
   /**
    * Loudness of the vocal over the rest of the mix, LU (default VOCAL_LEVEL_DB), measured after the
    * tracks' gain, velocity and reverb; the sung track's `gain` then shifts it. null: NEUTRINO's own level.
@@ -231,15 +243,17 @@ export interface NeutrinoOptions {
 export const VOCAL_LEVEL_DB = 4;
 
 /** Runs a NEUTRINO tool; `cwd` is the install (musicXMLtoLabel reads settings/dic relative to it). */
-export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => Promise<void>;
+export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => void;
 
-const defaultExec: NeutrinoExec = (file, args, env, cwd) =>
-  new Promise((resolve, reject) => {
-    execFile(file, [...args], { env, cwd, maxBuffer: 64 * 1024 * 1024 }, (error, _stdout, stderr) => {
-      if (error) reject(new Error(`${file} failed: ${error.message}\n${String(stderr).slice(-2000)}`));
-      else resolve();
-    });
-  });
+const defaultExec: NeutrinoExec = (file, args, env, cwd) => {
+  try {
+    execFileSync(file, [...args], { env, cwd, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "ignore", "pipe"] });
+  } catch (error) {
+    const stderr = error instanceof Error && "stderr" in error && error.stderr instanceof Buffer ? error.stderr.toString() : "";
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`${file} failed: ${message}\n${stderr.slice(-2000)}`, { cause: error });
+  }
+};
 
 /** The render cache key: the MusicXML, the voice, the options that change the sound, and the install's version. */
 export function neutrinoCacheKey(xml: string, voice: string, options: Pick<NeutrinoOptions, "transpose" | "styleShift">, version: string): string {
@@ -249,13 +263,13 @@ export function neutrinoCacheKey(xml: string, voice: string, options: Pick<Neutr
 }
 
 /** NEUTRINO's 48 kHz WAV for a MusicXML, from the cache or by running musicXMLtoLabel and neutrino. */
-async function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, options: NeutrinoOptions): Promise<{ wav: Uint8Array; cached: boolean }> {
+function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, options: NeutrinoOptions): { wav: Uint8Array; cached: boolean } {
   const root = join(options.cacheDir ?? defaultCacheDir(), "neutrino-renders");
   const key = neutrinoCacheKey(xml, voice, options, install.version);
   const file = join(root, `${key}.wav`);
-  if (existsSync(file)) return { wav: await readFile(file), cached: true };
-  await mkdir(root, { recursive: true });
-  const work = await mkdtemp(join(root, "work-"));
+  if (existsSync(file)) return { wav: readFileSync(file), cached: true };
+  mkdirSync(root, { recursive: true });
+  const work = mkdtempSync(join(root, "work-"));
   try {
     const exec = options.exec ?? defaultExec;
     const bin = join(install.dir, "bin");
@@ -265,10 +279,10 @@ async function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string,
       LD_LIBRARY_PATH: [bin, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":"),
     };
     const p = (name: string): string => join(work, name);
-    await writeFile(p("score.musicxml"), xml);
-    await exec(join(bin, "musicXMLtoLabel"), [p("score.musicxml"), p("full.lab"), p("mono.lab")], env, install.dir);
+    writeFileSync(p("score.musicxml"), xml);
+    exec(join(bin, "musicXMLtoLabel"), [p("score.musicxml"), p("full.lab"), p("mono.lab")], env, install.dir);
     const threads = options.threads ?? Math.max(1, cpus().length);
-    await exec(
+    exec(
       join(bin, "neutrino"),
       [
         p("full.lab"),
@@ -291,11 +305,11 @@ async function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string,
       env,
       install.dir,
     );
-    const wav = await readFile(p("out.wav"));
-    await writeFile(file, wav);
+    const wav = readFileSync(p("out.wav"));
+    writeFileSync(file, wav);
     return { wav, cached: false };
   } finally {
-    if (!process.env.NEUTRINO_KEEP_WORK) await rm(work, { recursive: true, force: true });
+    if (!process.env.NEUTRINO_KEEP_WORK) rmSync(work, { recursive: true, force: true });
   }
 }
 
@@ -308,39 +322,55 @@ export function alignNeutrinoPcm(data: Float32Array, rate: number, sampleRate: n
   return resample(body, step, 0.5 / Math.max(1, step), Math.round((body.length * sampleRate) / rate));
 }
 
-/** Mono PCM of the track sung by NEUTRINO at `sampleRate`, from time 0. */
-export async function singTrackNeutrino(
+/** The sung notes of one track: onset to onset + hold, first pitch, the lyric ("" when none). */
+export function singerNotes(score: Score, track: number): SingerNote[] {
+  const notes: SingerNote[] = [];
+  for (const event of expandOrThrow(score).events) {
+    if (event.track !== track || event.repeat !== 0) continue;
+    const midi = pitchToMidi(event.pitches[0] ?? "");
+    if (midi === undefined) continue;
+    const end = event.seconds + (Number.isFinite(event.hold) ? event.hold : 0.5);
+    notes.push({ start: event.seconds, end, midi: midi + event.detune / 100, lyric: event.lyric ?? "" });
+  }
+  return notes.sort((a, b) => a.start - b.start);
+}
+
+/** Mono PCM of `track` sung by NEUTRINO at `sampleRate`, from time 0. */
+export function singTrack(
   score: Score,
-  options: NeutrinoOptions,
+  track: number,
+  options: NeutrinoOptions = {},
   sampleRate = DEFAULT_SAMPLE_RATE,
-): Promise<{ pcm: Float32Array; sampleRate: number; voice: string; cached: boolean }> {
-  const install = findNeutrino(options.candidates ?? neutrinoCandidates());
-  if (install === undefined) throw new NeutrinoMissingError(options.candidates ?? neutrinoCandidates());
-  const voice = resolveVoice(install, options.voice ?? (install.voices.includes("REINA") ? "REINA" : (install.voices[0] ?? "REINA")));
-  const notes = singerNotes(score, options.track);
-  const xml = neutrinoMusicXml(notes);
-  const { wav, cached } = await neutrinoWav(install, voice, xml, options);
+): { pcm: Float32Array; sampleRate: number; voice: string; cached: boolean } {
+  const dir = options.dir ?? neutrinoDir();
+  const install = findNeutrino(dir);
+  if (install === undefined) throw new NeutrinoMissingError(dir);
+  const voice = resolveVoice(install, options.voice ?? score.tracks[track]?.sing?.voice ?? DEFAULT_NEUTRINO_VOICE);
+  const xml = neutrinoMusicXml(singerNotes(score, track));
+  const { wav, cached } = neutrinoWav(install, voice, xml, options);
   const decoded = decodeWavMono(wav);
   return { pcm: alignNeutrinoPcm(decoded.data, decoded.sampleRate, sampleRate), sampleRate, voice, cached };
 }
 
-/**
- * render(), with one track sung by the user's NEUTRINO. Without NEUTRINO it warns and sings with
- * `fallbackModel` (the built-in singer) when given, else throws NeutrinoMissingError.
- */
-export async function renderWithNeutrino(score: Score, sing: NeutrinoOptions, options: RenderOptions = {}): Promise<RenderResult> {
+let configured: NeutrinoOptions = {};
+/** Internal (tests): overrides for the NEUTRINO folder, cache, exec and level. Not part of the public API. */
+export function configureNeutrino(options: NeutrinoOptions): void {
+  configured = options;
+}
+
+/** The sung track's vocal for render(): NEUTRINO's PCM scaled to the score's `sing.level` (default VOCAL_LEVEL_DB). */
+function neutrinoSinger(score: Score, options: RenderOptions, track: number): Float32Array {
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
-  const candidates = sing.candidates ?? neutrinoCandidates();
-  if (findNeutrino(candidates) === undefined) {
-    if (sing.fallbackModel === undefined) throw new NeutrinoMissingError(candidates);
-    (sing.warn ?? console.warn)(`NEUTRINO not found; singing track ${sing.track} with the built-in model "${sing.fallbackModel}".`);
-    return renderWithSinger(score, { track: sing.track, model: sing.fallbackModel, cacheDir: sing.cacheDir }, options);
-  }
-  const { pcm } = await singTrackNeutrino(score, { ...sing, candidates }, sampleRate);
-  const level = sing.vocalLevel === undefined ? VOCAL_LEVEL_DB : sing.vocalLevel;
-  const gainDb = level === null ? 0 : vocalGainDb(score, sing.track, pcm, { ...options, sampleRate }, level);
-  const gain = dmath.dbToGain(gainDb);
-  return render(score, { ...options, sampleRate, prerendered: new Map([[sing.track, pcm.map((v) => v * gain)]]) });
+  const { pcm } = singTrack(score, track, configured, sampleRate);
+  const level = configured.vocalLevel === undefined ? (score.tracks[track]?.sing?.level ?? VOCAL_LEVEL_DB) : configured.vocalLevel;
+  const gain = dmath.dbToGain(level === null ? 0 : vocalGainDb(score, track, pcm, { ...options, sampleRate }, level));
+  return pcm.map((v) => v * gain);
+}
+
+setSinger(neutrinoSinger);
+/** Internal (tests): registers NEUTRINO with render() again after setSinger(undefined). */
+export function reinstallNeutrino(): void {
+  setSinger(neutrinoSinger);
 }
 
 /** Pre-master loudness of a render (its loudness less the master's gain), LUFS. */

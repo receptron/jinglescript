@@ -1,6 +1,9 @@
 // JingleScript library for Node: a score → audio + timing map, and the API for LLMs. The browser
 // entry (browser.ts) shares everything in core.ts; what is added here needs Node (files, ffmpeg).
 export * from "./core.ts";
+// Registers NEUTRINO as render()'s singer for tracks with `sing` (a score feature, not an API).
+import "./singer/neutrino.ts";
+export { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 export { loadSamples, defaultCacheDir } from "./samples/load.ts";
 export type { LoadSamplesOptions } from "./samples/load.ts";
 export { renderToFiles } from "./output.ts";

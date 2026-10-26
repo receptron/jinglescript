@@ -72,6 +72,8 @@ describe("jinglescript/browser", () => {
       "MANAGE_DESCRIPTION",
       "AUDIO_FORMATS",
       "FfmpegMissingError",
+      "NeutrinoMissingError",
+      "NeutrinoVoiceMissingError",
     ];
     const browserOnly = ["DEFAULT_SFX_BASE_URL", "DEFAULT_CACHE_NAME"];
     expect(Object.keys(browser).sort()).toEqual([...Object.keys(node).filter((name) => !nodeOnly.includes(name)), ...browserOnly].sort());

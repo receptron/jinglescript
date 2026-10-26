@@ -3,6 +3,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { render, type RenderOptions, type RenderResult } from "./render.ts";
+import "./singer/neutrino.ts";
 import type { Score } from "./score.ts";
 import type { AudioFormat } from "./audio-format.ts";
 import { encodeAudio } from "./encode.ts";
@@ -25,7 +26,7 @@ export interface FileOptions extends RenderOptions {
   onDownload?: (file: string, bytes: number) => void;
 }
 
-/** Renders `score` (loading the samples it plays, unless `options.samples` is given) and writes `<dir>/<stem>.<format>` and `<dir>/<stem>.timing.json`. */
+/** Renders `score` (a track with `sing` through NEUTRINO; loading the samples it plays, unless `options.samples` is given) and writes `<dir>/<stem>.<format>` and `<dir>/<stem>.timing.json`. */
 export async function renderToFiles(score: Score, dir: string, stem: string, options: FileOptions = {}): Promise<RenderedFiles> {
   const samples = options.samples ?? (await loadSamples(score, { seed: options.seed, onDownload: options.onDownload }));
   const result = render(score, { ...options, samples });

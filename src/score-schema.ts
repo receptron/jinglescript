@@ -146,6 +146,21 @@ export const PedalSchema = z
   })
   .describe("One stretch of sustain pedal.");
 
+export const SingSchema = z
+  .strictObject({
+    engine: z
+      .literal("neutrino")
+      .describe('The singing synthesizer: "neutrino" (installed by the user; NEUTRINO_DIR in .env, default /Applications/NEUTRINO).'),
+    voice: z.string().optional().describe('A NEUTRINO voice, e.g. "reina" or "merrow" (default REINA).'),
+    level: z
+      .number()
+      .min(-24)
+      .max(24)
+      .optional()
+      .describe("Vocal loudness over the other tracks, in LU (≈ dB). Default 4: the voice a little in front. The track's `gain` adds to it."),
+  })
+  .describe("Sing the track with NEUTRINO.");
+
 export const TrackSchema = z
   .strictObject({
     instrument: z
@@ -157,6 +172,9 @@ export const TrackSchema = z
     gain: z.number().min(-60).max(12).default(0).describe("Track level in dB (0 = as is, -6 = about half as loud)."),
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
+    sing: SingSchema.optional().describe(
+      "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score.",
+    ),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
     clef: z
       .enum(CLEFS)

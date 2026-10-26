@@ -1,12 +1,10 @@
-// かえるのうた sung by the user's own NEUTRINO install over a piano and bass, through render().
+// かえるのうた sung by the user's own NEUTRINO install over vibraphone chords: just a score with `sing` on a track, and render().
 //   node scripts/sing-neutrino-demo.ts [out.wav] [voice]
 // NEUTRINO is not bundled: install it yourself (https://studio-neutrino.com/downloads/).
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { parseScore } from "../src/score.ts";
-import { renderWithNeutrino } from "../src/singer/index.ts";
-import { toWav } from "../src/wav.ts";
+import { parseScore, render, toWav } from "../src/index.ts";
 
 const melody: [string, string, number][] = [
   ["C4", "か", 1],
@@ -71,12 +69,13 @@ const score = parseScore({
   meter: "4/4",
   length: { beats: at + 2 },
   tracks: [
-    { instrument: "organ", name: "voice", notes: voice },
+    { instrument: "organ", name: "voice", sing: { engine: "neutrino", voice: process.argv[3] ?? "reina", level: 4 }, notes: voice },
     { instrument: "vibraphone", name: "vibes", gain: 0.5, notes: chords.map(([t, pitch]) => ({ at: t + 1, pitch, len: 3.8 })) },
   ],
 });
-const out = process.argv[2] ?? join(homedir(), "Desktop", "neutrino_demo2.wav");
+if (process.env.PRINT_SCORE) console.log(JSON.stringify(score));
+const out = process.argv[2] ?? join(homedir(), "Desktop", "neutrino_demo3.wav");
 const started = performance.now();
-const result = await renderWithNeutrino(score, { track: 0, voice: process.argv[3] ?? "reina", fallbackModel: "tiny-placeholder" });
+const result = render(score);
 await writeFile(out, toWav(result.audio, result.sampleRate, 16));
 console.log(`${out}: ${((performance.now() - started) / 1000).toFixed(1)}s to render, ${JSON.stringify(result.stats)}`);

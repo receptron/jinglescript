@@ -960,6 +960,31 @@
             "description": "false keeps this track out of the reverb (dry, close effects such as clicks and ticks).",
             "type": "boolean"
           },
+          "sing": {
+            "description": "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score.",
+            "type": "object",
+            "properties": {
+              "engine": {
+                "type": "string",
+                "const": "neutrino",
+                "description": "The singing synthesizer: \"neutrino\" (installed by the user; NEUTRINO_DIR in .env, default /Applications/NEUTRINO)."
+              },
+              "voice": {
+                "description": "A NEUTRINO voice, e.g. \"reina\" or \"merrow\" (default REINA).",
+                "type": "string"
+              },
+              "level": {
+                "description": "Vocal loudness over the other tracks, in LU (≈ dB). Default 4: the voice a little in front. The track's `gain` adds to it.",
+                "type": "number",
+                "minimum": -24,
+                "maximum": 24
+              }
+            },
+            "required": [
+              "engine"
+            ],
+            "additionalProperties": false
+          },
           "notes": {
             "minItems": 1,
             "type": "array",

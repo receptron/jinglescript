@@ -6,7 +6,7 @@ Python scripts that prepare training data for the singer instrument (see
 
 | Step | Script | Notes |
 | --- | --- | --- |
-| 1 | `fetch_common_voice.py` | Mozilla Common Voice ja (CC0). Uses a dataset archive you downloaded yourself, or the Mozilla Data Collective API with **your own** key (`MDC_API_KEY`). Never re-host the audio; never try to identify speakers. |
+| 1 | `fetch_common_voice.py` | Mozilla Common Voice ja (CC0). Uses a dataset archive you downloaded yourself, or the official Mozilla Data Collective SDK (`datacollective`) with **your own** key (`MDC_API_KEY`); see the Japanese section below. Never re-host the audio; never try to identify speakers. |
 | 2 | `fetch_tsukuyomi.md` | Manual download (terms require agreeing on the site). Pretraining only — the released model must not be able to speak in her voice. |
 | 3 | `ita_recording_list.py` + `consent_template.md` | Own recordings of the ITA corpus script (public domain), with written consent for AI training and redistribution. |
 | 4 | `preprocess.py` | Resample to 44.1 kHz mono, loudness-normalize, mel extraction (VocaTab-compatible: 128 bins, hop 256, n_fft 2048), alignment hook. |
@@ -59,3 +59,19 @@ node scripts/sing-demo.ts out.wav my-singer --post
 ```
 
 `--post`（API では `post: true`）で §5 のボーカルチェーン（`src/singer/post.ts`）を通します。
+
+## Common Voice の取得（Mozilla Data Collective の API キー）
+
+1. https://mozilladatacollective.com でアカウントを作成する。
+2. https://mozilladatacollective.com/profile/credentials で API キーを発行する。
+3. キーを環境変数か `.env` に置く：`MDC_API_KEY=...`（`.env` はコミットしない）。
+4. Web 上で Common Voice 日本語データセットのページを開き、**利用規約に同意する**（同意しないと API は 403 を返す）。
+5. 同じページの「Connect API」からデータセットの ID かスラッグをコピーする。
+6. 実行：
+
+```sh
+pip install -r training/singing/requirements-train.txt   # datacollective SDK を含む
+python training/singing/fetch_common_voice.py --dataset <ID またはスラッグ>
+```
+
+スクリプトはまずデータセットのライセンスを確認し、CC0 以外なら中止します。SDK の内部では `POST https://mozilladatacollective.com/api/datasets/{id}/download`（`Authorization: Bearer <キー>`）が署名付き URL を返し、そこからダウンロードします。**ダウンロードは 1 日 30 回まで**です。CC0 でも生の音声を再配布（リホスト）せず、話者の特定も試みないこと。出力は `data/` 以下にとどめ、公開するのは学習済みの重みだけです。テストはモックで行います：`python training/singing/test_fetch_common_voice.py`

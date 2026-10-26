@@ -10,38 +10,22 @@ export const DEFERRED_KEEP_MS = 30 * 60_000;
 /** What a view gets for a deferred render: the PlayerData with its audio, why it failed, or nothing to give. */
 export type DeferredOutcome = { kind: "ready"; player: PlayerData } | { kind: "failed"; message: string } | { kind: "gone" };
 
-interface Entry {
-  outcome: Promise<DeferredOutcome>;
-  /** When it may be dropped: DEFERRED_KEEP_MS after it settled (Infinity while it runs). */
-  expires: number;
-}
-
-const entries = new Map<string, Entry>();
-
-function dropExpired(now: number): void {
-  for (const [id, entry] of entries) if (entry.expires <= now) entries.delete(id);
-}
+const entries = new Map<string, Promise<DeferredOutcome>>();
 
 /** Keeps `player` (still rendering) under a new id, and returns the id. */
 export function deferRender(player: Promise<PlayerData>): string {
-  dropExpired(Date.now());
   const id = crypto.randomUUID();
-  const entry: Entry = {
-    outcome: player.then(
-      (done): DeferredOutcome => ({ kind: "ready", player: done }),
-      (error: unknown): DeferredOutcome => ({ kind: "failed", message: error instanceof Error ? error.message : String(error) }),
-    ),
-    expires: Infinity,
-  };
-  void entry.outcome.then(() => {
-    entry.expires = Date.now() + DEFERRED_KEEP_MS;
-  });
-  entries.set(id, entry);
+  const outcome = player.then(
+    (done): DeferredOutcome => ({ kind: "ready", player: done }),
+    (error: unknown): DeferredOutcome => ({ kind: "failed", message: error instanceof Error ? error.message : String(error) }),
+  );
+  entries.set(id, outcome);
+  // Dropped DEFERRED_KEEP_MS after it settles, whatever else happens; unref'd, so it never keeps the process alive.
+  void outcome.then(() => setTimeout(() => entries.delete(id), DEFERRED_KEEP_MS).unref());
   return id;
 }
 
 /** Waits for the deferred render `id` and gives its outcome; "gone" when there is no such render (any more). */
 export function awaitDeferredPlayer(id: string): Promise<DeferredOutcome> {
-  dropExpired(Date.now());
-  return entries.get(id)?.outcome ?? Promise.resolve({ kind: "gone" });
+  return entries.get(id) ?? Promise.resolve({ kind: "gone" });
 }

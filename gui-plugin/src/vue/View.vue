@@ -53,6 +53,8 @@ let voice: VoiceState = { voiced: false, speaking: false, answered: false, shown
 /** Playing, or waiting to play, by itself: it yields to the voice. A click hands control to the user. */
 let automatic = false;
 let quietTimer: ReturnType<typeof setTimeout> | undefined;
+/** Unmounted: a reply that arrives later is left to whichever mount shows the card now. */
+let disposed = false;
 
 const WAVE_HEIGHT = 140;
 const LANE_HEIGHT = 18;
@@ -164,8 +166,8 @@ async function collect(): Promise<void> {
   } catch (error) {
     reply = { outcome: "failed", message: `The audio could not be fetched: ${error instanceof Error ? error.message : String(error)}` };
   }
-  // Shown again meanwhile with another result, or the audio came another way (another mount saved it).
-  if (props.selectedResult.uuid !== uuid || data.value?.pending !== id) return;
+  // Gone, shown again meanwhile with another result, or the audio came another way (another mount saved it).
+  if (disposed || props.selectedResult.uuid !== uuid || data.value?.pending !== id) return;
   if (reply?.outcome !== "ready") {
     fail(reply?.message ?? "The server answered something the player does not understand.");
     return;
@@ -173,7 +175,7 @@ async function collect(): Promise<void> {
   collected.value = reply.data;
   props.onUpdateResult?.({ ...props.selectedResult, data: reply.data, viewState: { ...props.selectedResult.viewState, ...memory.value } });
   await nextTick(); // the audio element has its source
-  autoplay();
+  if (!disposed) autoplay();
 }
 
 /** No audio after all: shown in the card, and told to the LLM once when it expected it to play. */
@@ -260,6 +262,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  disposed = true;
   cancelAnimationFrame(frame);
   clearTimeout(quietTimer);
 });

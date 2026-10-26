@@ -1,0 +1,7 @@
+# S2 training (train_torch.py). Mac (Apple Silicon): the default PyPI wheel includes MPS.
+# DGX Spark (CUDA, aarch64): install torch from NVIDIA's / PyTorch's CUDA index instead (see README).
+-r requirements.txt
+torch>=2.4
+onnx>=1.16
+onnxruntime>=1.18
+datacollective>=0.7  # Mozilla Data Collective SDK (fetch_common_voice.py --dataset)

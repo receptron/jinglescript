@@ -20,6 +20,11 @@ export interface RenderOptions {
   seed?: number;
   /** Recorded samples for sampled instruments (grandpiano), from `await loadSamples(score)`. */
   samples?: SampleSource;
+  /**
+   * Tracks already rendered elsewhere (the singer, which runs an ONNX model and so is async): mono
+   * PCM at `sampleRate` from time 0, mixed in place of the track's own instrument, before mastering.
+   */
+  prerendered?: ReadonlyMap<number, Float32Array>;
 }
 
 export interface RenderResult {
@@ -143,6 +148,51 @@ function mixEvent(voices: Voice[], event: NoteEvent, mix: [Float32Array, Float32
   }
 }
 
+/** Ramp between two notes' gains and pans on a prerendered track, in seconds (avoids clicks). */
+const PRERENDERED_RAMP = 0.005;
+/**
+ * The score's default velocity: a prerendered note at it plays at unit gain, so 1.0 is 1.25× and
+ * 0.4 is 0.5×. Instruments instead scale with velocity against 1 (a default note plays at 0.8×).
+ * The reference differs on purpose: a singer model is levelled for a normally sung note, so
+ * the default velocity should leave its output as rendered.
+ */
+const PRERENDERED_NORMAL_VEL = 0.8;
+
+/**
+ * Mixes a prerendered mono track (a singer) with the same semantics as mixEvent: from each note's
+ * onset to the next one's, its gainDb (track volume), its pan, and its velocity (dynamics) apply;
+ * velocity scales amplitude relative to the normal 0.8.
+ * Gains move linearly over PRERENDERED_RAMP at each onset. Before the first note the first one's apply.
+ */
+function mixPrerendered(pcm: Float32Array, events: readonly NoteEvent[], mix: [Float32Array, Float32Array], sampleRate: number): void {
+  const n = Math.min(mix[0].length, pcm.length);
+  const sorted = [...events].sort((a, b) => a.seconds - b.seconds);
+  const gainsOf = (event: NoteEvent | undefined): [number, number] => {
+    if (event === undefined) return [Math.SQRT1_2, Math.SQRT1_2];
+    const gain = dmath.dbToGain(event.gainDb) * (event.vel / PRERENDERED_NORMAL_VEL);
+    const [l, r] = panGains(event.pan);
+    return [(l ?? 0) * gain, (r ?? 0) * gain];
+  };
+  const ramp = Math.max(1, secondsToSample(PRERENDERED_RAMP, sampleRate));
+  let [left, right] = gainsOf(sorted[0]);
+  let next = 1;
+  let from: [number, number] = [left, right];
+  let rampStart = -ramp;
+  for (let i = 0; i < n; i++) {
+    while (next < sorted.length && secondsToSample(sorted[next]?.seconds ?? 0, sampleRate) <= i) {
+      const t = Math.min(1, (i - rampStart) / ramp);
+      from = [from[0] + (left - from[0]) * t, from[1] + (right - from[1]) * t];
+      [left, right] = gainsOf(sorted[next]);
+      rampStart = i;
+      next++;
+    }
+    const t = Math.min(1, (i - rampStart) / ramp);
+    const s = pcm[i] ?? 0;
+    mix[0][i] = (mix[0][i] ?? 0) + s * (from[0] + (left - from[0]) * t);
+    mix[1][i] = (mix[1][i] ?? 0) + s * (from[1] + (right - from[1]) * t);
+  }
+}
+
 /** The score's events, or a JingleScriptError listing what keeps it from rendering. */
 export function expandOrThrow(score: Score): ReturnType<typeof expandScore> {
   const expanded = expandScore(score);
@@ -179,7 +229,7 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
   const cuts = damperCuts(expanded, sampleRate);
   expanded.events.forEach((event, index) => {
     const instrument = expanded.instruments.get(event.instrument);
-    if (instrument === undefined) return;
+    if (instrument === undefined || options.prerendered?.has(event.track)) return;
     const voices = synthesizeEvent(instrument, event, seed, sampleRate, options.samples ?? NO_SAMPLES);
     voices.forEach((voice, k) => {
       const cut = cuts.get(`${index}/${k}`);
@@ -187,6 +237,15 @@ export function render(score: Score, options: RenderOptions = {}): RenderResult 
     });
     mixEvent(voices, event, score.tracks[event.track]?.reverb === false ? dry : wet);
   });
+  for (const [track, pcm] of options.prerendered ?? []) {
+    const bus = score.tracks[track]?.reverb === false ? dry : wet;
+    mixPrerendered(
+      pcm,
+      expanded.events.filter((event) => event.track === track),
+      bus,
+      sampleRate,
+    );
+  }
   const { audio, stats } = master(wet, dry, {
     sampleRate,
     seed,

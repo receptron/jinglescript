@@ -65,7 +65,7 @@ const REQUIRED: Record<ManageAction, readonly ("instrument" | "score")[]> = {
 };
 
 export const MANAGE_DESCRIPTION =
-  "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`.";
+  "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`.";
 
 export const ManageInputSchema = z
   .object({

@@ -218,14 +218,17 @@ or the MCP action `getGuide`; it is generated from `src/guide.ts` (`npm run read
 
 <!-- guide:start -->
 
-A JingleScript score is JSON (format "jinglescript/1") describing a jingle — music and sound
-effects — plus named **cues** an animation syncs to. Get the exact schema with getSchema() /
+A JingleScript score is JSON (format "jinglescript/1") describing a short piece of music — a
+jingle, a song (played, or sung with `sing`), an exercise shown as sheet music — and sound
+effects, plus named **cues** an animation syncs to. Get the exact schema with getSchema() /
 `jinglescript schema` / the MCP action `getSchema`; check your score
 with checkScore() / `jinglescript check` / the MCP action `checkScore`, and fix every error it
 reports before rendering. A long score is easier to keep in a `.json` file: write it there and
 pass `path` to `checkScore` / `renderScore` instead of the score itself.
 
-### Work in this order
+### Work in this order (a jingle for a video)
+
+For a song see **Songs and melodies** below; for a lesson, **Sheet music**.
 
 1. **Cues first.** Write down the moments the video needs, in seconds, as cues:
    `"cues": { "hit": { "seconds": 1.5 }, "voice": { "seconds": 1.8 } }`. Never convert seconds to
@@ -434,8 +437,9 @@ silent".
 ### Lyrics
 
 Words can ride on the melody, so a player shows them karaoke-style: the current line, the next
-one, and a wipe across each syllable as its note plays. Nothing is sung — the instrument plays the
-melody; the words are text on its notes, timed exactly by them.
+one, and a wipe across each syllable as its note plays. The words are text on the notes, timed
+exactly by them; the instrument plays the melody, unless the track has `sing` (see **Songs and
+melodies**), which sings them.
 
 - Put `lyric` on each melody note: one syllable per note. In Japanese one mora (`"ハ"`,
   `"テ"`, `"ナ"`; a contracted sound such as `"きょ"` is one mora, one note); in English one
@@ -449,23 +453,95 @@ melody; the words are text on its notes, timed exactly by them.
   `"hit"`, `"to-"` half a beat before).
 - `"lineEnd": true` on the last syllable of a line starts a new line after it. Keep lines short:
   one phrase of the melody, 2–4 seconds.
-- Count the syllables first, then write exactly that many melody notes (plus any `"_"`). A chord
-  takes one lyric; percussion and effects take none; a note with `repeat` takes none (write the
-  notes out).
+- The melody comes first, the words go onto its notes. Count the syllables and check that the
+  melody has a note for each (plus any `"_"`); when it has too few, split a note (a quarter into
+  two eighths) or add a pickup — don't build the melody as one note per syllable on an even beat.
+  A chord takes one lyric; percussion and effects take none; a note with `repeat` takes none
+  (write the notes out).
 - checkScore lists each line with its time (`lyrics`), so you can confirm the words land where
   the request wants them.
 
 ```json
 { "instrument": "marimba", "name": "melody", "notes": [
   { "at": 0, "pitch": "G4", "lyric": "ハ" },
-  { "at": 0.5, "pitch": "A4", "lyric": "テ" },
-  { "at": 1, "pitch": "C5", "lyric": "ナ" },
+  { "at": 0.5, "pitch": "C5", "lyric": "テ" },
+  { "at": 1, "pitch": "E5", "lyric": "ナ" },
   { "at": 1.5, "pitch": "D5", "lyric": "_" },
-  { "at": 2, "pitch": "E5", "lyric": "good" },
-  { "at": 2.5, "pitch": "D5", "lyric": "mor-" },
-  { "at": 3, "pitch": "C5", "lyric": "ning!", "lineEnd": true }
+  { "at": 2, "pitch": "G5", "lyric": "good" },
+  { "at": 3, "pitch": "E5", "lyric": "mor-" },
+  { "at": 3.5, "pitch": "C5", "lyric": "ning!", "lineEnd": true }
 ] }
 ```
+
+### Songs and melodies
+
+A song needs a melody someone would hum: a shape, a rhythm and a goal. An LLM writing notes one
+after another drifts into the easiest next step — the neighbouring scale note, on the next beat —
+and the result runs up and down the scale in even notes. Decide the melody before you write any
+JSON.
+
+**A song the user names** (a nursery song, a folk song, a hymn): play its real melody — its
+pitches, its rhythm, its meter, key and pickup — as the song goes. Never make one up and present
+it as that song. Write it only when you know it note by note, or have it as note names (ドレミ,
+solfège, "E E F# …", ABC or MusicXML) from the user or from a page that spells them out. A web
+search for the song mostly finds lyrics and pages whose sheet music is an image or a PDF, which
+gives no notes. When you can't get the notes, say so, and ask the user for them or offer an
+original song with the same words.
+
+**A new melody.** Plan it in words first, then write the notes:
+
+- **Phrases.** 2 or 4 bars each; a song of 8 or 16 bars is two or four phrases. End a phrase on a
+  long note (a half note or longer) and leave a rest before the next one (a breath, when sung).
+  The first phrase ends open (on the 2nd, 5th or 7th degree, over the V chord); the last ends on
+  the key note over the I chord.
+- **A motif.** 3–5 notes with a rhythm of their own (e.g. two eighths and a dotted quarter).
+  Repeat it, move it up a step or a third (a sequence), change its ending — most of a song is its
+  motif again, changed. Phrase pairs often go A A' (same start, different ending).
+- **Steps and leaps.** Mostly steps, with a leap of a 3rd to a 6th in most bars; after a big leap,
+  step back the other way. Don't run more than 4–5 notes by step in one direction. Repeat a note
+  sometimes. Put the highest note once, about two-thirds of the way in.
+- **Rhythm.** Mix lengths: eighths for quick words, quarters, dotted rhythms, long notes at phrase
+  ends. A song in all equal notes is a scale exercise, not a song.
+- **Harmony.** Choose the chords first, one or two per bar (I, IV, V, vi …). The melody's notes on
+  the strong beats belong to the chord; notes between them pass by step. Play the chords on an
+  accompaniment track, so the melody sits on harmony.
+- **Words.** Put stressed syllables on strong beats. In Japanese, let the pitch follow the word's
+  accent where it can (はし "chopsticks" falls, はし "bridge" rises).
+- **Range.** About an octave, C4–D5 or so for singing; a melody that stays inside a fifth sounds
+  like an exercise.
+
+**Singing.** `"sing": { "engine": "neutrino" }` on the melody track sings its `lyric`s with the
+user's NEUTRINO (`"voice"`: a voice they have installed, e.g. "reina" (the default), "merrow"; `"level"`: dB above the accompaniment, default 4). Only one track sings; its
+lyrics are kana, one mora per note (`"_"`/`"ー"` holds the vowel). Start the first sung note
+a beat or more after the start (the consonant comes before the note), give every note its `len`
+and leave rests between phrases to breathe. The other tracks accompany it.
+
+```json
+{
+  "format": "jinglescript/1",
+  "title": "あさのひかり",
+  "tempo": 96, "meter": "4/4", "key": "C",
+  "length": { "beats": 17 },
+  "tracks": [
+    { "instrument": "organ", "name": "voice", "sing": { "engine": "neutrino" }, "notes": [
+      { "at": 1, "pitch": "E4", "len": 0.5, "lyric": "あ" }, { "at": 1.5, "pitch": "G4", "len": 0.5, "lyric": "さ" },
+      { "at": 2, "pitch": "C5", "len": 1.5, "lyric": "の" }, { "at": 3.5, "pitch": "B4", "len": 0.5, "lyric": "ひ" },
+      { "at": 4, "pitch": "A4", "len": 1, "lyric": "か" }, { "at": 5, "pitch": "G4", "len": 2, "lyric": "り", "lineEnd": true },
+      { "at": 9, "pitch": "F4", "len": 0.5, "lyric": "そ" }, { "at": 9.5, "pitch": "A4", "len": 0.5, "lyric": "ら" },
+      { "at": 10, "pitch": "D5", "len": 1.5, "lyric": "に" }, { "at": 11.5, "pitch": "C5", "len": 0.5, "lyric": "う" },
+      { "at": 12, "pitch": "B4", "len": 0.5, "lyric": "た" }, { "at": 12.5, "pitch": "D5", "len": 0.5, "lyric": "お" },
+      { "at": 13, "pitch": "C5", "len": 2, "lyric": "う" }
+    ] },
+    { "instrument": "vibraphone", "name": "chords", "gain": -4, "notes": [
+      { "at": 0, "chord": "C", "len": 4 }, { "at": 4, "chord": "G", "len": 4 },
+      { "at": 8, "chord": "Dm", "len": 4 }, { "at": 12, "chord": "G7", "len": 1 }, { "at": 13, "chord": "C", "len": 3 }
+    ] }
+  ]
+}
+```
+
+Two phrases on one motif (a rising leap E–G–C, then down by step): the first ends open on G over
+G, the second takes the motif a step higher (F–A–D) and lands on C.
 
 ### Sheet music (teaching and reading music)
 
@@ -532,7 +608,8 @@ wrote.
   1.0, exactly on the cue the animation lands on.
 - Keep the notes short: about 2 s of notes is plenty for a 5 s sting. After the hit, one soft
   echo note (vel 0.35, an octave up) at most; leave the tail for the voice-over.
-- Stay in one key; major keys and the pentatonic scale sound friendly.
+- Stay in one key; major keys and the pentatonic scale sound friendly. (This is for a short
+  sting; a song needs more — see **Songs and melodies**.)
 
 ### Example
 

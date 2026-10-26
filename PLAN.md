@@ -1514,3 +1514,16 @@ Decided:
   (fresh from when the audio was ready). Checked in a browser with a stand-in runtime (pending card
   with lanes and cues, play disabled → audio after 3 s → plays by itself, no console errors). Not yet
   wired in MulmoTerminal (it needs `wrapWithPluginRuntime` and `deferredAudio`; gui-plugin README).
+- 2026-10-26 — Guide for songs. User: asked to sing a known song (さくらさくら), MulmoChat's LLM
+  wrote one quarter note per syllable running up and down the E minor scale, even after a web
+  search (which found lyrics only: the sheet music was images and PDFs). Reviewed the guide for
+  what pushes that way: it described only jingles; its only melodic advice was for a 3-note sting;
+  the Lyrics section said "nothing is sung" and "count the syllables, then write that many notes";
+  its melodic examples moved by step in even notes; `sing` was not in it at all. New section
+  **Songs and melodies**: a named song only with its real notes (from memory note by note, or as
+  note names from the user or a page), otherwise say so and ask or offer an original; for a new
+  melody, plan phrases, a motif and its variations, steps and leaps, mixed rhythm, chords first,
+  word accents, range; how to sing with `sing`; an original sung example (rendered with NEUTRINO
+  REINA: −14.0 LUFS, −1.7 dBTP; not yet heard by the user). Lyrics: melody first, words onto its
+  notes. The early-sung-note hint also adds a beat of `pickup`, so the bars stay put. A test
+  checks every whole-score example in the guide. The eval still does not judge melodies.

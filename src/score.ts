@@ -141,7 +141,7 @@ function earlySungWarnings(data: ScoreData, expanded: Expanded): ScoreProblem[] 
     warnings.push({
       path,
       message: `This sung note starts at ${event.nominal.toFixed(3)} s; NEUTRINO sings its consonant up to 0.1 s earlier, so the start is cut (faded in).`,
-      hint: "Start the score with a beat of rest: shift every track's notes one beat later and make `length` one beat longer.",
+      hint: 'Start the score with a beat of rest: shift every track\'s notes one beat later, make `length` one beat longer, and with a `meter` add 1 to `pickup` (or set `"pickup": 1`) so the bar lines stay where they were.',
     });
   }
   return warnings;

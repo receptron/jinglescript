@@ -25,9 +25,9 @@ export const NEUTRINO_SAMPLE_RATE = 48000;
 const TEMPO = 120;
 const DIVISIONS = 480;
 const MEASURE = DIVISIONS * 4;
-/** A bar of rest before the first note so its consonant can start early; trimmed from the output. */
 /** Gaps shorter than this (0.1 s) between notes are sung through, not breathed (NEUTRINO pauses at every rest). */
 const LEGATO_GAP = Math.round((0.1 * DIVISIONS * TEMPO) / 60);
+/** A bar of rest before the first note so its consonant can start early; trimmed from the output. */
 export const NEUTRINO_LEAD_IN = (MEASURE / DIVISIONS) * (60 / TEMPO);
 
 export interface NeutrinoInstall {
@@ -245,6 +245,10 @@ export const VOCAL_LEVEL_DB = 4;
 /** Runs a NEUTRINO tool; `cwd` is the install (musicXMLtoLabel reads settings/dic relative to it). */
 export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => void;
 
+/**
+ * Runs synchronously (execFileSync), because render() is sync: the whole process, an MCP server
+ * included, blocks while NEUTRINO runs (tens of seconds for an uncached render). Cached renders are instant.
+ */
 const defaultExec: NeutrinoExec = (file, args, env, cwd) => {
   try {
     execFileSync(file, [...args], { env, cwd, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "ignore", "pipe"] });
@@ -262,6 +266,23 @@ export function neutrinoCacheKey(xml: string, voice: string, options: Pick<Neutr
     .digest("hex");
 }
 
+/** neutrino-renders/ keeps at most this many WAVs (every edit of a sung score adds one); oldest go first. */
+export const MAX_CACHED_RENDERS = 200;
+/** Cached renders older than this many days are removed. The folder is a cache: safe to delete. */
+export const MAX_RENDER_AGE_DAYS = 30;
+
+/** Removes cached renders older than MAX_RENDER_AGE_DAYS, then the oldest beyond MAX_CACHED_RENDERS. */
+export function pruneRenders(root: string, now = Date.now(), keep = MAX_CACHED_RENDERS, maxAgeDays = MAX_RENDER_AGE_DAYS): void {
+  if (!existsSync(root)) return;
+  const files = readdirSync(root)
+    .filter((name) => name.endsWith(".wav"))
+    .map((name) => ({ path: join(root, name), mtime: statSync(join(root, name)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  files.forEach((file, i) => {
+    if (i >= keep || now - file.mtime > maxAgeDays * 86_400_000) rmSync(file.path, { force: true });
+  });
+}
+
 /** NEUTRINO's 48 kHz WAV for a MusicXML, from the cache or by running musicXMLtoLabel and neutrino. */
 function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, options: NeutrinoOptions): { wav: Uint8Array; cached: boolean } {
   const root = join(options.cacheDir ?? defaultCacheDir(), "neutrino-renders");
@@ -269,6 +290,7 @@ function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, optio
   const file = join(root, `${key}.wav`);
   if (existsSync(file)) return { wav: readFileSync(file), cached: true };
   mkdirSync(root, { recursive: true });
+  pruneRenders(root);
   const work = mkdtempSync(join(root, "work-"));
   try {
     const exec = options.exec ?? defaultExec;
@@ -313,13 +335,18 @@ function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, optio
   }
 }
 
-/** NEUTRINO's PCM (mono, `sampleRate`, from score time 0: the lead-in removed). */
+/** Fade-in at the lead-in cut, s: a note at time 0 has its consonant cut there, which would click. */
+export const CUT_FADE_SECONDS = 0.005;
+
+/** NEUTRINO's PCM (mono, `sampleRate`, from score time 0: the lead-in removed, faded in at the cut). */
 export function alignNeutrinoPcm(data: Float32Array, rate: number, sampleRate: number): Float32Array {
   const skip = Math.round(NEUTRINO_LEAD_IN * rate);
   const body = data.subarray(Math.min(skip, data.length));
-  if (rate === sampleRate) return Float32Array.from(body);
   const step = rate / sampleRate;
-  return resample(body, step, 0.5 / Math.max(1, step), Math.round((body.length * sampleRate) / rate));
+  const out = rate === sampleRate ? Float32Array.from(body) : resample(body, step, 0.5 / Math.max(1, step), Math.round((body.length * sampleRate) / rate));
+  const fade = Math.min(out.length, Math.round(CUT_FADE_SECONDS * sampleRate));
+  for (let i = 0; i < fade; i++) out[i] = (out[i] ?? 0) * (i / fade);
+  return out;
 }
 
 /** The sung notes of one track: onset to onset + hold, first pitch, the lyric ("" when none). */
@@ -380,6 +407,10 @@ function premasterLoudness(score: Score, options: RenderOptions, prerendered: Ma
 }
 
 /**
+ * Note: this renders the whole score twice more (vocal only, then accompaniment only) on top of the
+ * final render, so a sung score costs about three renders; fine for jingles, slower for long scores
+ * or sampled instruments such as grandpiano. NEUTRINO itself runs once (its PCM is passed in).
+ *
  * dB to scale the vocal `pcm` of `track` by so it sits `level` LU over the other tracks (plus the
  * track's own gain); 0 when either side is silent.
  */

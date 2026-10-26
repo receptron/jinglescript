@@ -5,6 +5,9 @@ export interface SingerNote {
   start: number;
   end: number;
   midi: number;
-  /** One mora of hiragana or katakana, "ー"/"_" to hold the previous vowel, or "" for a rest. */
+  /**
+   * One mora of hiragana or katakana, or "ー"/"_" to hold the previous vowel. "" (no lyric) also
+   * holds the vowel ("ー") right after a sung note; it is a rest only when nothing is sounding.
+   */
   lyric: string;
 }

@@ -5,6 +5,7 @@ import { buildInstruments, type InstrumentTable } from "./custom/instruments.ts"
 import { INSTRUMENT_NAMES, removedInstrument, type InstrumentDescriptor } from "./instruments/index.ts";
 import { voiceChord } from "./chords.ts";
 import { buildLyrics, type LyricLine } from "./lyrics.ts";
+import { moraPhonemes } from "./singer/kana.ts";
 import { barQuarters, DEFAULT_METER, parseMeter } from "./meter.ts";
 import { pitchToMidi } from "./pitch.ts";
 import { streamRng } from "./rng.ts";
@@ -484,6 +485,36 @@ function pickupIssues(score: ScoreData): Issue[] {
   ];
 }
 
+/** A sung lyric NEUTRINO can take: one mora of kana, or "_"/"ー" to hold the previous vowel. */
+export function isSingableLyric(lyric: string): boolean {
+  const text = lyric.trim();
+  return text === "_" || text === "ー" || moraPhonemes(text) !== undefined;
+}
+
+/** What NEUTRINO cannot sing, caught before it runs: more than one sung track, and lyrics that are not one kana mora. */
+function singIssues(score: ScoreData): Issue[] {
+  const sung = score.tracks.flatMap((track, index) => (track.sing ? [index] : []));
+  const issues: Issue[] = sung.slice(1).map((index) => ({
+    path: ["tracks", index, "sing"],
+    message: `Only one track can be sung; tracks ${sung.join(", ")} all have "sing".`,
+    hint: 'Keep "sing" on the melody track only; the other tracks play their instruments.',
+  }));
+  for (const index of sung) {
+    score.tracks[index]?.notes.forEach((note, noteIndex) => {
+      if (note.lyric === undefined || isSingableLyric(note.lyric)) return;
+      issues.push({
+        path: ["tracks", index, "notes", noteIndex, "lyric"],
+        message: `NEUTRINO cannot sing "${note.lyric}": a sung track's lyric is one kana mora per note (e.g. "か", "きゃ", "ん"), or "_"/"ー" to hold the previous vowel.`,
+        hint:
+          [...note.lyric.trim()].length > 2
+            ? 'Split the word into one note per mora, e.g. "かえる" → "か", "え", "る".'
+            : "Write the words in hiragana or katakana (no romaji or English), one mora per note.",
+      });
+    });
+  }
+  return issues;
+}
+
 export function expandScore(score: ScoreData): Expanded {
   const cues: Record<string, number> = {};
   for (const [name, time] of Object.entries(score.cues)) cues[name] = timeToSeconds(time, score.tempo);
@@ -517,6 +548,7 @@ export function expandScore(score: ScoreData): Expanded {
       issues.push(...expanded.issues);
     });
   });
+  issues.push(...singIssues(score));
   assignHolds(events);
   events.sort((a, b) => a.seconds - b.seconds || a.track - b.track || a.note - b.note || a.repeat - b.repeat);
   const lyrics = buildLyrics(events, duration);

@@ -127,6 +127,25 @@ export function parseScore(input: unknown): Score {
 
 /** A note this close to a cue, but not placed on it, was probably meant to be. */
 const NEAR_CUE_SECONDS = 0.01;
+/** NEUTRINO starts a consonant up to ~0.1 s before its note; a sung note earlier than this loses it. */
+export const SING_LEAD_SECONDS = 0.1;
+
+function earlySungWarnings(data: ScoreData, expanded: Expanded): ScoreProblem[] {
+  const seen = new Set<string>();
+  const warnings: ScoreProblem[] = [];
+  for (const event of expanded.events) {
+    if (data.tracks[event.track]?.sing === undefined || event.nominal >= SING_LEAD_SECONDS) continue;
+    const path = formatPath(["tracks", event.track, "notes", event.note, "at"]);
+    if (seen.has(path)) continue;
+    seen.add(path);
+    warnings.push({
+      path,
+      message: `This sung note starts at ${event.nominal.toFixed(3)} s; NEUTRINO sings its consonant up to 0.1 s earlier, so the start is cut (faded in).`,
+      hint: "Start the score with a beat of rest: shift every track's notes one beat later and make `length` one beat longer.",
+    });
+  }
+  return warnings;
+}
 
 export interface CheckResult {
   ok: boolean;
@@ -206,7 +225,7 @@ export function checkScore(input: unknown, options: CheckOptions = {}): CheckRes
   return {
     ok: true,
     errors: [],
-    warnings: [...nearCueWarnings(expanded), ...notationWarnings(result.data, options)],
+    warnings: [...nearCueWarnings(expanded), ...earlySungWarnings(result.data, expanded), ...notationWarnings(result.data, options)],
     cues,
     duration: roundMs(expanded.duration),
     notes: expanded.events.length,

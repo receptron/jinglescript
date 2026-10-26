@@ -253,6 +253,7 @@ function withSinging(score: Score, options: RenderOptions): RenderOptions {
 }
 
 export function render(score: Score, given: RenderOptions = {}): RenderResult {
+  expandOrThrow(score); // score errors (e.g. two sung tracks, non-kana lyrics) before NEUTRINO runs
   const options = withSinging(score, given);
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   const seed = options.seed ?? score.seed;

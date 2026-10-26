@@ -587,7 +587,7 @@ clear error if missing).
 import { parseScore, render, toWav } from "jinglescript";
 
 const score = parseScore(json);                 // zod-validated, repair-oriented errors
-const { audio, sampleRate, timing } = render(score);   // audio: [Float32Array, Float32Array]
+const { audio, sampleRate, timing } = await render(score); // audio: [Float32Array, Float32Array]; a worker thread in Node
 await writeFile("out/jingle.wav", toWav(audio, sampleRate));
 await writeFile("out/jingle.timing.json", JSON.stringify(timing, null, 2));
 ```
@@ -1501,3 +1501,16 @@ Decided:
   Found on the way: Vue turned a missing `isAudioPlaying` into false, so every host counted as a
   voice host; it now defaults to undefined. Browser checks: answer at 1.0–2.5 s → plays at 4.0 s;
   no answer → 3.5 s; autoplayDelay 2 without a voice → 2 s; autoplayDelay 1 with a voice → 1 s (0.11.2).
+- 2026-10-26 — 1.0.0. User: render() blocks for a long time even without NEUTRINO; render and
+  present should both be async, with a major version. `render()` now returns a Promise; in Node it
+  renders on a small pool of worker threads (`render-pool.ts`, `render-worker.ts`), NEUTRINO
+  included, so an MCP server or GUI host keeps answering; same bit-identical audio (golden hashes
+  unchanged, worker vs in place compared in tests). The browser entry renders in place. Breaking:
+  every `render()` needs `await`. User: the card should appear at once and the sound follow, with
+  autoplay in mind. Chosen (over rendering in the browser): `manage()`'s `deferAudio` answers
+  renderScore after at most 1 s, with a `pending` PlayerData when the audio is not ready; the
+  plugin sets it when the host passes `deferredAudio: true` in its context, and the view collects
+  the audio through the host's runtime dispatch, saves it with onUpdateResult, then autoplays
+  (fresh from when the audio was ready). Checked in a browser with a stand-in runtime (pending card
+  with lanes and cues, play disabled → audio after 3 s → plays by itself, no console errors). Not yet
+  wired in MulmoTerminal (it needs `wrapWithPluginRuntime` and `deferredAudio`; gui-plugin README).

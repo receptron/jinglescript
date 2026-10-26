@@ -2,6 +2,7 @@
 // demo/samples.json (npm run demo-data; git-ignored), fetched at run time and checked on the way
 // in, as any untyped data is.
 import type { ToolResultComplete } from "gui-chat-protocol";
+import { PLUGIN_RUNTIME_KEY, type BrowserPluginRuntime } from "gui-chat-protocol/vue";
 import type { PlayerData } from "jinglescript";
 import { createApp, h, ref } from "vue";
 import { z } from "zod";
@@ -32,8 +33,19 @@ const PlayerSchema = z.object({
       renderedAt: z.number().optional(),
     })
     .optional(),
+  pending: z.string().optional(),
 });
-const SamplesSchema = z.array(z.object({ toolName: z.string(), uuid: z.string(), message: z.string(), title: z.string().optional(), data: PlayerSchema }));
+const SamplesSchema = z.array(
+  z.object({
+    toolName: z.string(),
+    uuid: z.string(),
+    message: z.string(),
+    title: z.string().optional(),
+    data: PlayerSchema,
+    /** For a pending sample: what the stand-in runtime hands its view. */
+    collected: PlayerSchema.optional(),
+  }),
+);
 
 const response = await fetch(new URL("./samples.json", import.meta.url));
 const parsed = SamplesSchema.safeParse(response.ok ? await response.json() : undefined);
@@ -43,6 +55,29 @@ if (!parsed.success) {
   throw new Error(`demo/samples.json does not match PlayerData:\n${z.prettifyError(parsed.error)}`);
 }
 const results: ToolResultComplete<PlayerData>[] = parsed.data;
+
+/** How long the stand-in server takes to finish a pending render. */
+const COLLECT_MS = 3000;
+const collectedById = new Map(
+  parsed.data.flatMap((sample) => (sample.data.pending && sample.collected ? [[sample.data.pending, sample.collected] as const] : [])),
+);
+
+/** A stand-in for the host's runtime: its dispatch answers a pending card's request for its audio. */
+const runtime: BrowserPluginRuntime = {
+  pubsub: { subscribe: () => () => undefined },
+  locale: ref("en"),
+  log: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+  openUrl: (url: string) => window.open(url, "_blank", "noopener,noreferrer"),
+  dispatch: (args: object) =>
+    new Promise((resolve) => {
+      const id: unknown = Reflect.get(args, "id");
+      const data = typeof id === "string" ? collectedById.get(id) : undefined;
+      setTimeout(
+        () => resolve(data ? { outcome: "ready", data, message: "The audio is ready." } : { outcome: "gone", message: "Not in this demo." }),
+        COLLECT_MS,
+      );
+    }),
+};
 
 /** What the views would send the LLM, listed on the page. */
 const sent = ref<string[]>([]);
@@ -65,4 +100,6 @@ createApp({
     ),
     ...results.map((r) => h("div", { class: "card" }, [h(View, { selectedResult: r, sendTextMessage: (text?: string) => sent.value.push(text ?? "") })])),
   ],
-}).mount("#app");
+})
+  .provide(PLUGIN_RUNTIME_KEY, runtime)
+  .mount("#app");

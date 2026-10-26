@@ -32,14 +32,28 @@ the data also carries the score that was rendered. Every other action answers th
   remembered in `viewState`, so it is sent once. The view writes `viewState` through
   `onUpdateResult` with the whole result, as hosts expect.
 
+**The card before the audio.** Rendering a long piece, or a vocal sung by NEUTRINO, takes seconds
+to minutes. In a host that gives the view a runtime (`dispatch`) and tells `execute` so with
+`deferredAudio: true` in its context, `renderScore` waits at most a second for the audio: a short
+jingle comes back finished as before; a longer one comes back at once as a `pending` card that
+shows the score, its lanes, cues, lyrics and sheet music, says "Rendering the audio…", and keeps
+play disabled. The view collects the finished audio through the host's dispatch (a request that
+reaches the same `execute`), saves it into the result with `onUpdateResult` (so the chat keeps it),
+and only then plays. `autoplay` waits for the audio in the same way, and counts as fresh from when
+it was ready; the voice rules above still apply. If the audio cannot be made after all, the card
+says why and, for a fresh render, tells the LLM once. A render kept for collection lives in the
+server's memory for 30 minutes after it finishes; a card replayed after a restart says it is gone.
+A host that does not set `deferredAudio` gets the finished card, as before.
+
 A score can also be passed as a file (`path` instead of `score`). The plugin reads it through the
 host's `files.byPath` capability — the one presentDocument uses — so the host decides what a path
 may reach and what a relative path is relative to. A host that does not provide `files.byPath` to
 `manageJingleScript` gets an error asking for the score inline.
 
 - **`"@gui-chat-plugin/jinglescript"`** (main entry, Node): `TOOL_DEFINITION`, `pluginCore`
-  (`execute` renders on the host's server). The audio is embedded as a data URI — MP3 when ffmpeg
-  is on the server, otherwise 16-bit WAV — so no file serving is needed.
+  (`execute` renders on the host's server, on a worker thread, so the server keeps answering). The
+  audio is embedded as a data URI — MP3 when ffmpeg is on the server, otherwise 16-bit WAV — so no
+  file serving is needed.
 - **`"@gui-chat-plugin/jinglescript/vue"`** (browser): `plugin` with `viewComponent` and
   `previewComponent`. It does not load the library. `opensheetmusicdisplay` is a dependency the
   host's bundler resolves (it is not bundled in), loaded on demand.
@@ -51,7 +65,13 @@ The library is a peer dependency (the host's server runs the tool), so a host in
 1. `yarn add jinglescript @gui-chat-plugin/jinglescript`
 2. `plugins/plugins.json`: add `"@gui-chat-plugin/jinglescript"` to `packages`.
 3. `src/plugins-registry.ts`: import `plugin` from `@gui-chat-plugin/jinglescript/vue` and its
-   `style.css?inline`, and add a `PACKAGES` entry (`viewOf(...)`, no runtime wrapper needed).
+   `style.css?inline`, and add a `PACKAGES` entry. To show the card before a long render's audio,
+   wrap the view in the runtime provider —
+   `wrapWithPluginRuntime("jinglescript", plugin.toolDefinition.name, viewOf(...))` — and on the
+   server add `manageJingleScript: { deferredAudio: true }` to `EXTRA_CONTEXT_BY_TOOL`
+   (`server/infra/tools/plugins-registry.ts`). Do both or neither: `deferredAudio` without the
+   runtime leaves a long render's card without its audio. With neither, `viewOf(...)` alone works
+   as before.
 4. `common/toolGroups.ts`: put `manageJingleScript` in the `media` group.
 5. Rebuild the frontend (`yarn build`) and restart MulmoTerminal (the server loads plugins at boot).
 

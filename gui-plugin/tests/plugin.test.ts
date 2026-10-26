@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { definitionText } from "../scripts/definition.ts";
-import { executeManage, pluginCore, TOOL_DEFINITION } from "../src/index.ts";
+import { AUDIO_REQUEST, isAudioRequest, parseAudioReply } from "../src/audio-request.ts";
+import { executeManage, instructionsFor, pluginCore, TOOL_DEFINITION } from "../src/index.ts";
 import { karaoke, lanes, waveformPath, xOf } from "../src/vue/layout.ts";
 import { plugin } from "../src/vue/index.ts";
 
@@ -85,5 +86,57 @@ describe("the GUI Chat Protocol plugin", () => {
     expect(at(1.2)).toEqual(["ハ:1|テ:1", "hap :0|py:0"]);
     expect(at(2.25)).toEqual(["hap :1|py:0.5", "end:0"]);
     expect(at(9)).toEqual(["end:1"]);
+  });
+});
+
+describe("a card shown before its audio (a host that sets deferredAudio)", () => {
+  // Long enough that its audio is seldom ready in DEFER_WAIT_MS; the test checks whichever answer comes.
+  const long = {
+    ...score,
+    length: { seconds: 42 },
+    tracks: [{ instrument: "ukulele", notes: Array.from({ length: 80 }, (_, i) => ({ at: i, chord: "C", strum: "D-DU" })) }],
+  };
+
+  it("answers at once with a pending card, which the view completes through the same execute", async () => {
+    const result = await executeManage({ deferredAudio: true }, { action: "renderScore", score: long, autoplay: true });
+    const data = result.data;
+    if (data?.pending === undefined) {
+      expect(data?.audio.startsWith("data:audio/")).toBe(true); // ready in time: the finished card
+      return;
+    }
+    expect(data.audio).toBe("");
+    expect(result.instructions).toContain("still rendering");
+    expect(result.instructions).toContain("when the audio is ready");
+    const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: data.pending }));
+    expect(reply?.outcome).toBe("ready");
+    if (reply?.outcome === "ready") {
+      expect(reply.data.pending).toBeUndefined();
+      expect(reply.data.audio.startsWith("data:audio/")).toBe(true);
+      expect(reply.data.timing.notes).toEqual(data.timing.notes);
+    }
+  });
+
+  it("always waits for the audio in a host that does not set it", async () => {
+    const result = await executeManage({}, { action: "renderScore", score: long });
+    expect(result.data?.pending).toBeUndefined();
+    expect(result.data?.audio.startsWith("data:audio/")).toBe(true);
+  });
+
+  it("tells the view when the render is not on the server", async () => {
+    const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: "no-such-render" }));
+    expect(reply).toMatchObject({ outcome: "gone", message: expect.stringContaining("no longer on the server") });
+  });
+
+  it("checks the view's request and the server's answer", () => {
+    expect(isAudioRequest({ kind: AUDIO_REQUEST, id: "x" })).toBe(true);
+    expect(isAudioRequest({ action: "renderScore", id: "x" })).toBe(false);
+    expect(parseAudioReply({ outcome: "ready", message: "", data: { title: "t", audio: "", peaks: [], timing: {} } })).toBeUndefined();
+    expect(parseAudioReply({ outcome: "failed", message: "boom" })).toEqual({ outcome: "failed", message: "boom" });
+    expect(parseAudioReply("nope")).toBeUndefined();
+  });
+
+  it("tells the LLM the audio is on its way", () => {
+    const pending = { presentation: { view: "waveform" as const, autoplay: true, notifyWhenDone: false }, pending: "id" };
+    expect(instructionsFor({ ...pending } as never)).toMatch(/still rendering.*plays? .*when the audio is ready/s);
   });
 });

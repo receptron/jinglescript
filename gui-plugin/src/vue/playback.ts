@@ -13,6 +13,8 @@ export const VIEW_LABELS = { waveform: "Waveform", notation: "Sheet music" } as 
 export interface PlayerMemory {
   autoplayed: boolean;
   notified: boolean;
+  /** The LLM was told that the audio of a card shown while it rendered could not be made. */
+  reported: boolean;
   view: Presentation["view"] | undefined;
 }
 
@@ -21,6 +23,7 @@ export function memoryOf(viewState: Record<string, unknown> | undefined): Player
   return {
     autoplayed: viewState?.["autoplayed"] === true,
     notified: viewState?.["notified"] === true,
+    reported: viewState?.["reported"] === true,
     view: view === "waveform" || view === "notation" ? view : undefined,
   };
 }
@@ -70,6 +73,15 @@ export function quietWait(voice: VoiceState, now: number, delayMs?: number): num
 export function finishedMessage(presentation: Presentation | undefined, memory: PlayerMemory, title: string, duration: number): string | undefined {
   if (presentation?.notifyWhenDone !== true || memory.notified) return undefined;
   return `"${title}" finished playing (${duration.toFixed(1)} s): the user has heard it to the end.`;
+}
+
+/**
+ * The one message sent to the LLM when the audio of a card shown while it rendered could not be
+ * made: its answer to renderScore said it would play. Only for a fresh render, never one from history.
+ */
+export function failedMessage(presentation: Presentation | undefined, memory: PlayerMemory, title: string, reason: string, now: number): string | undefined {
+  if (memory.reported || presentation?.renderedAt === undefined || now - presentation.renderedAt >= FRESH_MS) return undefined;
+  return `"${title}" could not be rendered after all, so it did not play: ${reason}`;
 }
 
 /** Index of the last cursor position at or before `seconds` (positions are onsets, in seconds, ascending). */

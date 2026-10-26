@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ffmpegAvailable } from "../src/encode.ts";
+import { awaitDeferredPlayer, deferRender } from "../src/deferred-renders.ts";
 import { isScorePath, manage, ManageInputSchema, manageInputJsonSchema } from "../src/manage.ts";
 
 const hasFfmpeg = await ffmpegAvailable();
@@ -80,5 +81,64 @@ describe("manageJingleScript, carried by any protocol", () => {
 
   it("describes its input as an object JSON Schema for function-calling hosts", () => {
     expect(manageInputJsonSchema()).toMatchObject({ type: "object", required: ["action"] });
+  });
+});
+
+describe("renderScore with deferAudio (a view that collects the audio later)", () => {
+  it("answers with the finished player when the audio is ready in time", async () => {
+    const result = await manage({ action: "renderScore", score }, { player: true, deferAudio: true });
+    expect(result.player?.pending).toBeUndefined();
+    expect(result.player?.audio.startsWith("data:")).toBe(true);
+    expect(JSON.parse(result.text)).toHaveProperty("loudness");
+  });
+
+  it("otherwise answers at once with a pending player, and the view collects the finished one by id", async () => {
+    const result = await manage({ action: "renderScore", score, view: "notation", autoplay: true }, { player: true, deferAudio: { waitMs: 0 } });
+    const pending = result.player;
+    expect(result.isError).toBe(false);
+    expect(pending?.pending).toEqual(expect.any(String));
+    expect(pending).toMatchObject({ audio: "", peaks: [], title: "Test sting", tracks: ["marimba"], duration: 3 });
+    expect(pending?.timing.cues).toEqual({ hit: 1 });
+    expect(pending?.presentation).toMatchObject({ autoplay: true });
+    expect(JSON.parse(result.text)).toMatchObject({ ok: true, audio: expect.stringContaining("still rendering") });
+
+    const outcome = await awaitDeferredPlayer(pending?.pending ?? "");
+    if (outcome.kind !== "ready") throw new Error(`expected the finished player, got ${outcome.kind}`);
+    const finished = outcome.player;
+    expect(finished.pending).toBeUndefined();
+    expect(finished.audio.startsWith("data:")).toBe(true);
+    expect(finished.peaks.length).toBeGreaterThan(500);
+    // The pending timing map is the finished one but for audibleUntil, measured on the audio.
+    expect({ ...pending?.timing, audibleUntil: 0 }).toEqual({ ...finished.timing, audibleUntil: 0 });
+    // Fresh from when the audio was ready, so a long render still autoplays.
+    expect(finished.presentation?.renderedAt).toBeGreaterThanOrEqual(pending?.presentation?.renderedAt ?? Infinity);
+    // A second mount of the card gets the same.
+    expect(await awaitDeferredPlayer(pending?.pending ?? "")).toEqual(outcome);
+  });
+
+  it("tells the LLM of a render that fails at once, as without deferAudio", async () => {
+    const unsingable = { ...score, tracks: [{ instrument: "organ", sing: { engine: "neutrino" }, notes: [{ at: 1, pitch: "C4", lyric: "か" }] }] };
+    const before = process.env.NEUTRINO_DIR;
+    process.env.NEUTRINO_DIR = "/nonexistent/NEUTRINO";
+    try {
+      const result = await manage({ action: "renderScore", score: unsingable }, { player: true, deferAudio: { waitMs: 1000 } });
+      expect(result).toMatchObject({ isError: true, text: expect.stringContaining("NEUTRINO was not found") });
+      expect(result.player).toBeUndefined();
+    } finally {
+      if (before === undefined) delete process.env.NEUTRINO_DIR;
+      else process.env.NEUTRINO_DIR = before;
+    }
+  });
+
+  it("gives a view the reason a render failed after the answer, and says when an id is unknown", async () => {
+    const id = deferRender(Promise.reject(new Error("ffmpeg crashed")));
+    expect(await awaitDeferredPlayer(id)).toEqual({ kind: "failed", message: "ffmpeg crashed" });
+    expect(await awaitDeferredPlayer("no-such-render")).toEqual({ kind: "gone" });
+  });
+
+  it("is ignored without a player or with an output folder", async () => {
+    const result = await manage({ action: "renderScore", score }, { deferAudio: { waitMs: 0 } });
+    expect(result.player).toBeUndefined();
+    expect(JSON.parse(result.text)).toHaveProperty("loudness");
   });
 });

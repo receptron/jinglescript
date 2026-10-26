@@ -22,7 +22,7 @@ NAME = "tiny-placeholder"
 SR, HOP, NFFT, BANDS = 44100, 256, 1024, 32
 FMAX = 11025.0
 PHONEMES = ["pau", "a", "i", "u", "e", "o", "N", "cl", "k", "g", "s", "z", "t", "d", "n", "h", "b", "p", "m",
-            "y", "r", "w", "ky", "gy", "sh", "j", "ch", "ny", "hy", "by", "py", "my", "ry", "ts", "f", "v"]
+            "y", "r", "w", "ky", "gy", "sh", "j", "ch", "ny", "hy", "by", "py", "my", "ry", "ty", "dy", "ts", "f", "v"]
 VOWEL_F = {"a": (800, 1250, 2600), "i": (300, 2300, 3000), "u": (350, 1350, 2400), "e": (500, 1900, 2600),
            "o": (500, 850, 2500), "N": (280, 1100, 2400)}
 # Consonant: (noise centre Hz, noise bandwidth Hz, voiced, formants while voiced or None)
@@ -34,7 +34,7 @@ CONS = {"k": (2200, 1500, False, None), "g": (2000, 1500, True, (350, 1600, 2500
         "j": (3500, 2000, True, (300, 2000, 2700)), "ch": (3800, 2000, False, None), "ts": (5500, 3000, False, None),
         "f": (1800, 3500, False, None), "v": (2500, 3000, True, (300, 1100, 2400)), "cl": (0, 0, False, None),
         "pau": (0, 0, False, None)}
-for c in ["ky", "gy", "ny", "hy", "by", "py", "my", "ry"]:
+for c in ["ky", "gy", "ny", "hy", "by", "py", "my", "ry", "ty", "dy"]:
     base = CONS[c[0]]
     CONS[c] = (base[0] + 800 if base[0] else 0, base[1], base[2], (300, 2200, 2900) if base[2] else None)
 CONS["hy"] = (3200, 1800, False, None)

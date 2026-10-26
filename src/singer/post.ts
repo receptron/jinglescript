@@ -121,10 +121,14 @@ function averageSpectrum(x: Float32Array): Float64Array {
   return sum.map((p) => 10 * dmath.log10(p / Math.max(1, frames) + 1e-20));
 }
 
-/** Whether a frequency is within 4% (and at least two FFT bins) of a harmonic of f0. */
+/**
+ * Whether a frequency is within 4% (at least two FFT bins, at most f0/4) of a harmonic of f0. The
+ * f0/4 cap matters: every frequency is within f0/2 of some harmonic, so an uncapped 4% would
+ * swallow everything above about 12×F0.
+ */
 function nearHarmonic(hz: number, f0: number, binHz: number): boolean {
   const n = Math.max(1, Math.round(hz / f0));
-  return Math.abs(hz - n * f0) <= Math.max(2 * binHz, 0.04 * n * f0);
+  return Math.abs(hz - n * f0) <= Math.max(2 * binHz, Math.min(0.04 * n * f0, f0 / 4));
 }
 
 /**

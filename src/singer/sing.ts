@@ -38,11 +38,37 @@ export function singerNotes(score: Score, track: number): SingerNote[] {
 }
 
 /** Model input, frame-major: phoneme one-hot, log2(F0/440), voiced, position within the phoneme. */
-export function singerFeatures(frames: SingerFrames, phonemes: readonly string[]): Float32Array {
+/** Stand-ins for phonemes a model may lack (ones added to kana.ts after it was trained). */
+const PHONEME_FALLBACK: Readonly<Record<string, string>> = { ty: "t", dy: "d" };
+
+export class SingerPhonemeError extends Error {
+  readonly phoneme: string;
+  readonly note: number;
+  constructor(phoneme: string, note: number, model: string) {
+    super(
+      `Note ${note}: the phoneme "${phoneme}" is not in the singer model "${model}" (its manifest.json phonemes). Change that note's lyric to another kana, or use a model trained with "${phoneme}".`,
+    );
+    this.name = "SingerPhonemeError";
+    this.phoneme = phoneme;
+    this.note = note;
+  }
+}
+
+/** The model's index for a phoneme, falling back (ty → t, dy → d); a SingerPhonemeError when there is none. */
+function phonemeIndex(phonemes: readonly string[], phoneme: string, note: number, model: string): number {
+  const index = phonemes.indexOf(phoneme);
+  if (index >= 0) return index;
+  const fallback = PHONEME_FALLBACK[phoneme];
+  const other = fallback === undefined ? -1 : phonemes.indexOf(fallback);
+  if (other >= 0) return other;
+  throw new SingerPhonemeError(phoneme, note, model);
+}
+
+export function singerFeatures(frames: SingerFrames, phonemes: readonly string[], model = "(unnamed)"): Float32Array {
   const width = phonemes.length + 3;
   const out = new Float32Array(frames.f0.length * width);
   for (const span of frames.phonemes) {
-    const index = phonemes.indexOf(span.phoneme);
+    const index = phonemeIndex(phonemes, span.phoneme, span.note, model);
     for (let f = span.start; f < span.end && f < frames.f0.length; f++) {
       const row = f * width;
       if (index >= 0) out[row + index] = 1;
@@ -97,7 +123,7 @@ export async function singTrack(
   const pcm = new Float32Array(count * manifest.hopSize);
   if (count === 0) return { pcm, sampleRate: manifest.sampleRate };
   const acoustic = await verifiedModelFile(manifest, manifest.files.acoustic, options.cacheDir);
-  const env = await acousticEnvelope(runtime, manifest, acoustic, singerFeatures(frames, manifest.phonemes), count);
+  const env = await acousticEnvelope(runtime, manifest, acoustic, singerFeatures(frames, manifest.phonemes, manifest.name), count);
   const format = { sampleRate: manifest.sampleRate, hopSize: manifest.hopSize, bands: manifest.melBins, ...manifest.envelope };
   const sung = synthesizeEnvelope(env, frames.f0, format, streamRng(seed, "singer", options.track));
   if (options.post === undefined || options.post === false) return { pcm: sung, sampleRate: manifest.sampleRate };

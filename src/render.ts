@@ -150,7 +150,12 @@ function mixEvent(voices: Voice[], event: NoteEvent, mix: [Float32Array, Float32
 
 /** Ramp between two notes' gains and pans on a prerendered track, in seconds (avoids clicks). */
 const PRERENDERED_RAMP = 0.005;
-/** The score's default velocity: a prerendered note at it plays at unit gain. */
+/**
+ * The score's default velocity: a prerendered note at it plays at unit gain, so 1.0 is 1.25× and
+ * 0.4 is 0.5×. Instruments instead scale with velocity against 1 (a default note plays at 0.8×).
+ * The reference differs on purpose: a singer model is levelled for a normally sung note, so
+ * the default velocity should leave its output as rendered.
+ */
 const PRERENDERED_NORMAL_VEL = 0.8;
 
 /**

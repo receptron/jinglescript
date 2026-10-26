@@ -3,7 +3,7 @@
 // way the grand piano is. ONNX Runtime is an optional dependency, imported only here and only when a
 // singer is rendered, so a score without a singer never needs it.
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { defaultCacheDir } from "../samples/load.ts";
@@ -112,19 +112,27 @@ export class SingerModelCorruptError extends Error {
 }
 
 /** Checks one of the model's files against manifest.sha256 and returns its path; a SingerModelMissingError or SingerModelCorruptError otherwise. */
+/** Files verified in this process, keyed by path, size and mtime, so a big model is hashed once. */
+const verified = new Set<string>();
+
 export async function verifiedModelFile(manifest: SingerManifest, file: string, cacheDir?: string): Promise<string> {
   const folder = singerFolder(manifest.name, cacheDir);
   const path = join(folder, file);
   const expected = manifest.sha256[file];
   if (expected === undefined) throw new SingerModelMissingError(manifest.name, folder, `manifest.json has no sha256 for ${file}`);
+  let key: string;
   let bytes: Buffer;
   try {
+    const info = await stat(path);
+    key = `${path}\0${info.size}\0${info.mtimeMs}\0${expected}`;
+    if (verified.has(key)) return path;
     bytes = await readFile(path);
   } catch {
     throw new SingerModelMissingError(manifest.name, folder, `no ${file}`);
   }
   const actual = createHash("sha256").update(bytes).digest("hex");
   if (actual !== expected) throw new SingerModelCorruptError(manifest.name, file, expected, actual);
+  verified.add(key);
   return path;
 }
 

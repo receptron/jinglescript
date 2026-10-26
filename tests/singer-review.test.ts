@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,9 @@ import { render } from "../src/render.ts";
 import { biquadFilter } from "../src/dsp/biquad.ts";
 import {
   findResonance,
+  notesToFrames,
+  singerFeatures,
+  SingerPhonemeError,
   loadOnnxRuntime,
   moraPhonemes,
   peaking,
@@ -137,6 +140,65 @@ describe("findResonance and harmonics", () => {
     const found = findResonance(ringing, SR, 200);
     expect(found?.hz).toBeGreaterThan(2450);
     expect(found?.hz).toBeLessThan(2600);
+  });
+});
+
+describe("re-review", () => {
+  it("finds a resonance far above 12×F0", () => {
+    const rng = createRng(3);
+    const noise = Float32Array.from({ length: SR * 2 }, () => rng.normal() * 0.1);
+    for (const [hz, f0] of [
+      [5150, 330],
+      [4630, 200],
+    ] as const) {
+      const ringing = Float32Array.from(biquadFilter(noise, peaking(hz, 18, 12, SR)));
+      const found = findResonance(ringing, SR, f0);
+      expect(found?.hz).toBeGreaterThan(hz - 80);
+      expect(found?.hz).toBeLessThan(hz + 80);
+    }
+  });
+
+  const notes = [{ start: 0, end: 0.5, midi: 69, lyric: "でゅ" }];
+  const frames = notesToFrames(notes, { hop: 256 / SR });
+
+  it("falls back dy → d for a model without dy", () => {
+    const withD = singerFeatures(frames, ["pau", "d", "u"], "m");
+    const width = 6;
+    expect([...withD].some((v, i) => i % width === 1 && v === 1)).toBe(true);
+  });
+
+  it("names the phoneme, note and model when nothing fits", () => {
+    expect(() => singerFeatures(frames, ["pau", "u"], "tiny")).toThrow(SingerPhonemeError);
+    expect(() => singerFeatures(frames, ["pau", "u"], "tiny")).toThrow(/Note 0: the phoneme "dy" is not in the singer model "tiny"/);
+  });
+
+  it("hashes a model file once per path, size and mtime", async () => {
+    const cacheDir = await mkdtemp(join(tmpdir(), "singer-cache-"));
+    const path = join(cacheDir, "singer", "c", "acoustic.onnx");
+    await mkdir(join(cacheDir, "singer", "c"), { recursive: true });
+    await writeFile(path, "aaaa");
+    const manifest = SingerManifestSchema.parse({
+      name: "c",
+      version: "0",
+      license: "CC0-1.0",
+      sampleRate: SR,
+      hopSize: 256,
+      melBins: 8,
+      phonemes: ["a"],
+      files: { acoustic: "acoustic.onnx" },
+      sha256: { "acoustic.onnx": createHash("sha256").update("aaaa").digest("hex") },
+    });
+    await verifiedModelFile(manifest, "acoustic.onnx", cacheDir);
+    const when = new Date(2020, 0, 1);
+    // Same size, mtime restored: the cached verdict stands even though the bytes changed.
+    await utimes(path, when, when);
+    await verifiedModelFile(manifest, "acoustic.onnx", cacheDir);
+    await writeFile(path, "bbbb");
+    await utimes(path, when, when);
+    expect(await verifiedModelFile(manifest, "acoustic.onnx", cacheDir)).toBe(path);
+    // A changed mtime is hashed again and caught.
+    await utimes(path, new Date(2021, 0, 1), new Date(2021, 0, 1));
+    await expect(verifiedModelFile(manifest, "acoustic.onnx", cacheDir)).rejects.toThrow(SingerModelCorruptError);
   });
 });
 

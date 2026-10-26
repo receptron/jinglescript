@@ -3,6 +3,8 @@
 export * from "./core.ts";
 // Registers NEUTRINO as render()'s singer for tracks with `sing` (a score feature, not an API).
 import "./singer/neutrino.ts";
+// Sends render() to worker threads, so it never blocks the caller's event loop.
+import "./render-pool.ts";
 export { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 export { loadSamples, defaultCacheDir } from "./samples/load.ts";
 export type { LoadSamplesOptions } from "./samples/load.ts";

@@ -101,8 +101,8 @@ describe("strums", () => {
     expect(checkScore(score([{ at: 0, pitch: "C4", strum: "down" }])).errors[0]?.message).toBe("`strum` needs a chord.");
   });
 
-  it("reports one timing-map entry per stroke, with its chord and direction", () => {
-    const { timing } = render(parseScore(score([{ at: 0, chord: "G7", strum: "DU" }])));
+  it("reports one timing-map entry per stroke, with its chord and direction", async () => {
+    const { timing } = await render(parseScore(score([{ at: 0, chord: "G7", strum: "DU" }])));
     expect(timing.notes.map((n) => [n.chord, n.strum])).toEqual([
       ["G7", "down"],
       ["G7", "up"],

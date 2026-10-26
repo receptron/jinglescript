@@ -12,6 +12,7 @@ import { renderToFiles } from "./output.ts";
 import { scoreToMusicXml } from "./musicxml.ts";
 import { dataUri, round1, toPlayerData, VIEWS, wantsNotation, wavPlayerAudio, type PlayerAudio, type PlayerData, type Presentation } from "./player.ts";
 import { render, type RenderResult } from "./render.ts";
+import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
 import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
@@ -249,7 +250,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   let files: { audio: string; timing: string } | undefined;
   let result: RenderResult;
   try {
-    if (options.outDir === undefined) result = render(score, { samples: await loadSamples(score) });
+    if (options.outDir === undefined) result = await render(score, { samples: await loadSamples(score) });
     else ({ result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" }));
   } catch (error) {
     if (isSetupError(error)) return { text: error.message, isError: true };

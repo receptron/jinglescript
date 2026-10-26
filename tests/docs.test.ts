@@ -23,8 +23,10 @@ describe("docs/video-sound-effects.md", () => {
   });
 });
 
+const captionsTiming = (await render(parseScore(json("../examples/lyrics-hatena.json")), { samples: fixtureSamples })).timing;
+
 describe("docs/video/captions.ts", () => {
-  const timing = render(parseScore(json("../examples/lyrics-hatena.json")), { samples: fixtureSamples }).timing;
+  const timing = captionsTiming;
   const font = { font: "Test Font" };
   const dialogues = (ass: string) => ass.split("\n").filter((line) => line.startsWith("Dialogue: "));
 

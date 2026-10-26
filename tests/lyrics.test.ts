@@ -14,15 +14,17 @@ const pcmHash = (audio: readonly Float32Array[]) => {
 const base = { format: "jinglescript/1", tempo: 120, length: { seconds: 4 }, cues: { hit: { seconds: 1.5 } } };
 const sing = (notes: unknown[], instrument = "marimba") => ({ ...base, tracks: [{ instrument, notes }] });
 const errorsOf = (input: unknown) => checkScore(input).errors;
-const lyricsOf = (input: unknown) => render(parseScore(input), { samples: fixtureSamples }).timing.lyrics;
+const lyricsOf = async (input: unknown) => (await render(parseScore(input), { samples: fixtureSamples })).timing.lyrics;
 
 /** The score without its words: the same notes, no `lyric` or `lineEnd`. */
 function withoutLyrics(score: unknown): unknown {
   return JSON.parse(JSON.stringify(score), (key: string, value: unknown) => (key === "lyric" || key === "lineEnd" ? undefined : value));
 }
 
+const exampleResult = await render(parseScore(example), { samples: fixtureSamples });
+
 describe("lyrics in the timing map", () => {
-  const result = render(parseScore(example), { samples: fixtureSamples });
+  const result = exampleResult;
 
   it("gives every syllable its note's onset, line by line", () => {
     expect(TimingSchema.parse(result.timing)).toBeTruthy();
@@ -40,8 +42,8 @@ describe("lyrics in the timing map", () => {
     expect(first?.syllables[2]).toEqual({ text: "ナ", t: 0.5, end: 0.98 });
   });
 
-  it("does not change the audio or the rest of the timing map", () => {
-    const plain = render(parseScore(withoutLyrics(example)), { samples: fixtureSamples });
+  it("does not change the audio or the rest of the timing map", async () => {
+    const plain = await render(parseScore(withoutLyrics(example)), { samples: fixtureSamples });
     expect(pcmHash(result.audio)).toBe(pcmHash(plain.audio));
     expect(plain.timing.lyrics).toBeUndefined();
     const { lyrics, ...rest } = result.timing;
@@ -59,8 +61,8 @@ describe("lyrics in the timing map", () => {
 });
 
 describe("joining syllables into words", () => {
-  it("joins hyphenated syllables and spaces English words", () => {
-    const lines = lyricsOf(
+  it("joins hyphenated syllables and spaces English words", async () => {
+    const lines = await lyricsOf(
       sing([
         { at: 0, pitch: "C5", lyric: "hap-" },
         { at: 1, pitch: "D5", lyric: "py" },
@@ -71,8 +73,8 @@ describe("joining syllables into words", () => {
     expect(lines?.[0]?.syllables.map((s) => s.text)).toEqual(["hap", "py ", "day!"]);
   });
 
-  it("puts no space between Japanese syllables, but one next to a Latin word", () => {
-    const lines = lyricsOf(
+  it("puts no space between Japanese syllables, but one next to a Latin word", async () => {
+    const lines = await lyricsOf(
       sing([
         { at: 0, pitch: "C5", lyric: "は" },
         { at: 0.5, pitch: "D5", lyric: "じ" },
@@ -83,8 +85,8 @@ describe("joining syllables into words", () => {
     expect(lines?.[0]?.text).toBe("はじ Go ！");
   });
 
-  it("splits lines at `lineEnd`, per track", () => {
-    const lines = lyricsOf({
+  it("splits lines at `lineEnd`, per track", async () => {
+    const lines = await lyricsOf({
       ...base,
       tracks: [
         {
@@ -104,8 +106,8 @@ describe("joining syllables into words", () => {
     ]);
   });
 
-  it("ends the last syllable at the end of the audio at the latest", () => {
-    const lines = lyricsOf(sing([{ at: 7.5, pitch: "C5", lyric: "end" }]));
+  it("ends the last syllable at the end of the audio at the latest", async () => {
+    const lines = await lyricsOf(sing([{ at: 7.5, pitch: "C5", lyric: "end" }]));
     expect(lines?.[0]?.syllables[0]).toEqual({ text: "end", t: 3.75, end: 4 });
   });
 });

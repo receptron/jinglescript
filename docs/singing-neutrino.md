@@ -60,7 +60,7 @@ npx jinglescript render kaeru.json   # CLI
 
 ```ts
 import { parseScore, render } from "jinglescript";
-const result = render(parseScore(json)); // sing のあるトラックは NEUTRINO で歌う
+const result = await render(parseScore(json)); // sing のあるトラックは NEUTRINO で歌う
 ```
 
 ### `sing` の項目
@@ -98,7 +98,7 @@ NEUTRINO 本体の利用許諾契約書と、各歌声ライブラリの規約�
 
 ## 処理時間
 
-- NEUTRINO は `execFileSync` で同期実行します（`render()` が同期 API のため）。キャッシュのない描画では数十秒（MERROW の初回で約 35 秒）プロセス全体が止まり、MCP サーバーもその間は応答しません。
+- `render()` は Node では描画をワーカースレッドで行い、NEUTRINO もそのスレッドの中で動きます。キャッシュのない描画は数十秒（MERROW の初回で約 35 秒）かかりますが、待つのはワーカーだけで、呼び出し側のプロセス（MCP サーバーなど）はその間も応答します。
 - 音量合わせ（`level`）のために、最終の描画に加えてスコア全体をもう 2 回（歌だけ、伴奏だけ）描画します。ジングルなら問題ありませんが、長いスコアや grandpiano などのサンプル楽器では目に見えて遅くなります。NEUTRINO 自体は 1 回しか動きません。
 
 ## 音量とタイミング

@@ -19,8 +19,10 @@ describe("dataUri", () => {
   });
 });
 
+const rendered = await render(score, { samples: fixtureSamples });
+
 describe("toPlayerData", () => {
-  const result = render(score, { samples: fixtureSamples });
+  const result = rendered;
   const data = toPlayerData(score, result, "stem");
 
   it("embeds a tagged 16-bit WAV and the MIDI file", () => {

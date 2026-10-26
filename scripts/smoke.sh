@@ -45,7 +45,7 @@ cat > lib.mjs <<'JS'
 import { readFile, writeFile } from "node:fs/promises";
 import { parseScore, render, toWav, getSchema, checkScore, loadSamples } from "jinglescript";
 const score = parseScore(JSON.parse(await readFile("score.json", "utf8")));
-const { audio, sampleRate, timing } = render(score);
+const { audio, sampleRate, timing } = await render(score);
 await writeFile("out/lib.wav", toWav(audio, sampleRate));
 await writeFile("out/lib.timing.json", JSON.stringify(timing));
 if (!checkScore(score).ok || getSchema().$schema === undefined) throw new Error("API for LLMs is broken");
@@ -53,12 +53,12 @@ console.log("library rendered", timing.duration, "s");
 // Without its grand-piano chord, whose recordings would need the network; the lyrics are on the melody.
 const sung = JSON.parse(await readFile("lyrics.json", "utf8"));
 sung.tracks = sung.tracks.filter((track) => track.instrument !== "grandpiano");
-const lyrics = render(parseScore(sung)).timing.lyrics;
+const lyrics = (await render(parseScore(sung))).timing.lyrics;
 if (lyrics?.map((l) => l.text).join("/") !== "ハテナマルモ/はじまるよ！") throw new Error("lyrics missing from the timing map");
 console.log("library lyrics", lyrics.length, "lines");
 // The recorded sound effects are read from the installed package (samples/sfx/), never downloaded.
 const sfx = parseScore({ format: "jinglescript/1", tempo: 120, length: { seconds: 2 }, tracks: [{ instrument: "door", notes: [{ at: 0 }] }] });
-const sfxAudio = render(sfx, { samples: await loadSamples(sfx, { download: false }) }).audio[0];
+const sfxAudio = (await render(sfx, { samples: await loadSamples(sfx, { download: false }) })).audio[0];
 if (!sfxAudio.some((v) => Math.abs(v) > 0.01)) throw new Error("recorded effect is silent");
 console.log("library recorded effect: ok");
 JS
@@ -70,8 +70,9 @@ import { readFile } from "node:fs/promises";
 import * as browser from "jinglescript/browser";
 import * as node from "jinglescript";
 const input = JSON.parse(await readFile("score.json", "utf8"));
-const a = browser.render(browser.parseScore(input)).audio[0];
-const b = node.render(node.parseScore(input)).audio[0];
+// The Node entry renders on a worker thread (dist/render-worker.js); the browser's in place.
+const a = (await browser.render(browser.parseScore(input))).audio[0];
+const b = (await node.render(node.parseScore(input))).audio[0];
 if (a.length !== b.length || a.some((v, i) => v !== b[i])) throw new Error("jinglescript/browser renders differently");
 if ("loadSamples" in browser && browser.loadSamples === node.loadSamples) throw new Error("jinglescript/browser exports the Node loader");
 console.log("browser entry: ok");

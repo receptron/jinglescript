@@ -11,8 +11,10 @@ const pcmHash = (audio: readonly Float32Array[]) => {
   return hash.digest("hex");
 };
 
+const exampleAResult = await render(parseScore(exampleA));
+
 describe("example A (ハテナマルモ opening)", () => {
-  const result = render(parseScore(exampleA));
+  const result = exampleAResult;
   const [left, right] = result.audio;
 
   it("puts the hit cue at 1.500 s and every note in the timing map", () => {
@@ -41,12 +43,12 @@ describe("example A (ハテナマルモ opening)", () => {
     expect(result.audio[0]).toHaveLength(Math.round(4.6 * 48000));
   });
 
-  it("is bit-identical on every render, and changes with the seed", () => {
+  it("is bit-identical on every render, and changes with the seed", async () => {
     // Golden hash of the PCM at seed 1. It changes only when the sound is changed on purpose;
     // update it in the same commit, after rendering and listening.
-    expect(pcmHash(result.audio)).toBe(pcmHash(render(parseScore(exampleA)).audio));
+    expect(pcmHash(result.audio)).toBe(pcmHash((await render(parseScore(exampleA))).audio));
     expect(pcmHash(result.audio)).toMatchInlineSnapshot(`"c8affcc9071f9b2e70309dc85b39435bd12d20192e077788b090491d88284bcf"`);
-    expect(pcmHash(render(parseScore(exampleA), { seed: 2 }).audio)).not.toBe(pcmHash(result.audio));
+    expect(pcmHash((await render(parseScore(exampleA), { seed: 2 })).audio)).not.toBe(pcmHash(result.audio));
   });
 
   it("writes a 24-bit and a 16-bit WAV", () => {
@@ -75,10 +77,10 @@ describe("onsets land on the timing map", () => {
   ];
   for (const { at, instrument } of cases) {
     for (const sampleRate of [48000, 44100] as const) {
-      it(`${instrument} at ${JSON.stringify(at)}, ${sampleRate} Hz: sound starts on the onset's sample; the map is within 0.5 ms`, () => {
+      it(`${instrument} at ${JSON.stringify(at)}, ${sampleRate} Hz: sound starts on the onset's sample; the map is within 0.5 ms`, async () => {
         const score = scoreAt(at, instrument);
         const exact = expandScore(score).events[0]?.seconds ?? NaN;
-        const { audio, timing } = render(score, { sampleRate });
+        const { audio, timing } = await render(score, { sampleRate });
         // Every sound's first sample is 0 (the onset ramp), so the first non-zero one follows it.
         const onset = audio[0].findIndex((v) => v !== 0) - 1;
         expect(onset).toBe(Math.round(exact * sampleRate));

@@ -162,8 +162,8 @@ describe("where the browser loader fetches from", () => {
 describe("browser and Node loaders give the same render", () => {
   it("for the recorded effects", async () => {
     const score = example("recorded-effects.json");
-    const inBrowser = render(score, { samples: await loadInBrowser(score, { cache: false, fetch: sfxFromDisk }) }).audio;
-    const inNode = render(score, { samples: await loadInNode(score, { download: false }) }).audio;
+    const inBrowser = (await render(score, { samples: await loadInBrowser(score, { cache: false, fetch: sfxFromDisk }) })).audio;
+    const inNode = (await render(score, { samples: await loadInNode(score, { download: false }) })).audio;
     expect(inBrowser[0]).toEqual(inNode[0]);
     expect(inBrowser[1]).toEqual(inNode[1]);
   });
@@ -180,8 +180,8 @@ describe.runIf(nodePiano !== undefined)("for the grand piano (only when its reco
       const file = decodeURIComponent(String(url).split("/").pop() ?? "");
       return Promise.resolve(new Response(new Uint8Array(readFileSync(join(defaultCacheDir(), PIANO_SET, file)))));
     };
-    const inBrowser = render(pianoScore, { samples: await loadInBrowser(pianoScore, { cache: false, fetch: fromNodeCache }) }).audio;
-    const inNode = render(pianoScore, { samples: nodePiano }).audio;
+    const inBrowser = (await render(pianoScore, { samples: await loadInBrowser(pianoScore, { cache: false, fetch: fromNodeCache }) })).audio;
+    const inNode = (await render(pianoScore, { samples: nodePiano })).audio;
     expect(inBrowser[0]).toEqual(inNode[0]);
   });
 });

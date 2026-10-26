@@ -565,6 +565,15 @@ time (`lyrics`). The animation reads cue times from it by name.
 
 <!-- guide:end -->
 
+## Singing (NEUTRINO)
+
+A track with `"sing": { "engine": "neutrino", "voice": "reina", "level": 4 }` is sung, from its notes'
+kana `lyric`s, by [NEUTRINO](https://studio-neutrino.com/) installed by you, through the ordinary `render()`, CLI and MCP — the score alone decides; there is no
+separate API (Node only; the browser build throws `SingerUnavailableError`). It is looked for in `/Applications/NEUTRINO`, or where `NEUTRINO_DIR` in a
+`.env` file in the project directory (or the environment) says. `level` is the vocal's loudness over
+the other tracks in LU (default 4); the track's `gain` adds to it. A missing NEUTRINO or voice is an
+error, never a silent fallback. Details (in Japanese): [docs/singing-neutrino.md](docs/singing-neutrino.md).
+
 ## Licence
 
 MIT — except the score files in `examples/piano/`, which carry their own CC BY 4.0 or

@@ -1,8 +1,4 @@
-// The singing-voice instrument (groundwork; docs/singing-voice-plan.md). Not wired into render() yet.
+// Singing: a track sung by the user's own NEUTRINO install (Node only; docs/singing-neutrino.md).
 export * from "./types.ts";
 export * from "./kana.ts";
-export * from "./frames.ts";
-export * from "./model.ts";
-export * from "./vocoder.ts";
-export * from "./sing.ts";
-export * from "./post.ts";
+export * from "./neutrino.ts";

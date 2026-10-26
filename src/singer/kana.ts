@@ -70,6 +70,8 @@ const COMBINED: Readonly<Record<string, readonly string[]>> = {
   ずぃ: ["z", "i"],
   てゅ: ["ty", "u"],
   でゅ: ["dy", "u"],
+  くぁ: ["kw", "a"],
+  ぐぁ: ["gw", "a"],
 };
 
 const MORA = new Map<string, readonly string[]>();
@@ -110,5 +112,5 @@ export function moraPhonemes(syllable: string): readonly string[] | undefined {
 
 /** Whether a phoneme is voiced (gets F0); unvoiced consonants and the closure get 0 Hz. */
 export function isVoiced(phoneme: string): boolean {
-  return !["k", "ky", "s", "sh", "t", "ty", "ts", "ch", "h", "hy", "f", "p", "py", "cl", "pau"].includes(phoneme);
+  return !["k", "ky", "kw", "s", "sh", "t", "ty", "ts", "ch", "h", "hy", "f", "p", "py", "cl", "pau"].includes(phoneme);
 }

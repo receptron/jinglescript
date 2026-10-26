@@ -21,7 +21,7 @@ export interface RenderOptions {
   /** Recorded samples for sampled instruments (grandpiano), from `await loadSamples(score)`. */
   samples?: SampleSource;
   /**
-   * Tracks already rendered elsewhere (the singer, which runs an ONNX model and so is async): mono
+   * Tracks already rendered elsewhere (a track sung by NEUTRINO, which runs outside and so is async): mono
    * PCM at `sampleRate` from time 0, mixed in place of the track's own instrument, before mastering.
    */
   prerendered?: ReadonlyMap<number, Float32Array>;
@@ -153,7 +153,7 @@ const PRERENDERED_RAMP = 0.005;
 /**
  * The score's default velocity: a prerendered note at it plays at unit gain, so 1.0 is 1.25× and
  * 0.4 is 0.5×. Instruments instead scale with velocity against 1 (a default note plays at 0.8×).
- * The reference differs on purpose: a singer model is levelled for a normally sung note, so
+ * The reference differs on purpose: a singer is levelled for a normally sung note, so
  * the default velocity should leave its output as rendered.
  */
 const PRERENDERED_NORMAL_VEL = 0.8;
@@ -219,7 +219,42 @@ export function samplesNeeded(score: Score, options: Pick<RenderOptions, "seed">
   return [...recorder.keys].sort((a, b) => a.localeCompare(b));
 }
 
-export function render(score: Score, options: RenderOptions = {}): RenderResult {
+/** Renders a track's `sing` vocal (Node registers NEUTRINO; browser builds have none). Internal. */
+export type Singer = (score: Score, options: RenderOptions, track: number) => Float32Array;
+let singer: Singer | undefined;
+/** Internal: the Node entry registers NEUTRINO here. */
+export function setSinger(next: Singer | undefined): void {
+  singer = next;
+}
+
+/** A score asks for a singer (`sing` on a track) where none is available (browser builds). */
+export class SingerUnavailableError extends Error {
+  constructor(engine: string) {
+    super(
+      `This score sings a track with ${engine} ("sing" on a track), which needs Node (the CLI, MCP or the "jinglescript" Node entry). It can't be rendered in the browser.`,
+    );
+    this.name = "SingerUnavailableError";
+  }
+}
+
+/** The index of the track with `sing`, or undefined; an error for more than one. */
+export function sungTrack(score: Score): number | undefined {
+  const sung = score.tracks.flatMap((track, index) => (track.sing ? [index] : []));
+  if (sung.length > 1) throw new Error(`Only one track can be sung; tracks ${sung.join(", ")} all have "sing".`);
+  return sung[0];
+}
+
+/** `options` with the sung track's vocal prerendered by the registered singer. */
+function withSinging(score: Score, options: RenderOptions): RenderOptions {
+  const track = sungTrack(score);
+  if (track === undefined || options.prerendered?.has(track)) return options;
+  if (singer === undefined) throw new SingerUnavailableError(score.tracks[track]?.sing?.engine ?? "a singer");
+  return { ...options, prerendered: new Map([...(options.prerendered ?? []), [track, singer(score, options, track)]]) };
+}
+
+export function render(score: Score, given: RenderOptions = {}): RenderResult {
+  expandOrThrow(score); // score errors (e.g. two sung tracks, non-kana lyrics) before NEUTRINO runs
+  const options = withSinging(score, given);
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   const seed = options.seed ?? score.seed;
   const expanded = expandOrThrow(score);

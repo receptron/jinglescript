@@ -81,6 +81,18 @@ same conventions; when in doubt about setup, look at how it does it.
   per-member tables are written the same way, so adding a member without handling it fails
   `typecheck` instead of being silently skipped.
 
+## Design
+
+- **Extensions are expressed in the JingleScript score, not new APIs.** Choosing a feature or
+  backend (e.g. NEUTRINO singing: `sing: { engine, voice, level }` on a track) is done only by what
+  the score says; the existing `render()` / CLI / MCP handle it. Don't add parallel entry points
+  like `renderWithNeutrino`. Why: apps that use JingleScript (e.g. MulmoCast) gain new features just
+  by updating the npm package, with no code changes of their own.
+- **External engines are located, never bundled.** NEUTRINO is found via `.env` (`NEUTRINO_DIR`,
+  default `/Applications/NEUTRINO`; a real environment variable overrides it). If a score requires
+  an engine or voice that isn't available, throw a clear error listing what is available — never
+  silently fall back.
+
 ## Process
 
 - **Ask before anything outward-facing:** creating the GitHub repository, pushing, publishing to

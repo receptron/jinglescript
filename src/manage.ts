@@ -14,6 +14,7 @@ import { dataUri, round1, toPlayerData, VIEWS, wantsNotation, wavPlayerAudio, ty
 import { render, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
+import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 import { checkScore, parseScore, type Score } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
@@ -229,6 +230,13 @@ function presentationOf(input: ManageInput): Presentation {
   };
 }
 
+/** Errors whose message tells the user what to install or set up (ffmpeg, samples, NEUTRINO). */
+const isSetupError = (error: unknown): error is Error =>
+  error instanceof FfmpegMissingError ||
+  error instanceof SampleDownloadError ||
+  error instanceof NeutrinoMissingError ||
+  error instanceof NeutrinoVoiceMissingError;
+
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
   const source = await scoreOf(input, options);
   if (!source.ok) return source.result;
@@ -244,7 +252,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     if (options.outDir === undefined) result = render(score, { samples: await loadSamples(score) });
     else ({ result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" }));
   } catch (error) {
-    if (error instanceof FfmpegMissingError || error instanceof SampleDownloadError) return { text: error.message, isError: true };
+    if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;
   }
   const notationFile = files && options.outDir !== undefined && wantsNotation(score, view) ? await writeNotation(score, options.outDir, stem) : undefined;

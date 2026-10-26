@@ -130,7 +130,7 @@ export const NoteSchema = z
       .min(1)
       .optional()
       .describe(
-        'One syllable of the words sung on this note, shown karaoke-style (nothing is sung; the instrument plays the melody). One kana or mora per note in Japanese ("ハ", "テ", "ナ"); one syllable in English, ending in "-" when the word continues on the next note ("hap-", "py"). "_" holds the previous syllable over this note.',
+        'One syllable of the words sung on this note, shown karaoke-style (nothing is sung; the instrument plays the melody). One kana or mora per note in Japanese ("ハ", "テ", "ナ"); one syllable in English, ending in "-" when the word continues on the next note ("hap-", "py"). "_" holds the previous syllable over this note. On a track with `sing`, the notes are sung: one kana mora per note (no romaji/English), and a note without a lyric right after a sung note holds its vowel (a rest only when nothing is sounding).',
       ),
     lineEnd: z.boolean().optional().describe("true ends a line of lyrics after this note's syllable. The last syllable of a track ends its line anyway."),
   })
@@ -146,6 +146,21 @@ export const PedalSchema = z
   })
   .describe("One stretch of sustain pedal.");
 
+export const SingSchema = z
+  .strictObject({
+    engine: z
+      .literal("neutrino")
+      .describe('The singing synthesizer: "neutrino" (installed by the user; NEUTRINO_DIR in .env, default /Applications/NEUTRINO).'),
+    voice: z.string().optional().describe('A NEUTRINO voice, e.g. "reina" or "merrow" (default REINA).'),
+    level: z
+      .number()
+      .min(-24)
+      .max(24)
+      .optional()
+      .describe("Vocal loudness over the other tracks, in LU (≈ dB). Default 4: the voice a little in front. The track's `gain` adds to it."),
+  })
+  .describe("Sing the track with NEUTRINO.");
+
 export const TrackSchema = z
   .strictObject({
     instrument: z
@@ -157,6 +172,9 @@ export const TrackSchema = z
     gain: z.number().min(-60).max(12).default(0).describe("Track level in dB (0 = as is, -6 = about half as loud)."),
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
+    sing: SingSchema.optional().describe(
+      "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. An uncached render blocks the process for tens of seconds.",
+    ),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
     clef: z
       .enum(CLEFS)

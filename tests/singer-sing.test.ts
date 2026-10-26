@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -45,6 +46,8 @@ function fakeRuntime(seen: { dims?: readonly number[] }) {
   });
 }
 
+const ONNX_BYTES = Buffer.from("fake onnx");
+
 async function installFake(): Promise<string> {
   const cacheDir = await mkdtemp(join(tmpdir(), "singer-sing-"));
   const folder = join(cacheDir, "singer", "fake");
@@ -59,8 +62,9 @@ async function installFake(): Promise<string> {
     phonemes: PHONEMES,
     envelope: { kind: "band-log-power", fftSize: 1024, maxHz: 11025 },
     files: { acoustic: "acoustic.onnx" },
-    sha256: { "acoustic.onnx": "0".repeat(64) },
+    sha256: { "acoustic.onnx": createHash("sha256").update(ONNX_BYTES).digest("hex") },
   };
+  await writeFile(join(folder, "acoustic.onnx"), ONNX_BYTES);
   await writeFile(join(folder, "manifest.json"), JSON.stringify(manifest));
   return cacheDir;
 }

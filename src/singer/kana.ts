@@ -1,6 +1,6 @@
 // Kana → phonemes for the singing voice. The phoneme set is the one Japanese singing corpora and
 // OpenJTalk use (a i u e o N cl, consonants k g s z t d n h b p m y r w, palatalized ky gy sh j ch
-// ny hy by py my ry, ts f v), so data prepared by training/singing/ and the runtime agree.
+// ny hy by py my ry ty dy, ts f v), so data prepared by training/singing/ and the runtime agree.
 
 const VOWELS = ["a", "i", "u", "e", "o"] as const;
 
@@ -58,6 +58,20 @@ const PALATAL: Readonly<Record<string, string>> = {
   う: "w",
 };
 
+// Two-kana moras the palatal rule above gets wrong or lacks (loanwords).
+const COMBINED: Readonly<Record<string, readonly string[]>> = {
+  とぅ: ["t", "u"],
+  どぅ: ["d", "u"],
+  つぁ: ["ts", "a"],
+  つぃ: ["ts", "i"],
+  つぇ: ["ts", "e"],
+  つぉ: ["ts", "o"],
+  すぃ: ["s", "i"],
+  ずぃ: ["z", "i"],
+  てゅ: ["ty", "u"],
+  でゅ: ["dy", "u"],
+};
+
 const MORA = new Map<string, readonly string[]>();
 for (const [consonant, kana] of ROWS) {
   [...kana].forEach((char, i) => {
@@ -85,6 +99,8 @@ export function moraPhonemes(syllable: string): readonly string[] | undefined {
   const [first, second] = chars;
   if (first === undefined || chars.length > 2) return undefined;
   if (second === undefined) return MORA.get(first);
+  const special = COMBINED[first + second];
+  if (special !== undefined) return special;
   const vowel = SMALL[second];
   const consonant = PALATAL[first];
   if (vowel === undefined || consonant === undefined) return undefined;
@@ -94,5 +110,5 @@ export function moraPhonemes(syllable: string): readonly string[] | undefined {
 
 /** Whether a phoneme is voiced (gets F0); unvoiced consonants and the closure get 0 Hz. */
 export function isVoiced(phoneme: string): boolean {
-  return !["k", "ky", "s", "sh", "t", "ts", "ch", "h", "hy", "f", "p", "py", "cl", "pau"].includes(phoneme);
+  return !["k", "ky", "s", "sh", "t", "ty", "ts", "ch", "h", "hy", "f", "p", "py", "cl", "pau"].includes(phoneme);
 }

@@ -13,6 +13,8 @@ export interface VocalChainOptions {
   ride?: false | { targetDb?: number; maxBoostDb?: number; maxCutDb?: number };
   /** Per-hop voicing (1 = voiced); unvoiced hops get no ride boost. `hop` samples per entry. */
   voicing?: { voiced: Uint8Array; hop: number };
+  /** Median F0 of the vocal (Hz). The resonance finder ignores its harmonics, which a held vowel makes look like resonances. */
+  f0Hz?: number;
   /** 2. EQ: low cut, one automatic resonance notch, air shelf. false to skip. */
   eq?: false | { lowCutHz?: number; maxNotchDb?: number; airDb?: number };
   /** 3. Upward compression of quiet detail, gated above the noise floor. false to skip. */
@@ -119,8 +121,17 @@ function averageSpectrum(x: Float32Array): Float64Array {
   return sum.map((p) => 10 * dmath.log10(p / Math.max(1, frames) + 1e-20));
 }
 
-/** The most prominent narrow peak 200 Hz–8 kHz above its ±1/3-octave neighbourhood, if > 6 dB. */
-export function findResonance(x: Float32Array, sampleRate: number): { hz: number; excessDb: number } | undefined {
+/** Whether a frequency is within 4% (and at least two FFT bins) of a harmonic of f0. */
+function nearHarmonic(hz: number, f0: number, binHz: number): boolean {
+  const n = Math.max(1, Math.round(hz / f0));
+  return Math.abs(hz - n * f0) <= Math.max(2 * binHz, 0.04 * n * f0);
+}
+
+/**
+ * The most prominent narrow peak 200 Hz–8 kHz above its ±1/3-octave neighbourhood, if > 6 dB.
+ * With `f0Hz`, peaks near its harmonics are not resonances and are skipped.
+ */
+export function findResonance(x: Float32Array, sampleRate: number, f0Hz?: number): { hz: number; excessDb: number } | undefined {
   const spectrum = averageSpectrum(x);
   const binHz = sampleRate / 4096;
   let best: { hz: number; excessDb: number } | undefined;
@@ -130,15 +141,16 @@ export function findResonance(x: Float32Array, sampleRate: number): { hz: number
     let sum = 0;
     for (let j = lo; j <= hi; j++) sum += spectrum[j] ?? 0;
     const excess = (spectrum[k] ?? 0) - sum / (hi - lo + 1);
+    if (f0Hz !== undefined && f0Hz > 0 && nearHarmonic(k * binHz, f0Hz, binHz)) continue;
     if (excess > 6 && (best === undefined || excess > best.excessDb)) best = { hz: k * binHz, excessDb: excess };
   }
   return best;
 }
 
 /** 2. EQ, in place. */
-function equalize(x: Float32Array, sampleRate: number, options: Exclude<VocalChainOptions["eq"], false> = {}) {
+function equalize(x: Float32Array, sampleRate: number, options: Exclude<VocalChainOptions["eq"], false> = {}, f0Hz?: number) {
   const filters: Biquad[] = [highpass(options.lowCutHz ?? 90, Math.SQRT1_2, sampleRate)];
-  const resonance = findResonance(x, sampleRate);
+  const resonance = findResonance(x, sampleRate, f0Hz);
   const notch = resonance && { hz: resonance.hz, cutDb: Math.min(options.maxNotchDb ?? 6, resonance.excessDb / 2) };
   if (notch) filters.push(peaking(notch.hz, -notch.cutDb, 8, sampleRate));
   if ((options.airDb ?? 2) !== 0) filters.push(highShelf(10000, options.airDb ?? 2, sampleRate));
@@ -189,7 +201,7 @@ function finish(x: Float32Array, sampleRate: number, options: NonNullable<VocalC
 export function vocalChain(input: Float32Array, sampleRate: number, options: VocalChainOptions = {}): { pcm: Float32Array; stats: VocalChainStats } {
   const x = input.slice();
   const rideStats = options.ride === false ? undefined : ride(x, sampleRate, options.ride, options.voicing);
-  const notch = options.eq === false ? undefined : equalize(x, sampleRate, options.eq);
+  const notch = options.eq === false ? undefined : equalize(x, sampleRate, options.eq, options.f0Hz);
   const upwardStats = options.upward === false ? undefined : upward(x, sampleRate, options.upward);
   const limiterDb = options.standalone ? finish(x, sampleRate, options.standalone) : undefined;
   return {

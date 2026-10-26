@@ -86,7 +86,7 @@ describe("singer models", () => {
       melBins: 128,
       phonemes: ["pau", "a"],
       files: { acoustic: "acoustic.onnx", vocoder: "vocoder.onnx" },
-      sha256: {},
+      sha256: { "acoustic.onnx": "0".repeat(64), "vocoder.onnx": "1".repeat(64) },
     };
     await writeFile(join(folder, "manifest.json"), JSON.stringify(manifest));
     expect((await readSingerManifest("test", dir)).license).toBe("CC0-1.0");

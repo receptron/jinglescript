@@ -1,14 +1,13 @@
 // Opt-in singing: a track of a score sung by an installed singer model instead of played by its
 // instrument. Async (ONNX Runtime), so it pre-renders the track and hands the PCM to render()
 // through `prerendered`. Nothing here runs unless a caller asks for a singer.
-import { join } from "node:path";
 import * as dmath from "../dsp/math.ts";
 import { pitchToMidi } from "../pitch.ts";
 import { expandOrThrow, render, type RenderOptions, type RenderResult } from "../render.ts";
 import { streamRng } from "../rng.ts";
 import type { Score } from "../score.ts";
 import { notesToFrames } from "./frames.ts";
-import { loadOnnxRuntime, readSingerManifest, singerFolder, type OnnxRuntime, type SingerManifest } from "./model.ts";
+import { loadOnnxRuntime, readSingerManifest, verifiedModelFile, type OnnxRuntime, type SingerManifest } from "./model.ts";
 import type { SingerFrames, SingerNote } from "./types.ts";
 import { vocalChain, type VocalChainOptions, type VocalChainStats } from "./post.ts";
 import { synthesizeEnvelope } from "./vocoder.ts";
@@ -66,8 +65,8 @@ function isSession(value: unknown): value is Session {
   return typeof value === "object" && value !== null && typeof Reflect.get(value, "run") === "function";
 }
 
-async function acousticEnvelope(runtime: OnnxRuntime, manifest: SingerManifest, folder: string, features: Float32Array, count: number): Promise<Float32Array> {
-  const session = await runtime.InferenceSession.create(join(folder, manifest.files.acoustic));
+async function acousticEnvelope(runtime: OnnxRuntime, manifest: SingerManifest, path: string, features: Float32Array, count: number): Promise<Float32Array> {
+  const session = await runtime.InferenceSession.create(path);
   if (!isSession(session)) throw new Error("onnxruntime-node returned no session");
   const width = manifest.phonemes.length + 3;
   const result = await session.run({ features: new runtime.Tensor("float32", features, [count, width]) });
@@ -75,6 +74,12 @@ async function acousticEnvelope(runtime: OnnxRuntime, manifest: SingerManifest, 
   if (!(data instanceof Float32Array) || data.length !== count * manifest.melBins)
     throw new Error(`${manifest.name}: acoustic model gave no envelope of ${count}×${manifest.melBins}`);
   return data;
+}
+
+/** Median of the voiced F0 frames (Hz), or undefined when nothing is voiced. */
+function medianF0(f0: Float32Array): number | undefined {
+  const voiced = [...f0].filter((hz) => hz > 0).sort((a, b) => a - b);
+  return voiced.length === 0 ? undefined : voiced[Math.floor(voiced.length / 2)];
 }
 
 /** Mono PCM of the track sung by the model, at the model's sample rate, from time 0. */
@@ -91,13 +96,13 @@ export async function singTrack(
   const count = frames.f0.length;
   const pcm = new Float32Array(count * manifest.hopSize);
   if (count === 0) return { pcm, sampleRate: manifest.sampleRate };
-  const folder = singerFolder(options.model, options.cacheDir);
-  const env = await acousticEnvelope(runtime, manifest, folder, singerFeatures(frames, manifest.phonemes), count);
+  const acoustic = await verifiedModelFile(manifest, manifest.files.acoustic, options.cacheDir);
+  const env = await acousticEnvelope(runtime, manifest, acoustic, singerFeatures(frames, manifest.phonemes), count);
   const format = { sampleRate: manifest.sampleRate, hopSize: manifest.hopSize, bands: manifest.melBins, ...manifest.envelope };
   const sung = synthesizeEnvelope(env, frames.f0, format, streamRng(seed, "singer", options.track));
   if (options.post === undefined || options.post === false) return { pcm: sung, sampleRate: manifest.sampleRate };
   const voicing = { voiced: Uint8Array.from(frames.f0, (hz) => (hz > 0 ? 1 : 0)), hop: manifest.hopSize };
-  const chain = vocalChain(sung, manifest.sampleRate, { voicing, ...(options.post === true ? {} : options.post) });
+  const chain = vocalChain(sung, manifest.sampleRate, { voicing, f0Hz: medianF0(frames.f0), ...(options.post === true ? {} : options.post) });
   return { pcm: chain.pcm, sampleRate: manifest.sampleRate, post: chain.stats };
 }
 

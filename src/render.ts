@@ -264,20 +264,18 @@ export function setRenderRunner(next: RenderRunner | undefined): void {
  * Renders `score` to stereo audio and its timing map. In Node the work runs on a worker thread, so
  * the caller's event loop (an MCP server, a GUI host) keeps answering during a long render or a
  * NEUTRINO vocal; in the browser it runs in place. Either way the same score, seed and options give
- * bit-identical audio. Score errors reject with JingleScriptError before any work starts.
+ * bit-identical audio. Score errors reject with JingleScriptError before any audio is made.
  */
 export async function render(score: Score, options: RenderOptions = {}): Promise<RenderResult> {
-  expandOrThrow(score);
   return runner === undefined ? renderNow(score, options) : runner(score, options);
 }
 
 /** render(), synchronously, on this thread: what the worker runs. Internal. */
 export function renderNow(score: Score, given: RenderOptions = {}): RenderResult {
-  expandOrThrow(score); // score errors (e.g. two sung tracks, non-kana lyrics) before NEUTRINO runs
+  const expanded = expandOrThrow(score); // score errors (e.g. two sung tracks, non-kana lyrics) before NEUTRINO runs
   const options = withSinging(score, given);
   const sampleRate = options.sampleRate ?? DEFAULT_SAMPLE_RATE;
   const seed = options.seed ?? score.seed;
-  const expanded = expandOrThrow(score);
   const length = secondsToSample(expanded.duration, sampleRate);
   const wet: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];
   const dry: [Float32Array, Float32Array] = [new Float32Array(length), new Float32Array(length)];

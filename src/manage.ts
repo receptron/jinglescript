@@ -27,7 +27,7 @@ import { render, type RenderResult } from "./render.ts";
 import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
-import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
+import { checkSinger, NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 import { checkScore, parseScore, type Score, type ScoreProblem } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
@@ -260,6 +260,17 @@ const isSetupError = (error: unknown): error is Error =>
   error instanceof NeutrinoMissingError ||
   error instanceof NeutrinoVoiceMissingError;
 
+/** What to tell the user when the score sings and NEUTRINO or its voice is missing; checked before rendering, so it never surfaces only later (a deferred render). */
+function missingSinger(score: Score): ManageResult | undefined {
+  try {
+    checkSinger(score);
+    return undefined;
+  } catch (error) {
+    if (isSetupError(error)) return { text: error.message, isError: true };
+    throw error;
+  }
+}
+
 /** The name of the render's files and its title when the score has none. */
 const stemFor = (input: ManageInput): string => input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
 
@@ -278,6 +289,8 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
   const score = parseScore(raw);
   const stem = stemFor(input);
+  const missing = missingSinger(score);
+  if (missing !== undefined) return missing;
   const waitMs = deferWait(options);
   if (waitMs !== undefined) return deferredRenderAction(input, score, stem, check.warnings, waitMs);
   let files: { audio: string; timing: string } | undefined;

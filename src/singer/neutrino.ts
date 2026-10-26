@@ -12,7 +12,7 @@ import { parseEnv } from "node:util";
 import * as dmath from "../dsp/math.ts";
 import { resample } from "../dsp/resample.ts";
 import { pitchToMidi } from "../pitch.ts";
-import { DEFAULT_SAMPLE_RATE, expandOrThrow, renderNow, setSinger, type RenderOptions } from "../render.ts";
+import { DEFAULT_SAMPLE_RATE, expandOrThrow, renderNow, setSinger, sungTrack, type RenderOptions } from "../render.ts";
 import { defaultCacheDir } from "../samples/load.ts";
 import { decodeWavMono } from "../samples/wav-read.ts";
 import type { Score } from "../score.ts";
@@ -380,6 +380,20 @@ export function singTrack(
 }
 
 let configured: NeutrinoOptions = {};
+
+/**
+ * Throws NeutrinoMissingError or NeutrinoVoiceMissingError when `score` sings and NEUTRINO or its
+ * voice is not installed; nothing otherwise. Cheap (a few file checks): a carrier calls it before a
+ * render starts, so the user hears about a missing install at once, not from a render that failed later.
+ */
+export function checkSinger(score: Score): void {
+  const track = sungTrack(score);
+  if (track === undefined) return;
+  const dir = configured.dir ?? neutrinoDir();
+  const install = findNeutrino(dir);
+  if (install === undefined) throw new NeutrinoMissingError(dir);
+  resolveVoice(install, configured.voice ?? score.tracks[track]?.sing?.voice ?? DEFAULT_NEUTRINO_VOICE);
+}
 /** Internal (tests): overrides for the NEUTRINO folder, cache, exec and level. Not part of the public API. */
 export function configureNeutrino(options: NeutrinoOptions): void {
   configured = options;

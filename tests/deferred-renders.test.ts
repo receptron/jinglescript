@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { awaitDeferredPlayer, DEFERRED_KEEP_MS, deferRender } from "../src/deferred-renders.ts";
+import { awaitDeferredPlayer, COLLECTED_KEEP_MS, DEFERRED_KEEP_MS, deferRender, MAX_DEFERRED } from "../src/deferred-renders.ts";
 import type { PlayerData } from "../src/player.ts";
+
+const player = {} as PlayerData;
 
 describe("deferred renders", () => {
   afterEach(() => vi.useRealTimers());
@@ -17,7 +19,7 @@ describe("deferred renders", () => {
 
   it("are kept for as long as they render", async () => {
     vi.useFakeTimers();
-    let finish: ((player: PlayerData) => void) | undefined;
+    let finish: ((done: PlayerData) => void) | undefined;
     const id = deferRender(
       new Promise<PlayerData>((resolve) => {
         finish = resolve;
@@ -25,7 +27,35 @@ describe("deferred renders", () => {
     );
     await vi.advanceTimersByTimeAsync(DEFERRED_KEEP_MS * 2);
     const waiting = awaitDeferredPlayer(id);
-    finish?.({} as PlayerData);
+    finish?.(player);
+    expect((await waiting).kind).toBe("ready");
+  });
+
+  it("are dropped COLLECTED_KEEP_MS after a view collected the audio", async () => {
+    vi.useFakeTimers();
+    const id = deferRender(Promise.resolve(player));
+    expect((await awaitDeferredPlayer(id)).kind).toBe("ready");
+    await vi.advanceTimersByTimeAsync(COLLECTED_KEEP_MS - 1);
+    expect((await awaitDeferredPlayer(id)).kind).toBe("ready"); // a second mount of the card
+    await vi.advanceTimersByTimeAsync(COLLECTED_KEEP_MS);
+    expect((await awaitDeferredPlayer(id)).kind).toBe("gone");
+  });
+
+  it("keep only the newest MAX_DEFERRED finished ones, and every one still running", async () => {
+    let finish: ((done: PlayerData) => void) | undefined;
+    const running = deferRender(
+      new Promise<PlayerData>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const ids = Array.from({ length: MAX_DEFERRED + 3 }, () => deferRender(Promise.reject(new Error("x"))));
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const kinds = await Promise.all(ids.map(async (id) => (await awaitDeferredPlayer(id)).kind));
+    expect(kinds.filter((kind) => kind === "gone")).toHaveLength(3);
+    expect(kinds.slice(0, 3)).toEqual(["gone", "gone", "gone"]);
+    const waiting = awaitDeferredPlayer(running);
+    finish?.(player);
     expect((await waiting).kind).toBe("ready");
   });
 });

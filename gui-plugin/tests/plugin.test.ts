@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { definitionText } from "../scripts/definition.ts";
 import { AUDIO_REQUEST, isAudioRequest, parseAudioReply } from "../src/audio-request.ts";
+import { manage } from "jinglescript";
 import { executeManage, instructionsFor, pluginCore, TOOL_DEFINITION } from "../src/index.ts";
 import { karaoke, lanes, waveformPath, xOf } from "../src/vue/layout.ts";
 import { plugin } from "../src/vue/index.ts";
@@ -100,27 +101,30 @@ describe("a card shown before its audio (a host that sets deferredAudio)", () =>
   };
 
   it(
-    "answers at once with a pending card, which the view completes through the same execute",
+    "passes the host's deferredAudio on: the card comes finished, or pending",
     async () => {
       const result = await executeManage({ deferredAudio: true }, { action: "renderScore", score: long, autoplay: true });
       const data = result.data;
-      if (data?.pending === undefined) {
-        expect(data?.audio.startsWith("data:audio/")).toBe(true); // ready in time: the finished card
-        return;
-      }
-      expect(data.audio).toBe("");
-      expect(result.instructions).toContain("still rendering");
-      expect(result.instructions).toContain("when the audio is ready");
-      const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: data.pending }));
-      expect(reply?.outcome).toBe("ready");
-      if (reply?.outcome === "ready") {
-        expect(reply.data.pending).toBeUndefined();
-        expect(reply.data.audio.startsWith("data:audio/")).toBe(true);
-        expect(reply.data.timing.notes).toEqual(data.timing.notes);
-      }
+      if (data?.pending === undefined) expect(data?.audio.startsWith("data:audio/")).toBe(true);
+      else expect(result.instructions).toMatch(/still rendering.*when the audio is ready/s);
     },
     LONG_RENDER_MS,
   );
+
+  it("completes a pending card through the same execute the host's dispatch reaches", async () => {
+    // waitMs 0: always pending, however fast the machine.
+    const pending = (await manage({ action: "renderScore", score, autoplay: true }, { player: true, deferAudio: { waitMs: 0 } })).player;
+    if (pending?.pending === undefined) throw new Error("expected a pending card");
+    expect(pending.audio).toBe("");
+    expect(instructionsFor(pending)).toMatch(/still rendering.*when the audio is ready/s);
+    const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: pending.pending }));
+    expect(reply?.outcome).toBe("ready");
+    if (reply?.outcome === "ready") {
+      expect(reply.data.pending).toBeUndefined();
+      expect(reply.data.audio.startsWith("data:audio/")).toBe(true);
+      expect(reply.data.timing.notes).toEqual(pending.timing.notes);
+    }
+  });
 
   it(
     "always waits for the audio in a host that does not set it",

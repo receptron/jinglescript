@@ -86,7 +86,8 @@ describe("manageJingleScript, carried by any protocol", () => {
 
 describe("renderScore with deferAudio (a view that collects the audio later)", () => {
   it("answers with the finished player when the audio is ready in time", async () => {
-    const result = await manage({ action: "renderScore", score }, { player: true, deferAudio: true });
+    // A wait no machine misses, however loaded (the default is DEFER_WAIT_MS).
+    const result = await manage({ action: "renderScore", score }, { player: true, deferAudio: { waitMs: 25_000 } });
     expect(result.player?.pending).toBeUndefined();
     expect(result.player?.audio.startsWith("data:")).toBe(true);
     expect(JSON.parse(result.text)).toHaveProperty("loudness");
@@ -116,12 +117,12 @@ describe("renderScore with deferAudio (a view that collects the audio later)", (
     expect(await awaitDeferredPlayer(pending?.pending ?? "")).toEqual(outcome);
   });
 
-  it("tells the LLM of a render that fails at once, as without deferAudio", async () => {
+  it("tells the LLM of a missing NEUTRINO before rendering, however short the wait", async () => {
     const unsingable = { ...score, tracks: [{ instrument: "organ", sing: { engine: "neutrino" }, notes: [{ at: 1, pitch: "C4", lyric: "か" }] }] };
     const before = process.env.NEUTRINO_DIR;
     process.env.NEUTRINO_DIR = "/nonexistent/NEUTRINO";
     try {
-      const result = await manage({ action: "renderScore", score: unsingable }, { player: true, deferAudio: { waitMs: 1000 } });
+      const result = await manage({ action: "renderScore", score: unsingable }, { player: true, deferAudio: { waitMs: 0 } });
       expect(result).toMatchObject({ isError: true, text: expect.stringContaining("NEUTRINO was not found") });
       expect(result.player).toBeUndefined();
     } finally {

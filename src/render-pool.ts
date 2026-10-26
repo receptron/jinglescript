@@ -1,15 +1,15 @@
 // Node: render() on worker threads (render-worker.ts), so a long render — a piano piece, a NEUTRINO
 // vocal — never blocks the event loop of the process that asked for it; an MCP server or a GUI host
-// keeps answering. Up to POOL_SIZE renders run at once and the rest wait their turn. Idle workers are
-// kept for the next render and unref'd, so they never keep the process alive. Importing this module
-// registers the pool with render(); without it (the browser, or a bundle that left the worker file
-// behind) render() works in place.
+// keeps answering. Up to POOL_SIZE renders run at once (one of them sung: NEUTRINO uses every core)
+// and the rest wait their turn. Idle workers are kept for the next render and unref'd, so they never
+// keep the process alive. Importing this module registers the pool with render(); where no worker
+// can run (a bundle that left the worker file behind) it says so once, and render() works in place.
 import { existsSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { SHARE_ENV, Worker } from "node:worker_threads";
 import type { RenderJob, RenderReply, SerializedError } from "./render-worker.ts";
-import { samplesNeeded, setRenderRunner, SingerUnavailableError, type RenderOptions, type RenderResult } from "./render.ts";
+import { samplesNeeded, setRenderRunner, SingerUnavailableError, sungTrack, type RenderOptions, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadedSamples, SamplesNotLoadedError, type SampleData, type SampleSource } from "./samples/source.ts";
 import { JingleScriptError, type Score } from "./score.ts";
@@ -40,13 +40,13 @@ function revive(serialized: SerializedError): Error {
   return error;
 }
 
-/** The worker's file next to this one, or undefined when it can't run here (render in place). */
-function workerFile(): URL | undefined {
+/** The worker's file next to this one, or why there is none here (then render() works in place). */
+function workerFile(): { url: URL; missing?: undefined } | { url?: undefined; missing: string } {
   const fromSource = import.meta.url.endsWith(".ts");
-  // Running from src/ on a Node that cannot strip types: the worker could not load its .ts files.
-  if (fromSource && !process.features.typescript) return undefined;
-  const file = new URL(fromSource ? "./render-worker.ts" : "./render-worker.js", import.meta.url);
-  return file.protocol === "file:" && existsSync(fileURLToPath(file)) ? file : undefined;
+  if (fromSource && !process.features.typescript) return { missing: "running from src/ on a Node that cannot strip types (before 22.18)" };
+  const url = new URL(fromSource ? "./render-worker.ts" : "./render-worker.js", import.meta.url);
+  if (url.protocol !== "file:" || !existsSync(fileURLToPath(url))) return { missing: `${url.href} is missing (bundled without it?)` };
+  return { url };
 }
 
 /** The samples a render reads, as plain data a worker can receive. */
@@ -72,8 +72,18 @@ function workerOptions(options: RenderOptions): RenderJob["options"] {
   return { sampleRate: options.sampleRate, seed: options.seed, prerendered: options.prerendered } satisfies Record<keyof RenderJob["options"], unknown>;
 }
 
+/** Whether a score sings: NEUTRINO uses every core, so sung renders run one at a time. */
+function sings(score: Score): boolean {
+  try {
+    return sungTrack(score) !== undefined;
+  } catch {
+    return false; // more than one sung track: the worker reports it
+  }
+}
+
 interface Task {
   job: Omit<RenderJob, "id">;
+  sung: boolean;
   resolve: (result: RenderResult) => void;
   reject: (error: Error) => void;
 }
@@ -81,6 +91,7 @@ interface Task {
 const queue: Task[] = [];
 const idle: Worker[] = [];
 let alive = 0;
+let singing = 0;
 let nextId = 0;
 
 function startWorker(url: URL): Worker {
@@ -100,8 +111,10 @@ function startWorker(url: URL): Worker {
 function run(url: URL, worker: Worker, task: Task): void {
   const id = nextId++;
   let settled = false;
+  if (task.sung) singing++;
   const settle = (): void => {
     settled = true;
+    if (task.sung) singing--;
     worker.off("message", onMessage);
     worker.off("error", onError);
     worker.off("exit", onExit);
@@ -138,25 +151,32 @@ function run(url: URL, worker: Worker, task: Task): void {
   }
 }
 
-/** Starts queued renders while there is a free worker, or room for another. */
+/** Starts queued renders, in order, while there is a free worker or room for another; a sung one waits for the one singing. */
 function pump(url: URL): void {
   for (;;) {
-    const task = queue[0];
+    const next = queue.findIndex((task) => !task.sung || singing === 0);
+    const task = queue[next];
     if (task === undefined) return;
     const worker = idle.pop() ?? (alive < POOL_SIZE ? startWorker(url) : undefined);
     if (worker === undefined) return;
-    queue.shift();
+    queue.splice(next, 1);
     run(url, worker, task);
   }
 }
 
-const file = workerFile();
-if (file !== undefined) {
+const { url: workerUrl, missing } = workerFile();
+if (workerUrl === undefined) {
+  // Said once, not silently: rendering in place gives the same audio but blocks this thread meanwhile.
+  process.emitWarning(`jinglescript renders on the calling thread, not a worker: ${missing}. A long render blocks this process meanwhile.`, {
+    code: "JINGLESCRIPT_NO_RENDER_WORKER",
+  });
+} else {
   setRenderRunner(
     (score, options) =>
       new Promise<RenderResult>((resolve, reject) => {
-        queue.push({ job: { score, options: workerOptions(options), samples: samplesFor(score, options.samples, options.seed) }, resolve, reject });
-        pump(file);
+        const job = { score, options: workerOptions(options), samples: samplesFor(score, options.samples, options.seed) };
+        queue.push({ job, sung: sings(score), resolve, reject });
+        pump(workerUrl);
       }),
   );
 }

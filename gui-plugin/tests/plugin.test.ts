@@ -91,36 +91,46 @@ describe("the GUI Chat Protocol plugin", () => {
 
 describe("a card shown before its audio (a host that sets deferredAudio)", () => {
   // Long enough that its audio is seldom ready in DEFER_WAIT_MS; the test checks whichever answer comes.
+  // Rendering it (and encoding it with ffmpeg) takes seconds on a CI runner.
+  const LONG_RENDER_MS = 60_000;
   const long = {
     ...score,
     length: { seconds: 42 },
     tracks: [{ instrument: "ukulele", notes: Array.from({ length: 80 }, (_, i) => ({ at: i, chord: "C", strum: "D-DU" })) }],
   };
 
-  it("answers at once with a pending card, which the view completes through the same execute", async () => {
-    const result = await executeManage({ deferredAudio: true }, { action: "renderScore", score: long, autoplay: true });
-    const data = result.data;
-    if (data?.pending === undefined) {
-      expect(data?.audio.startsWith("data:audio/")).toBe(true); // ready in time: the finished card
-      return;
-    }
-    expect(data.audio).toBe("");
-    expect(result.instructions).toContain("still rendering");
-    expect(result.instructions).toContain("when the audio is ready");
-    const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: data.pending }));
-    expect(reply?.outcome).toBe("ready");
-    if (reply?.outcome === "ready") {
-      expect(reply.data.pending).toBeUndefined();
-      expect(reply.data.audio.startsWith("data:audio/")).toBe(true);
-      expect(reply.data.timing.notes).toEqual(data.timing.notes);
-    }
-  });
+  it(
+    "answers at once with a pending card, which the view completes through the same execute",
+    async () => {
+      const result = await executeManage({ deferredAudio: true }, { action: "renderScore", score: long, autoplay: true });
+      const data = result.data;
+      if (data?.pending === undefined) {
+        expect(data?.audio.startsWith("data:audio/")).toBe(true); // ready in time: the finished card
+        return;
+      }
+      expect(data.audio).toBe("");
+      expect(result.instructions).toContain("still rendering");
+      expect(result.instructions).toContain("when the audio is ready");
+      const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: data.pending }));
+      expect(reply?.outcome).toBe("ready");
+      if (reply?.outcome === "ready") {
+        expect(reply.data.pending).toBeUndefined();
+        expect(reply.data.audio.startsWith("data:audio/")).toBe(true);
+        expect(reply.data.timing.notes).toEqual(data.timing.notes);
+      }
+    },
+    LONG_RENDER_MS,
+  );
 
-  it("always waits for the audio in a host that does not set it", async () => {
-    const result = await executeManage({}, { action: "renderScore", score: long });
-    expect(result.data?.pending).toBeUndefined();
-    expect(result.data?.audio.startsWith("data:audio/")).toBe(true);
-  });
+  it(
+    "always waits for the audio in a host that does not set it",
+    async () => {
+      const result = await executeManage({}, { action: "renderScore", score: long });
+      expect(result.data?.pending).toBeUndefined();
+      expect(result.data?.audio.startsWith("data:audio/")).toBe(true);
+    },
+    LONG_RENDER_MS,
+  );
 
   it("tells the view when the render is not on the server", async () => {
     const reply = parseAudioReply(await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: "no-such-render" }));

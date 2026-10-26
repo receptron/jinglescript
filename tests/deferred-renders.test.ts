@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { awaitDeferredPlayer, DEFERRED_KEEP_MS, deferRender } from "../src/deferred-renders.ts";
+import type { PlayerData } from "../src/player.ts";
 
 describe("deferred renders", () => {
   afterEach(() => vi.useRealTimers());
@@ -16,11 +17,15 @@ describe("deferred renders", () => {
 
   it("are kept for as long as they render", async () => {
     vi.useFakeTimers();
-    let finish: (value: never) => void = () => undefined;
-    const id = deferRender(new Promise<never>((resolve) => (finish = resolve)));
+    let finish: ((player: PlayerData) => void) | undefined;
+    const id = deferRender(
+      new Promise<PlayerData>((resolve) => {
+        finish = resolve;
+      }),
+    );
     await vi.advanceTimersByTimeAsync(DEFERRED_KEEP_MS * 2);
     const waiting = awaitDeferredPlayer(id);
-    finish(undefined as never);
+    finish?.({} as PlayerData);
     expect((await waiting).kind).toBe("ready");
   });
 });

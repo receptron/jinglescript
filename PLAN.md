@@ -1526,4 +1526,6 @@ Decided:
   word accents, range; how to sing with `sing`; an original sung example (rendered with NEUTRINO
   REINA: −14.0 LUFS, −1.7 dBTP; the user: it is a song). Lyrics: melody first, words onto its
   notes. The early-sung-note hint also adds a beat of `pickup`, so the bars stay put. A test
-  checks every whole-score example in the guide. The eval still does not judge melodies.
+  checks every whole-score example in the guide. The eval still does not judge melodies. Both
+  packages go to 1.0.1 (the plugin's peer to ^1.0.1: its tool description names songs, which
+  the guide of 1.0.1 explains).

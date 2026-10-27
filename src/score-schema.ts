@@ -175,7 +175,7 @@ export const TrackSchema = z
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     sing: SingSchema.optional().describe(
-      "Sing this track (its notes' kana `lyric`s) with NEUTRINO instead of playing its instrument; one track per score. Whether NEUTRINO and the voice are installed is known only by rendering: write the score and call renderScore, which answers with what is missing if anything is (it does not fall back to the instrument). Only the browser build cannot sing. The first render of a sung track takes tens of seconds; the same one again is instant.",
+      "Sing this track (its notes' kana `lyric`s) with NEUTRINO instead of playing its instrument; one track per score. Whether NEUTRINO and the voice are installed where the score is rendered is known only by asking: checkScore and renderScore of a score with `sing` answer with what is missing, if anything is (nothing falls back to the instrument). Only the browser build cannot sing. The first render of a sung track takes tens of seconds; the same one again is instant.",
     ),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
     clef: z

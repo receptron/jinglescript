@@ -28,7 +28,7 @@ import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
 import { checkSinger, NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
-import { checkScore, parseScore, type Score, type ScoreProblem } from "./score.ts";
+import { checkScore, parseScore, type CheckResult, type Score, type ScoreProblem } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
 
@@ -292,6 +292,20 @@ function missingSinger(score: Score): ManageResult | undefined {
   }
 }
 
+/**
+ * A valid score that sings, checked for NEUTRINO and its voice too: checkScore answers what
+ * renderScore would, so the model learns whether it can sing before it renders (or gives up).
+ */
+function withSinger(check: CheckResult, raw: unknown): CheckResult {
+  if (!check.ok) return check;
+  const score = parseScore(raw);
+  const track = score.tracks.findIndex((t) => t.sing !== undefined);
+  if (track < 0) return check;
+  const missing = missingSinger(score);
+  if (missing === undefined) return check;
+  return { ...check, ok: false, errors: [{ path: `tracks[${track}].sing`, message: missing.text }] };
+}
+
 /** The name of the render's files and its title when the score has none. */
 const stemFor = (input: ManageInput): string => input.fileName ?? (input.path === undefined ? undefined : stemOf(input.path)) ?? "jingle";
 
@@ -407,7 +421,9 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     }
     case "checkScore": {
       const source = await scoreOf(input, options);
-      return source.ok ? { text: json(checkScore(source.score, { notation: input.view === "notation" })), isError: false } : source.result;
+      return source.ok
+        ? { text: json(withSinger(checkScore(source.score, { notation: input.view === "notation" }), source.score)), isError: false }
+        : source.result;
     }
     case "renderScore":
       return renderAction(input, options);

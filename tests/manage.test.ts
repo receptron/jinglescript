@@ -141,6 +141,23 @@ describe("renderScore with deferAudio (a view that collects the audio later)", (
     }
   });
 
+  it("checkScore tells the LLM whether it can sing: a missing NEUTRINO is an error on the sung track", async () => {
+    const sung = { ...score, tracks: [{ instrument: "organ", sing: { engine: "neutrino" }, notes: [{ at: 1, pitch: "C4", lyric: "か" }] }] };
+    const before = process.env.NEUTRINO_DIR;
+    process.env.NEUTRINO_DIR = "/nonexistent/NEUTRINO";
+    try {
+      const check = z
+        .object({ ok: z.boolean(), errors: z.array(z.object({ path: z.string(), message: z.string() })) })
+        .parse(JSON.parse((await manage({ action: "checkScore", score: sung })).text));
+      expect(check.ok).toBe(false);
+      expect(check.errors[0]).toMatchObject({ path: "tracks[0].sing", message: expect.stringContaining("NEUTRINO was not found") });
+      expect(JSON.parse((await manage({ action: "checkScore", score })).text)).toMatchObject({ ok: true });
+    } finally {
+      if (before === undefined) delete process.env.NEUTRINO_DIR;
+      else process.env.NEUTRINO_DIR = before;
+    }
+  });
+
   it("gives a view the reason a render failed after the answer, and says when an id is unknown", async () => {
     const id = deferRender(Promise.reject(new Error("ffmpeg crashed")));
     expect(await awaitDeferredPlayer(id)).toEqual({ kind: "failed", message: "ffmpeg crashed" });

@@ -1541,4 +1541,6 @@ Decided:
   answers with what is missing) and only the browser build cannot sing. The tool's getSchema and
   listInstruments answer without indentation, and the whole score's schema leaves out the format
   of custom instruments (getSchema part "instrument" gives it): 68k → 23k characters. The library's
-  getSchema() and the published schema files are unchanged. Not measured with the LLM eval.
+  getSchema() and the published schema files are unchanged. Not measured with the LLM eval. checkScore of a
+  score that sings now also checks NEUTRINO and its voice (an error on the sung track), so a model
+  can find out whether it can sing before rendering instead of guessing.

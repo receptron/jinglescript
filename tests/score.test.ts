@@ -91,6 +91,20 @@ describe("score validation (errors written for repair)", () => {
     expect(errorsOf({ ...base, cues: { late: { seconds: 5 } } })[0]).toMatchObject({ path: "cues.late" });
   });
 
+  it("reports a strum that overruns the end once, by its stroke and how long its pattern plays", () => {
+    const ukulele = { ...base, tracks: [{ instrument: "ukulele", notes: [{ at: 6, chord: "Am", len: 1, strum: "d-u-ud-u" }] }] };
+    const errors = errorsOf(ukulele);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain('Stroke 3 of this note\'s strum pattern "d-u-ud-u"');
+    expect(errors[0]?.hint).toContain('"d-u-ud-u" lasts 4 beats');
+  });
+
+  it("reports only the first repetition of a note that runs past the end", () => {
+    const errors = errorsOf(withNotes([{ at: 0, pitch: "C5", repeat: { every: 1, count: 20 } }]));
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/^Repetition \d+ of this note starts at/);
+  });
+
   it("requires exactly one of repeat.count and repeat.until", () => {
     expect(errorsOf(withNotes([{ at: 0, pitch: "C5", repeat: { every: 1 } }]))[0]?.message).toBe("Give exactly one of `count` or `until`.");
   });

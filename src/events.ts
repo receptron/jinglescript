@@ -359,11 +359,38 @@ function expandNote(note: Note, ctx: NoteContext): { events: NoteEvent[]; issues
       return noteEvent(note, ctx, pitches, { index, seconds: t + stroke.offset, onCue, stroke, length });
     }),
   );
-  for (const event of events) issues.push(...timeIssues(event, ctx.duration, path));
+  // One issue per note: the first sound that falls outside the jingle (a strum or a repeat that
+  // overruns the end would otherwise list every stroke after it).
+  for (const event of events) {
+    const found = timeIssues(event, ctx.duration, path, soundOf(note, event.repeat, strokes.length));
+    if (found.length > 0) {
+      issues.push(...found);
+      break;
+    }
+  }
   return { events, issues };
 }
-function timeIssues(event: NoteEvent, duration: number, path: IssuePath): Issue[] {
-  const where = event.repeat === 0 ? "This note" : `Repetition ${event.repeat + 1} of this note`;
+
+/** Which sound of a note an issue is about (the note, one of its repeats, a stroke of its strum), and what to do when it falls after the end. */
+interface Sound {
+  where: string;
+  pastEndHint: string;
+}
+
+function soundOf(note: Note, index: number, strokesPerRepeat: number): Sound {
+  const repeat = Math.floor(index / strokesPerRepeat);
+  if (note.strum === undefined || strokesPerRepeat < 2) {
+    return { where: repeat === 0 ? "This note" : `Repetition ${repeat + 1} of this note`, pastEndHint: "Make `length` longer or move the note earlier." };
+  }
+  const spec = normalizeStrum(note.strum);
+  const inRepeat = repeat === 0 ? "" : ` in repetition ${repeat + 1}`;
+  return {
+    where: `Stroke ${(index % strokesPerRepeat) + 1} of this note's strum pattern "${spec.pattern}"${inRepeat}`,
+    pastEndHint: `A strum pattern plays one stroke per character whatever the note's \`len\`: "${spec.pattern}" lasts ${strumSlots(spec).beats} beats from the note's \`at\`. Make \`length\` longer, move the note earlier, or end on a shorter pattern ("down" is one stroke).`,
+  };
+}
+
+function timeIssues(event: NoteEvent, duration: number, path: IssuePath, { where, pastEndHint }: Sound): Issue[] {
   if (event.seconds < -EPSILON) {
     return [
       { path: [...path, "at"], message: `${where} starts before 0 s (${event.seconds.toFixed(3)} s).`, hint: "Move it later or reduce the negative offset." },
@@ -374,7 +401,7 @@ function timeIssues(event: NoteEvent, duration: number, path: IssuePath): Issue[
       {
         path: [...path, "at"],
         message: `${where} starts at ${event.seconds.toFixed(3)} s, at or after the end (length ${duration.toFixed(3)} s).`,
-        hint: "Make `length` longer or move the note earlier.",
+        hint: pastEndHint,
       },
     ];
   }

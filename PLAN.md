@@ -1529,3 +1529,8 @@ Decided:
   checks every whole-score example in the guide. The eval still does not judge melodies. Both
   packages go to 1.0.1 (the plugin's peer to ^1.0.1: its tool description names songs, which
   the guide of 1.0.1 explains).
+- 2026-10-26 — A strum past the end. MulmoChat's Gemini three times failed to fix a ukulele chord
+  whose "d-u-ud-u" ran past `length`: the error said "Repetition 5 of this note" (the note had no
+  `repeat`; each stroke counted as one) and listed every stroke after the end, and Gemini kept
+  changing `len`, which a strum ignores. Now one error per note, naming the stroke of the pattern,
+  with a hint that the pattern lasts its own beats whatever `len` says.

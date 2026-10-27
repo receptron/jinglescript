@@ -150,7 +150,9 @@ export const SingSchema = z
   .strictObject({
     engine: z
       .literal("neutrino")
-      .describe('The singing synthesizer: "neutrino" (installed by the user; NEUTRINO_DIR in .env, default /Applications/NEUTRINO).'),
+      .describe(
+        'The singing synthesizer: "neutrino". It is set up where the score is rendered (for people: NEUTRINO_DIR in .env, default /Applications/NEUTRINO); renderScore says so if it is missing.',
+      ),
     voice: z.string().optional().describe('A NEUTRINO voice, e.g. "reina" or "merrow" (default REINA).'),
     level: z
       .number()
@@ -173,7 +175,7 @@ export const TrackSchema = z
     pan: z.number().min(0).max(1).default(0.5).describe("0 left, 0.5 centre, 1 right."),
     reverb: z.boolean().default(true).describe("false keeps this track out of the reverb (dry, close effects such as clicks and ticks)."),
     sing: SingSchema.optional().describe(
-      "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. The first render of a sung track takes tens of seconds (NEUTRINO); the same one again is instant.",
+      "Sing this track (its notes' kana `lyric`s) with NEUTRINO instead of playing its instrument; one track per score. Whether NEUTRINO and the voice are installed is known only by rendering: write the score and call renderScore, which answers with what is missing if anything is (it does not fall back to the instrument). Only the browser build cannot sing. The first render of a sung track takes tens of seconds; the same one again is instant.",
     ),
     notes: z.array(NoteSchema).min(1).describe("The notes, in any order."),
     clef: z

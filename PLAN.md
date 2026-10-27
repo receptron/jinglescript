@@ -1534,3 +1534,11 @@ Decided:
   `repeat`; each stroke counted as one) and listed every stroke after the end, and Gemini kept
   changing `len`, which a strum ignores. Now one error per note, naming the stroke of the pattern,
   with a hint that the pattern lasts its own beats whatever `len` says.
+- 2026-10-26 — Gemini gave up singing. In MulmoChat it read the whole score schema three times
+  (about 21k tokens each), never rendered, and said the singing engine could not be used. The
+  `sing` description said "the user's own NEUTRINO … Node only (CLI, MCP)", which a model in a web
+  chat reads as "not here". It now says NEUTRINO's presence is known only by rendering (renderScore
+  answers with what is missing) and only the browser build cannot sing. The tool's getSchema and
+  listInstruments answer without indentation, and the whole score's schema leaves out the format
+  of custom instruments (getSchema part "instrument" gives it): 68k → 23k characters. The library's
+  getSchema() and the published schema files are unchanged. Not measured with the LLM eval.

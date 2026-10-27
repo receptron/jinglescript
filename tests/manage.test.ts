@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { ffmpegAvailable } from "../src/encode.ts";
 import { awaitDeferredPlayer, deferRender } from "../src/deferred-renders.ts";
 import { isScorePath, manage, ManageInputSchema, manageInputJsonSchema } from "../src/manage.ts";
@@ -22,6 +23,15 @@ const score = {
 };
 
 describe("manageJingleScript, carried by any protocol", () => {
+  it("gives the model a compact score schema that points to the custom-instrument format instead of including it", async () => {
+    const text = (await manage({ action: "getSchema" })).text;
+    expect(text).not.toContain("\n");
+    const schema = z.object({ properties: z.object({ instruments: z.object({ description: z.string() }) }) }).parse(JSON.parse(text));
+    expect(schema.properties.instruments.description).toContain('part "instrument"');
+    expect(text).not.toContain('"blocks"');
+    expect((await manage({ action: "getSchema", part: "instrument" })).text).toContain('"blocks"');
+  });
+
   it("renders player data for a view: embedded audio, waveform peaks, the timing map, the score and its MIDI", async () => {
     const result = await manage({ action: "renderScore", score }, { player: true });
     expect(result.isError).toBe(false);

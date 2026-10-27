@@ -130,7 +130,7 @@ export const NoteSchema = z
       .min(1)
       .optional()
       .describe(
-        'One syllable of the words sung on this note, shown karaoke-style (nothing is sung; the instrument plays the melody). One kana or mora per note in Japanese ("ハ", "テ", "ナ"); one syllable in English, ending in "-" when the word continues on the next note ("hap-", "py"). "_" holds the previous syllable over this note. On a track with `sing`, the notes are sung: one kana mora per note (no romaji/English), and a note without a lyric right after a sung note holds its vowel (a rest only when nothing is sounding).',
+        'One syllable of the words sung on this note, shown karaoke-style; the instrument plays the melody (a track with `sing` sings it). Write the melody first and give its notes the syllables. One kana or mora per note in Japanese ("ハ", "テ", "ナ"); one syllable in English, ending in "-" when the word continues on the next note ("hap-", "py"). "_" holds the previous syllable over this note. On a track with `sing`, the notes are sung: one kana mora per note (no romaji/English), and a note without a lyric right after a sung note holds its vowel (a rest only when nothing is sounding).',
       ),
     lineEnd: z.boolean().optional().describe("true ends a line of lyrics after this note's syllable. The last syllable of a track ends its line anyway."),
   })

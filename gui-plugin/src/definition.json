@@ -1,7 +1,7 @@
 {
   "type": "function",
   "name": "manageJingleScript",
-  "description": "Write and render jingles (short music with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. renderScore shows a player with the waveform, cues and beats.",
+  "description": "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. renderScore shows a player with the waveform, cues and beats.",
   "parameters": {
     "type": "object",
     "properties": {

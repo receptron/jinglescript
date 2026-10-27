@@ -961,13 +961,13 @@
             "type": "boolean"
           },
           "sing": {
-            "description": "Sing this track (its notes' kana `lyric`s) with the user's own NEUTRINO instead of playing its instrument. Node only (CLI, MCP); one track per score. The first render of a sung track takes tens of seconds (NEUTRINO); the same one again is instant.",
+            "description": "Sing this track (its notes' kana `lyric`s) with NEUTRINO instead of playing its instrument; one track per score. Whether NEUTRINO and the voice are installed where the score is rendered is known only by asking: checkScore and renderScore of a score with `sing` answer with what is missing, if anything is (nothing falls back to the instrument). Only the browser build cannot sing. The first render of a sung track takes tens of seconds; the same one again is instant.",
             "type": "object",
             "properties": {
               "engine": {
                 "type": "string",
                 "const": "neutrino",
-                "description": "The singing synthesizer: \"neutrino\" (installed by the user; NEUTRINO_DIR in .env, default /Applications/NEUTRINO)."
+                "description": "The singing synthesizer: \"neutrino\". It is set up where the score is rendered (for people: NEUTRINO_DIR in .env, default /Applications/NEUTRINO); renderScore says so if it is missing."
               },
               "voice": {
                 "description": "A NEUTRINO voice, e.g. \"reina\" or \"merrow\" (default REINA).",

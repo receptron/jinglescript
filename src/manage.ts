@@ -5,7 +5,7 @@ import { z } from "zod";
 import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
 import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
 import { removedInstrument } from "./instruments/index.ts";
-import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS } from "./llm.ts";
+import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS, type SchemaPart } from "./llm.ts";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderToFiles } from "./output.ts";
@@ -28,7 +28,7 @@ import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
 import { checkSinger, NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
-import { checkScore, parseScore, type Score, type ScoreProblem } from "./score.ts";
+import { checkScore, parseScore, type CheckResult, type Score, type ScoreProblem } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
 
@@ -195,6 +195,27 @@ function parseMaybeJson(score: unknown): unknown {
 }
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
+/** Reference data (a schema, the instrument list) goes to the model without indentation: the same content, 40% shorter. */
+const compact = (value: unknown): string => JSON.stringify(value);
+
+/** What the score schema says about `instruments` here: their own format is a part of its own, which few scores need. */
+const CUSTOM_INSTRUMENTS_STUB = {
+  type: "object",
+  description:
+    'Custom instruments and effects, by name, used in tracks like built-ins: { "softBell": { "base": "glockenspiel", "params": { "decay": 1.5 } } }. Only when no built-in fits; the format of one is getSchema with part "instrument".',
+};
+
+/**
+ * The schema the model reads: the whole score's leaves out the format of custom instruments
+ * (half its length), which getSchema with part "instrument" gives.
+ */
+function schemaForModel(part: SchemaPart | undefined): Record<string, unknown> {
+  const schema = getSchema(part);
+  if ((part ?? "score") !== "score") return schema;
+  const properties: unknown = schema.properties;
+  if (typeof properties !== "object" || properties === null) return schema;
+  return { ...schema, properties: { ...properties, instruments: CUSTOM_INSTRUMENTS_STUB } };
+}
 
 /** The score the call gave: inline, or read from `path`; or the answer to send back when that fails. */
 async function scoreOf(input: ManageInput, options: ManageOptions): Promise<{ ok: true; score: unknown } | { ok: false; result: ManageResult }> {
@@ -269,6 +290,20 @@ function missingSinger(score: Score): ManageResult | undefined {
     if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;
   }
+}
+
+/**
+ * A valid score that sings, checked for NEUTRINO and its voice too: checkScore answers what
+ * renderScore would, so the model learns whether it can sing before it renders (or gives up).
+ */
+function withSinger(check: CheckResult, raw: unknown): CheckResult {
+  if (!check.ok) return check;
+  const score = parseScore(raw);
+  const track = score.tracks.findIndex((t) => t.sing !== undefined);
+  if (track < 0) return check;
+  const missing = missingSinger(score);
+  if (missing === undefined) return check;
+  return { ...check, ok: false, errors: [{ path: `tracks[${track}].sing`, message: missing.text }] };
 }
 
 /** The name of the render's files and its title when the score has none. */
@@ -369,9 +404,9 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     case "getGuide":
       return { text: getAuthoringGuide(), isError: false };
     case "getSchema":
-      return { text: json(getSchema(input.part)), isError: false };
+      return { text: compact(schemaForModel(input.part)), isError: false };
     case "listInstruments":
-      return { text: json(listInstruments()), isError: false };
+      return { text: compact(listInstruments()), isError: false };
     case "getInstrument": {
       const name = input.instrument ?? "";
       const info = getInstrument(name);
@@ -386,7 +421,9 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     }
     case "checkScore": {
       const source = await scoreOf(input, options);
-      return source.ok ? { text: json(checkScore(source.score, { notation: input.view === "notation" })), isError: false } : source.result;
+      return source.ok
+        ? { text: json(withSinger(checkScore(source.score, { notation: input.view === "notation" }), source.score)), isError: false }
+        : source.result;
     }
     case "renderScore":
       return renderAction(input, options);

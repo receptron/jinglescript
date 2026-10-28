@@ -36,8 +36,9 @@ the data also carries the score that was rendered. Every other action answers th
 to minutes. In a host that gives the view a runtime (`dispatch`) and tells `execute` so with
 `deferredAudio: true` in its context, `renderScore` waits at most a second for the audio: a short
 jingle comes back finished as before; a longer one comes back at once as a `pending` card that
-shows the score, its lanes, cues, lyrics and sheet music, says "Rendering the audio…", and keeps
-play disabled. The view collects the finished audio through the host's dispatch (a request that
+shows the score, its lanes, cues, lyrics and sheet music, says at the top that the audio is
+rendering, and keeps play disabled. While NEUTRINO sings, it says how far it is ("Singing the
+vocal… 52 %", then "Mixing…"), asked once a second through the same dispatch. The view collects the finished audio through the host's dispatch (a request that
 reaches the same `execute`), saves it into the result with `onUpdateResult` (so the chat keeps it),
 and only then plays. `autoplay` waits for the audio in the same way, and counts as fresh from when
 it was ready; the voice rules above still apply. If the audio cannot be made after all, the card

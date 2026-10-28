@@ -5,10 +5,11 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { afterEach } from "vitest";
 import { parseScore } from "../src/score.ts";
-import { render, setSinger, SingerUnavailableError } from "../src/render.ts";
+import { render, setSinger, SingerUnavailableError, type RenderProgress } from "../src/render.ts";
 import {
   findNeutrino,
   neutrinoCacheKey,
+  neutrinoProgress,
   DEFAULT_NEUTRINO_DIR,
   neutrinoDir,
   neutrinoMusicXml,
@@ -125,6 +126,14 @@ describe("cache key", () => {
   });
 });
 
+describe("NEUTRINO's progress", () => {
+  it("is the last `progress = N %` it printed (with -t), as 0…1", () => {
+    expect(neutrinoProgress("load models : 0.000 [sec]\n")).toBeUndefined();
+    expect(neutrinoProgress("   progress = 32 % (2.590 / 8.000 sec)   progress = 92 % (7.400 / 8.000 sec)")).toBeCloseTo(0.92, 9);
+    expect(neutrinoProgress("progress = 100 % (8.000 / 8.000 sec)finish : 4.863 [sec]")).toBe(1);
+  });
+});
+
 describe("NEUTRINO through render() (mocked)", () => {
   afterEach(() => configureNeutrino({}));
   it("runs the two tools in the install, trims the lead-in, resamples and caches", async () => {
@@ -142,13 +151,29 @@ describe("NEUTRINO through render() (mocked)", () => {
     const sung = singTrack(score, 0, options, 44100);
     expect(calls.map((c) => c.file)).toEqual([join(dir, "bin", "musicXMLtoLabel"), join(dir, "bin", "neutrino")]);
     expect(calls.every((c) => c.cwd === dir)).toBe(true);
-    expect(calls[1]?.args.slice(5)).toEqual([join(dir, "model", "REINA") + "/", "-n", "2", "-k", "0", "-f", "1", "-s", "48000", "-b", "16"]);
+    expect(calls[1]?.args.slice(5)).toEqual([join(dir, "model", "REINA") + "/", "-n", "2", "-k", "0", "-f", "1", "-s", "48000", "-b", "16", "-t"]);
     expect(sung.voice).toBe("REINA");
     expect(sung.pcm).toHaveLength(44100);
     expect(Math.abs((sung.pcm[22050] ?? 0) - 0.5)).toBeLessThan(0.01);
     const again = singTrack(score, 0, options, 44100);
     expect(again.cached).toBe(true);
     expect(calls).toHaveLength(2);
+  });
+  it("tells onProgress when singing starts and ends, and has NEUTRINO print its progress to a file", async () => {
+    const dir = await fakeInstall();
+    const cacheDir = await mkdtemp(join(tmpdir(), "neutrino-cache-"));
+    const logs: (string | undefined)[] = [];
+    const exec: NeutrinoExec = (file, args, _env, _cwd, stdout) => {
+      if (!file.endsWith("neutrino")) return;
+      logs.push(stdout);
+      writeFileSync(args[4] ?? "", toWav([new Float32Array(48000 * 6).fill(0.1)], 48000, 16));
+    };
+    configureNeutrino({ dir, cacheDir, exec });
+    const progress: RenderProgress[] = [];
+    await render(parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] }), { onProgress: (p) => progress.push(p) });
+    expect(progress).toEqual([{ stage: "singing", done: 0 }, { stage: "mixing" }]);
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatch(/progress\.log$/);
   });
   it("without NEUTRINO, or without the voice: a clear error, no fallback", async () => {
     const sung = parseScore({ ...rawScore, tracks: [{ ...rawScore.tracks[0], sing: { engine: "neutrino" } }] });

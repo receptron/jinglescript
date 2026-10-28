@@ -10,7 +10,7 @@ export { pitchToMidi } from "./pitch.ts";
 export { parseCueRef, resolveAt } from "./time.ts";
 export type { At } from "./time.ts";
 export { render, samplesNeeded, DEFAULT_SAMPLE_RATE, SAMPLE_RATES, SingerUnavailableError } from "./render.ts";
-export type { RenderOptions, RenderResult, SampleRate } from "./render.ts";
+export type { RenderOptions, RenderProgress, RenderResult, SampleRate } from "./render.ts";
 export { TimingSchema, TIMING_FORMAT } from "./timing.ts";
 export type { TimingMap, TimingNote, TimingLyricLine } from "./timing.ts";
 export type { MasterStats } from "./dsp/master.ts";

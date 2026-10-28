@@ -7,14 +7,26 @@
 // host (`isAudioPlaying`), what plays by itself waits until the voice has been quiet a moment, and
 // pauses while it speaks again. A card shown while its audio still renders (`pending`) shows the
 // score at once, collects the audio through the host's runtime dispatch, keeps it in the result, and
-// only then can play (by itself too, when that was asked for).
+// only then can play (by itself too, when that was asked for); meanwhile it asks how far the render
+// is and says so at the top. The card scrolls itself: a host may give it a box that does not.
 import type { ToolResult, ToolResultComplete } from "gui-chat-protocol";
 import { PLUGIN_RUNTIME_KEY } from "gui-chat-protocol/vue";
-import type { PlayerData, PlayerView } from "jinglescript";
+import type { PlayerData, PlayerView, RenderProgress } from "jinglescript";
 import { computed, defineAsyncComponent, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { AUDIO_REQUEST, parseAudioReply } from "../audio-request.ts";
+import { AUDIO_REQUEST, parseAudioReply, parseProgressReply, PROGRESS_REQUEST } from "../audio-request.ts";
 import { formatTime, karaoke, lanes, waveformPath, WIDTH, xOf } from "./layout.ts";
-import { failedMessage, finishedMessage, memoryOf, quietWait, shouldAutoplay, VIEW_LABELS, type PlayerMemory, type VoiceState } from "./playback.ts";
+import {
+  failedMessage,
+  finishedMessage,
+  memoryOf,
+  PROGRESS_POLL_MS,
+  quietWait,
+  renderingLabel,
+  shouldAutoplay,
+  VIEW_LABELS,
+  type PlayerMemory,
+  type VoiceState,
+} from "./playback.ts";
 
 // The default keeps a host that never passes isAudioPlaying apart from one whose voice is quiet:
 // Vue would otherwise turn a missing boolean prop into false.
@@ -39,6 +51,9 @@ const collected = ref<PlayerData | undefined>(undefined);
 const failure = ref<string | undefined>(undefined);
 const data = computed(() => collected.value ?? props.selectedResult.data);
 const pending = computed(() => data.value?.pending !== undefined);
+/** How far a pending card's render is, as the server last said. */
+const renderProgress = ref<RenderProgress | undefined>(undefined);
+let progressTimer: ReturnType<typeof setTimeout> | undefined;
 const memory = ref<PlayerMemory>(memoryOf(props.selectedResult.viewState));
 /** The view a result opens in: as last shown, else as the LLM asked; the waveform when there is no sheet music. */
 const firstView = (): PlayerView => (data.value?.musicxml === undefined ? "waveform" : (memory.value.view ?? data.value.presentation?.view ?? "waveform"));
@@ -178,6 +193,20 @@ async function collect(): Promise<void> {
   if (!disposed) autoplay();
 }
 
+/** Asks how far the pending render is, again and again until the card has its audio or failed. */
+async function followProgress(): Promise<void> {
+  clearTimeout(progressTimer);
+  const id = data.value?.pending;
+  if (id === undefined || runtime === null || disposed || failure.value !== undefined) return;
+  try {
+    const progress = parseProgressReply(await runtime.dispatch({ kind: PROGRESS_REQUEST, id }));
+    if (data.value?.pending === id) renderProgress.value = progress;
+  } catch {
+    // only the label is missing: the audio still comes through collect()
+  }
+  if (!disposed && data.value?.pending === id && failure.value === undefined) progressTimer = setTimeout(() => void followProgress(), PROGRESS_POLL_MS);
+}
+
 /** No audio after all: shown in the card, and told to the LLM once when it expected it to play. */
 function fail(reason: string): void {
   failure.value = reason;
@@ -191,8 +220,11 @@ function fail(reason: string): void {
 /** What a card does when it appears: collect its audio, or play by itself when asked. */
 function start(): void {
   appeared();
-  if (pending.value) void collect();
-  else autoplay();
+  renderProgress.value = undefined;
+  if (pending.value) {
+    void collect();
+    void followProgress();
+  } else autoplay();
 }
 
 /** Plays what plays by itself once the voice has been quiet long enough; pauses it while the voice speaks. */
@@ -266,6 +298,7 @@ onBeforeUnmount(() => {
   disposed = true;
   cancelAnimationFrame(frame);
   clearTimeout(quietTimer);
+  clearTimeout(progressTimer);
 });
 </script>
 
@@ -288,6 +321,9 @@ onBeforeUnmount(() => {
         </button>
       </span>
     </header>
+
+    <p v-if="failure" class="status failure" role="alert">{{ failure }}</p>
+    <p v-else-if="pending" class="status rendering" role="status">{{ renderingLabel(renderProgress) }}</p>
 
     <template v-if="view === 'notation' && data.musicxml !== undefined">
       <Notation :musicxml="data.musicxml" :tempo="data.timing.tempo" :now="now" />
@@ -360,8 +396,6 @@ onBeforeUnmount(() => {
         <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2 L14 8 L4 14 Z" /></svg>
       </button>
       <span class="time">{{ formatTime(now) }} / {{ formatTime(data.duration) }}</span>
-      <span v-if="failure" class="failure">{{ failure }}</span>
-      <span v-else-if="pending" class="rendering" role="status">Rendering the audio…</span>
       <span v-if="blocked" class="blocked">Press play to listen</span>
       <span class="downloads">
         <a v-if="!pending" :href="data.audio" :download="`${data.title}.${extension}`">Download {{ extension.toUpperCase() }}</a>
@@ -397,6 +431,9 @@ onBeforeUnmount(() => {
   padding: 16px;
   box-sizing: border-box;
   width: 100%;
+  /* A host's box may clip (overflow: hidden): long sheet music scrolls here. */
+  height: 100%;
+  overflow-y: auto;
 }
 @media (prefers-color-scheme: dark) {
   .jingle {
@@ -592,6 +629,9 @@ h2 {
 .progress-fill {
   height: 100%;
   background: var(--wave);
+}
+.status {
+  margin: 0 0 10px;
 }
 .blocked,
 .failure {

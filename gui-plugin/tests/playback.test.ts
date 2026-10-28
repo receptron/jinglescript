@@ -10,6 +10,7 @@ import {
   QUIET_MS,
   quietWait,
   REPLY_MS,
+  renderingLabel,
   shouldAutoplay,
   type VoiceState,
 } from "../src/vue/playback.ts";
@@ -106,6 +107,14 @@ describe("the message when a pending card's audio could not be made", () => {
   it("is sent however long the render took to fail after a fresh card appeared", () => {
     // The card appeared a second after renderScore; the render failed ten minutes later.
     expect(failedMessage(asked({ renderedAt: NOW - 1000 }), fresh, "Twinkle", "x", NOW)).toBeDefined();
+  });
+});
+
+describe("what a pending card says", () => {
+  it("says how far NEUTRINO is, then that it mixes; without word from the render, only that it renders", () => {
+    expect(renderingLabel({ stage: "singing", done: 0.526 })).toBe("Singing the vocal… 52 %");
+    expect(renderingLabel({ stage: "mixing" })).toBe("Mixing the vocal with the accompaniment…");
+    expect(renderingLabel(undefined)).toBe("Rendering the audio…");
   });
 });
 

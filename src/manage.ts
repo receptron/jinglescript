@@ -23,7 +23,7 @@ import {
   type PlayerData,
   type Presentation,
 } from "./player.ts";
-import { render, type RenderResult } from "./render.ts";
+import { render, type RenderProgress, type RenderResult } from "./render.ts";
 import "./render-pool.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadSamples } from "./samples/load.ts";
@@ -362,8 +362,13 @@ function renderSummary(input: ManageInput, score: Score, result: RenderResult, w
 }
 
 /** The audio for a player, rendered and embedded; `renderedAt` is when it was ready. */
-async function renderPlayer(score: Score, stem: string, presentation: Presentation): Promise<{ result: RenderResult; player: PlayerData }> {
-  const result = await render(score, { samples: await loadSamples(score) });
+async function renderPlayer(
+  score: Score,
+  stem: string,
+  presentation: Presentation,
+  onProgress?: (progress: RenderProgress) => void,
+): Promise<{ result: RenderResult; player: PlayerData }> {
+  const result = await render(score, { samples: await loadSamples(score), ...(onProgress ? { onProgress } : {}) });
   const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), { ...presentation, renderedAt: Date.now() });
   return { result, player };
 }
@@ -377,7 +382,8 @@ const FULL_TIMING_AT = "render again with includeTiming: true to get them";
  */
 async function deferredRenderAction(input: ManageInput, score: Score, stem: string, warnings: readonly ScoreProblem[], waitMs: number): Promise<ManageResult> {
   const presentation = presentationOf(input);
-  const rendering = renderPlayer(score, stem, presentation);
+  let progress: RenderProgress | undefined;
+  const rendering = renderPlayer(score, stem, presentation, (latest) => (progress = latest));
   let done: { result: RenderResult; player: PlayerData } | undefined;
   try {
     // A render that runs in place (no worker) can finish before even a 0 ms timer: 0 does not wait at all.
@@ -388,7 +394,10 @@ async function deferredRenderAction(input: ManageInput, score: Score, stem: stri
   }
   if (done !== undefined)
     return { text: json({ ok: true, ...renderSummary(input, score, done.result, warnings, FULL_TIMING_AT) }), isError: false, player: done.player };
-  const id = deferRender(rendering.then(({ player }) => player));
+  const id = deferRender(
+    rendering.then(({ player }) => player),
+    () => progress,
+  );
   const player = pendingPlayerData(score, stem, presentation, id);
   const summary = {
     ok: true,

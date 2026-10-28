@@ -138,3 +138,7 @@ per second at 1080p — add `--workers` to use more cores.
 
 Scenes show a subtle “Powered by JingleScript” in the bottom-right corner.
 Please keep it.
+
+## Examples
+
+Videos made with this pipeline are published on the [MulmoMusic YouTube channel](https://www.youtube.com/@MulmoMusic).

@@ -1,0 +1,21 @@
+{
+  "name": "jinglescript-music-video",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Render a 3D music video, synced note-by-note to a JingleScript timing map, by frame-stepping a Three.js page in headless Chrome.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "list": "node render.mjs list",
+    "still": "node render.mjs still",
+    "clip": "node render.mjs clip",
+    "full": "node render.mjs full"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0",
+    "three": "0.170.0"
+  }
+}

@@ -1,0 +1,595 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>paper-garden</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #f4efe4;
+        overflow: hidden;
+      }
+      #title {
+        position: absolute;
+        z-index: 2;
+        left: 3.4vh;
+        top: 3.4vh;
+        padding: 1.6vh 2.4vh 1.8vh;
+        color: #3a3530;
+        font-family: "DejaVu Serif", Georgia, serif;
+        background: rgba(250, 246, 236, 0.86);
+        box-shadow: 0 0.3vh 1.2vh rgba(60, 50, 40, 0.18);
+        border-radius: 0.4vh;
+        opacity: 0;
+      }
+      #title .a {
+        font-size: 3.4vh;
+        font-style: italic;
+        letter-spacing: 0.04em;
+      }
+      #title .b {
+        font-size: 1.6vh;
+        margin-top: 0.8vh;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        opacity: 0.75;
+      }
+      #title .rule {
+        width: 4.4vh;
+        height: 0.2vh;
+        background: #d9534f;
+        margin-top: 1.1vh;
+      }
+      #credit {
+        position: absolute;
+        z-index: 2;
+        right: 3.7vh;
+        bottom: 2.8vh;
+        color: #3a3530;
+        font-family: "DejaVu Serif", Georgia, serif;
+        font-size: 1.5vh;
+        letter-spacing: 0.12em;
+        opacity: 0.7;
+        text-shadow:
+          0 0 0.6vh #fff,
+          0 0 0.2vh #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="credit">Powered by JingleScript</div>
+    <div id="title">
+      <div class="a"></div>
+      <div class="b"></div>
+      <div class="rule"></div>
+    </div>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+    </script>
+    <script type="module">
+      // A daylight origami town. Each note is a paper crane that glides in from the sky and,
+      // exactly on the note, lands in the flower bed in front of the town and unfolds into a paper flower
+      // (pitch = position along the street, low notes left), throwing a puff of paper confetti; the house
+      // behind it hops. Everything is a pure function of t.
+      import * as THREE from "three";
+      import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+      import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+      import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+      import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+      import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+      import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+
+      const P = new URLSearchParams(location.search);
+      const W = +(P.get("w") || 1920),
+        H = +(P.get("h") || 1080);
+      const C = (window.CFG = Object.assign({ exposure: 1.0, sun: 2.6, sky: 1.1, bloom: 0.18, lead: 2.6, shadows: 1 }, JSON.parse(P.get("cfg") || "{}")));
+
+      const [T, ND] = await Promise.all([fetch("data/timing.json").then((r) => r.json()), fetch("data/notes.json").then((r) => r.json())]);
+      const DUR = (window.DURATION = T.duration);
+      const FE = +(P.get("fadeEnd") || DUR),
+        FS = +(P.get("fadeStart") || 0);
+      const N = ND.notes;
+      const MAXL = N.reduce((a, n) => Math.max(a, n.len), 0);
+
+      // seeded randomness
+      const hash = (a, b = 0) => {
+        let x = (a * 374761393 + b * 668265263) | 0;
+        x = Math.imul(x ^ (x >>> 13), 1274126177);
+        x ^= x >>> 16;
+        return (x >>> 0) / 4294967296;
+      };
+      let seed = 7;
+      const rnd = () => ((seed = (Math.imul(seed ^ (seed >>> 15), 2246822519) + 0x9e3779b9) | 0), hash(seed, 1));
+      const sstep = (a, b, x) => {
+        const u = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return u * u * (3 - 2 * u);
+      };
+      const lowerBound = (x) => {
+        let lo = 0,
+          hi = N.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (N[mid].t < x) lo = mid + 1;
+          else hi = mid;
+        }
+        return lo;
+      };
+
+      const xOf = (m) => (m - 64) * 0.5;
+      const PAL = [0xe8574f, 0xf28c3a, 0xf6c445, 0x9cc95a, 0x4fb38f, 0x48a6c9, 0x5b7fd6, 0x8a6ccf, 0xc864a8, 0xee7b93, 0xf5a25d, 0x6fc2b0].map(
+        (c) => new THREE.Color(c),
+      );
+
+      // renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(W, H);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.shadowMap.enabled = !!C.shadows;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      document.body.appendChild(renderer.domElement);
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(34, W / H, 0.3, 400);
+
+      // paper fibre texture (seeded canvas noise), used as albedo detail and bump
+      const paper = (() => {
+        const s = 512,
+          cv = document.createElement("canvas");
+        cv.width = cv.height = s;
+        const g = cv.getContext("2d");
+        const img = g.createImageData(s, s);
+        for (let i = 0; i < s * s; i++) {
+          const v = 236 + rnd() * 19;
+          img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+          img.data[i * 4 + 3] = 255;
+        }
+        g.putImageData(img, 0, 0);
+        g.globalAlpha = 0.08;
+        g.strokeStyle = "#8a7f70";
+        for (let i = 0; i < 1400; i++) {
+          const x = rnd() * s,
+            y = rnd() * s,
+            a = rnd() * 6.28,
+            l = 4 + rnd() * 14;
+          g.lineWidth = 0.4 + rnd() * 0.8;
+          g.beginPath();
+          g.moveTo(x, y);
+          g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+          g.stroke();
+        }
+        const t = new THREE.CanvasTexture(cv);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 8;
+        return t;
+      })();
+      const mat = (color, rep = 1, extra = {}) => {
+        const m = paper.clone();
+        m.repeat.set(rep, rep);
+        m.needsUpdate = true;
+        return new THREE.MeshStandardMaterial({
+          color,
+          map: m,
+          bumpMap: m,
+          bumpScale: 0.6,
+          roughness: 0.92,
+          metalness: 0,
+          flatShading: true,
+          side: THREE.DoubleSide,
+          ...extra,
+        });
+      };
+
+      // sky: soft gradient dome with a warm horizon
+      const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(300, 32, 16),
+        new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          depthWrite: false,
+          fog: false,
+          uniforms: { k: { value: C.sky } },
+          vertexShader: "varying vec3 p; void main(){ p = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+          fragmentShader:
+            "uniform float k; varying vec3 p; void main(){ float y = max(p.y, 0.); vec3 top = vec3(.12,.4,.86), mid = vec3(.42,.68,.95), hor = vec3(1.,.9,.76); vec3 c = mix(mix(hor, mid, smoothstep(.0,.12,y)), top, smoothstep(.1,.5,y)); gl_FragColor = vec4(c*k, 1.); }",
+        }),
+      );
+      scene.add(sky);
+      scene.fog = new THREE.Fog(0xf6e6cf, 60, 220);
+
+      // light
+      scene.add(new THREE.HemisphereLight(0xcfe3ff, 0xe9d9bd, 1.25));
+      const sun = new THREE.DirectionalLight(0xfff1dc, C.sun);
+      sun.position.set(-18, 30, 16);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(4096, 4096);
+      Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 30, bottom: -20, near: 1, far: 100 });
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.03;
+      sun.shadow.radius = 4;
+      scene.add(sun, sun.target);
+
+      // ground: a cream paper sheet, a pale street, and a green flower bed along the notes
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat(0xeadfc8, 60));
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+      const street = new THREE.Mesh(new THREE.PlaneGeometry(90, 3.2), mat(0xd9cdb6, 12));
+      street.rotation.x = -Math.PI / 2;
+      street.position.set(0, 0.01, -2.4);
+      street.receiveShadow = true;
+      scene.add(street);
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(90, 0.18, 2.4), mat(0x8fbf5a, 14));
+      bed.position.set(0, 0.09, 0.4);
+      bed.receiveShadow = true;
+      scene.add(bed);
+      const front = new THREE.Mesh(new THREE.PlaneGeometry(90, 2.2), mat(0xe2d6bd, 12));
+      front.rotation.x = -Math.PI / 2;
+      front.position.set(0, 0.012, 3.0);
+      front.receiveShadow = true;
+      scene.add(front);
+
+      // houses: one per 3 semitones, pastel paper, gabled roofs, windows and doors
+      const houses = [],
+        houseGroup = new THREE.Group();
+      scene.add(houseGroup);
+      const HC = [0xf6d6c8, 0xfbe8b5, 0xd7ecd9, 0xcfe2f3, 0xf3d0dc, 0xe9e1f6, 0xffe1c2, 0xd9efe8],
+        RC = [0xd9534f, 0x4f7fbf, 0x5aa36f, 0xe0884a, 0x8a6ccf, 0xc8566e];
+      const winMat = mat(0x5b6f8c, 1, { roughness: 0.5 }),
+        doorMat = mat(0x8a5a3c, 1);
+      for (let m = 21, i = 0; m <= 108; m += 3, i++) {
+        const w = 1.25 + rnd() * 0.25,
+          h = 1.2 + rnd() * 1.9 + (i % 4 === 0 ? 1.2 : 0),
+          d = 1.4 + rnd() * 0.6;
+        const g = new THREE.Group();
+        g.position.set(xOf(m + 1), 0, -5.2 - rnd() * 0.5);
+        g.rotation.y = (rnd() - 0.5) * 0.12;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(HC[i % HC.length], 2));
+        body.position.y = h / 2;
+        const gable = new THREE.Shape([new THREE.Vector2(-w / 2 - 0.12, 0), new THREE.Vector2(w / 2 + 0.12, 0), new THREE.Vector2(0, 0.45 + w * 0.35)]);
+        const roof = new THREE.Mesh(
+          new THREE.ExtrudeGeometry(gable, { depth: d + 0.2, bevelEnabled: false }).translate(0, 0, -(d + 0.2) / 2),
+          mat(RC[(i * 5) % RC.length], 2),
+        );
+        roof.position.y = h;
+        const door = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.55, 0.04), doorMat);
+        door.position.set((rnd() - 0.5) * 0.4, 0.275, d / 2 + 0.01);
+        g.add(body, roof, door);
+        for (let r = 0; r < Math.floor((h - 0.7) / 0.7); r++)
+          for (const sx of [-0.3, 0.3]) {
+            const wn = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.3, 0.03), winMat);
+            wn.position.set(sx * w, 0.95 + r * 0.7, d / 2 + 0.01);
+            g.add(wn);
+          }
+        g.traverse((o) => {
+          if (o.isMesh) {
+            o.castShadow = o.receiveShadow = true;
+          }
+        });
+        houseGroup.add(g);
+        houses.push({ g, m });
+      }
+      // trees between houses and in the back
+      const treeGeo = mergeGeometries([new THREE.ConeGeometry(0.55, 1.5, 6).translate(0, 1.55, 0), new THREE.ConeGeometry(0.42, 1.1, 6).translate(0, 2.25, 0)]);
+      const trunkGeo = new THREE.CylinderGeometry(0.07, 0.09, 0.9, 5).translate(0, 0.45, 0);
+      const trees = new THREE.InstancedMesh(treeGeo, mat(0x6aa84f, 1), 140),
+        trunks = new THREE.InstancedMesh(trunkGeo, mat(0x9b6b43, 1), 140);
+      {
+        const d = new THREE.Object3D();
+        for (let i = 0; i < 140; i++) {
+          const back = i >= 40;
+          const x = back ? -60 + rnd() * 120 : -24 + i * 1.25 + rnd() * 0.4;
+          const z = back ? -10 - rnd() * 30 : -7.6 - rnd() * 1.2;
+          const s = 0.7 + rnd() * (back ? 1.2 : 0.5);
+          d.position.set(x, 0, z);
+          d.scale.setScalar(s);
+          d.rotation.y = rnd() * 6;
+          d.updateMatrix();
+          trees.setMatrixAt(i, d.matrix);
+          trunks.setMatrixAt(i, d.matrix);
+          trees.setColorAt(i, new THREE.Color().setHSL(0.24 + rnd() * 0.1, 0.45, 0.42 + rnd() * 0.12));
+        }
+      }
+      trees.castShadow = trees.receiveShadow = trunks.castShadow = true;
+      scene.add(trees, trunks);
+      // cut-paper hills on the horizon
+      for (let L = 0; L < 4; L++) {
+        const sh = new THREE.Shape();
+        sh.moveTo(-200, 0);
+        for (let x = -200; x <= 200; x += 8) sh.lineTo(x, 6 + L * 3 + Math.sin(x * 0.03 + L * 2) * 5 + Math.sin(x * 0.011 + L) * 7 + rnd() * 1.2);
+        sh.lineTo(200, 0);
+        const hill = new THREE.Mesh(
+          new THREE.ShapeGeometry(sh),
+          mat(new THREE.Color().setHSL(0.26 + L * 0.04, 0.5 - L * 0.08, 0.5 + L * 0.09), 30, { flatShading: false, fog: false }),
+        );
+        hill.scale.y = 0.38;
+        hill.position.set(0, -0.5, -40 - L * 22);
+        scene.add(hill);
+      }
+      // paper clouds
+      const clouds = [];
+      for (let i = 0; i < 12; i++) {
+        const parts = [];
+        for (let k = 0; k < 5; k++)
+          parts.push(new THREE.IcosahedronGeometry(1 + rnd() * 1.2, 0).scale(1.4, 0.75, 1).translate(k * 1.6 - 3.2, rnd() * 0.6, rnd() * 0.8));
+        const c = new THREE.Mesh(mergeGeometries(parts), mat(0xffffff, 1, { emissive: 0xffffff, emissiveIntensity: 0.18 }));
+        c.castShadow = true;
+        const s = 0.6 + rnd() * 0.6;
+        c.scale.setScalar(s);
+        clouds.push({ c, x: -90 + rnd() * 180, y: 9 + rnd() * 9, z: -25 - rnd() * 45, v: 0.25 + rnd() * 0.35 });
+        scene.add(c);
+      }
+
+      // origami flower: 8 creased petals (each a folded kite) + a centre
+      const flowerGeo = (() => {
+        const pos = [];
+        for (let p = 0; p < 8; p++) {
+          const a = (p / 8) * Math.PI * 2,
+            ca = Math.cos(a),
+            sa = Math.sin(a),
+            r = 0.62,
+            w = 0.24,
+            lift = 0.32;
+          const tip = [ca * r, lift, sa * r],
+            base = [0, 0, 0],
+            l = [ca * r * 0.5 - sa * w, lift * 0.35, sa * r * 0.5 + ca * w],
+            rr = [ca * r * 0.5 + sa * w, lift * 0.35, sa * r * 0.5 - ca * w],
+            crease = [ca * r * 0.5, lift * 0.2 + 0.07, sa * r * 0.5];
+          pos.push(...base, ...l, ...crease, ...base, ...crease, ...rr, ...crease, ...l, ...tip, ...crease, ...tip, ...rr);
+        }
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        g.computeVertexNormals();
+        const uv = new Float32Array((pos.length / 3) * 2);
+        for (let i = 0; i < uv.length; i++) uv[i] = pos[Math.floor(i / 2) * 3 + (i % 2 ? 2 : 0)] * 0.5 + 0.5;
+        g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        return mergeGeometries(
+          [g, new THREE.OctahedronGeometry(0.11, 0).scale(1, 0.6, 1).translate(0, 0.07, 0).toNonIndexed()].map((x) => {
+            x.deleteAttribute("uv");
+            return x;
+          }),
+        );
+      })();
+      const stemGeo = new THREE.CylinderGeometry(0.025, 0.03, 1, 4).translate(0, 0.5, 0);
+      const leafGeo = new THREE.ConeGeometry(0.12, 0.42, 3).scale(1, 1, 0.25).rotateZ(-1.0).translate(0.14, 0.3, 0);
+      // origami crane: body, neck, tail; two wings as separate instanced meshes so they can flap
+      const tri = (...v) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", new THREE.Float32BufferAttribute(v.flat(), 3));
+        g.computeVertexNormals();
+        return g;
+      };
+      const craneBody = mergeGeometries([
+        tri([-0.25, 0, 0], [0.25, 0, 0], [0, 0.16, 0.05]),
+        tri([-0.25, 0, 0], [0, 0.16, -0.05], [0.25, 0, 0]),
+        tri([-0.25, 0, 0], [0, -0.1, 0], [0.25, 0, 0]),
+        tri([0.2, 0, 0], [0.55, 0.38, 0], [0.22, 0.05, 0.02]),
+        tri([0.55, 0.38, 0], [0.66, 0.33, 0], [0.56, 0.36, 0.02]),
+        tri([-0.2, 0, 0], [-0.58, 0.34, 0], [-0.22, 0.05, 0.02]),
+      ]);
+      const wingGeo = mergeGeometries([
+        tri([-0.16, 0.06, 0], [0.16, 0.06, 0], [0.02, 0.06, 0.62]),
+        tri([0.16, 0.06, 0], [0.02, 0.1, 0.25], [0.02, 0.06, 0.62]),
+      ]);
+      const wingGeoR = wingGeo.clone().scale(1, 1, -1);
+
+      const MAXF = 500,
+        MAXC = 260,
+        MAXP = 1600;
+      const mkI = (geo, material, n, shadow = true) => {
+        const m = new THREE.InstancedMesh(geo, material, n);
+        m.frustumCulled = false;
+        m.castShadow = shadow;
+        m.receiveShadow = true;
+        m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        m.setColorAt(0, new THREE.Color());
+        scene.add(m);
+        return m;
+      };
+      const petalMat = mat(0xffffff, 1, { bumpScale: 0.4 });
+      const flowers = mkI(flowerGeo, petalMat, MAXF),
+        stems = mkI(stemGeo, mat(0x4f8f3a, 1), MAXF),
+        leaves = mkI(leafGeo, mat(0x6fb04a, 1), MAXF);
+      const cranes = mkI(craneBody, mat(0xffffff, 1), MAXC),
+        wingsL = mkI(wingGeo, mat(0xffffff, 1), MAXC),
+        wingsR = mkI(wingGeoR, mat(0xffffff, 1), MAXC);
+      const confetti = mkI(new THREE.PlaneGeometry(0.09, 0.06), mat(0xffffff, 1, { bumpScale: 0 }), MAXP, false);
+
+      // post
+      const composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), C.bloom, 0.4, 0.9));
+      composer.addPass(new SMAAPass(W, H));
+      composer.addPass(new OutputPass());
+
+      // where a note lands
+      const spot = (i) => {
+        const n = N[i];
+        return [xOf(n.m) + (hash(i, 3) - 0.5) * 0.3, 0.18, -0.4 + hash(i, 4) * 1.7];
+      };
+      const color = (n, out) => out.copy(PAL[n.m % 12]).offsetHSL(0, 0, (hash(n.m, 9) - 0.5) * 0.08);
+      // camera follows the weighted pitch centre of the nearby notes (window, not the whole list)
+      function focusAt(t) {
+        let sx = 0,
+          sw = 0;
+        for (let i = lowerBound(t - 3.5); i < N.length && N[i].t < t + 3.2; i++) {
+          const d = N[i].t - t,
+            w = Math.exp(-d * d * 0.35) * (0.4 + N[i].vel);
+          sx += xOf(N[i].m) * w;
+          sw += w;
+        }
+        return sw ? sx / sw : null;
+      }
+      // smooth, deterministic: a fixed set of samples around t
+      function camX(t) {
+        let s = 0,
+          w = 0;
+        for (let k = -6; k <= 6; k++) {
+          const f = focusAt(t + k * 0.5);
+          if (f !== null) {
+            const g = Math.exp(-k * k * 0.08);
+            s += f * g;
+            w += g;
+          }
+        }
+        return w ? s / w : 0;
+      }
+
+      const d = new THREE.Object3D(),
+        d2 = new THREE.Object3D(),
+        col = new THREE.Color(),
+        q = new THREE.Quaternion(),
+        v = new THREE.Vector3(),
+        v2 = new THREE.Vector3();
+      const titleEl = document.getElementById("title");
+      titleEl.querySelector(".a").textContent = P.get("title") || ND.title || "";
+      titleEl.querySelector(".b").textContent = P.get("subtitle") || ND.subtitle || "";
+      const eob = (x) => 1 + 2.7 * Math.pow(x - 1, 3) + 1.7 * Math.pow(x - 1, 2); // ease-out-back
+      const bez = (a, b, c, u, o) => {
+        for (let k = 0; k < 3; k++) o[k] = (1 - u) * (1 - u) * a[k] + 2 * (1 - u) * u * b[k] + u * u * c[k];
+        return o;
+      };
+
+      window.renderFrame = function (t) {
+        let nf = 0,
+          nc = 0,
+          np = 0;
+        const LEAD = C.lead,
+          BLOOM = 5.0,
+          WILT = 1.6;
+        const hop = new Float32Array(houses.length);
+        for (let i = lowerBound(t - MAXL - BLOOM - WILT); i < N.length && N[i].t <= t + LEAD; i++) {
+          const n = N[i],
+            age = t - n.t,
+            S = spot(i);
+          color(n, col);
+          if (age < 0) {
+            // crane gliding in on a curved path, flapping; lands exactly at n.t
+            if (nc >= MAXC) continue;
+            const u = 1 + age / LEAD,
+              side = hash(i, 5) < 0.5 ? -1 : 1;
+            const A = [S[0] + side * (8 + hash(i, 6) * 6), 6.5 + hash(i, 7) * 2.5, S[2] - 6 - hash(i, 8) * 8],
+              B = [S[0] + side * 3, 5 + hash(i, 7) * 2, S[2] - 1];
+            const E = [S[0], S[1] + 0.35, S[2]],
+              p = bez(A, B, E, u, [0, 0, 0]),
+              p2 = bez(A, B, E, Math.min(1, u + 0.02), [0, 0, 0]);
+            d.position.set(p[0], p[1], p[2]);
+            v.set(p2[0] - p[0], p2[1] - p[1], p2[2] - p[2]);
+            d.rotation.set(0, Math.atan2(-v.z, v.x), Math.atan2(v.y, Math.hypot(v.x, v.z)) * 0.6);
+            const sc = (1.5 + n.vel * 0.8) * (u > 0.94 ? ((1 - u) / 0.06) * 0.7 + 0.3 : sstep(0, 0.12, u));
+            d.scale.setScalar(sc);
+            d.updateMatrix();
+            cranes.setMatrixAt(nc, d.matrix);
+            cranes.setColorAt(nc, col);
+            const flap = Math.sin(t * 9 + i) * 0.7 * (1 - sstep(0.75, 1, u)) + 0.15;
+            d2.position.set(0, 0, 0);
+            d2.scale.setScalar(1);
+            d2.rotation.set(flap, 0, 0);
+            d2.updateMatrix();
+            wingsL.setMatrixAt(nc, d.matrix.clone().multiply(d2.matrix));
+            wingsL.setColorAt(nc, col);
+            d2.rotation.set(-flap, 0, 0);
+            d2.updateMatrix();
+            wingsR.setMatrixAt(nc, d.matrix.clone().multiply(d2.matrix));
+            wingsR.setColorAt(nc, col);
+            nc++;
+          } else {
+            // flower: unfolds with a little overshoot, holds while the key is held (+ a while), then folds down
+            const hold = Math.min(n.len, 3) + 0.6,
+              life = hold + WILT + BLOOM * 0.3;
+            if (age > life || nf >= MAXF) continue;
+            const open = eob(Math.min(1, age / 0.45)),
+              wilt = sstep(hold, life, age);
+            const sz = (0.7 + n.vel * 0.6) * open * (1 - wilt * 0.85),
+              stemH = 0.25 + ((n.m * 7) % 5) * 0.06 + n.vel * 0.25;
+            d.position.set(S[0], S[1], S[2]);
+            d.rotation.set(0, 0, 0);
+            d.scale.set(1, stemH * Math.min(1, age / 0.25 + 0.2), 1);
+            d.updateMatrix();
+            stems.setMatrixAt(nf, d.matrix);
+            stems.setColorAt(nf, col.set(0xffffff));
+            d.scale.setScalar(Math.min(1, age / 0.3));
+            d.rotation.y = hash(i, 11) * 6;
+            d.updateMatrix();
+            leaves.setMatrixAt(nf, d.matrix);
+            leaves.setColorAt(nf, col);
+            color(n, col);
+            d.position.y = S[1] + stemH * Math.min(1, age / 0.25 + 0.2);
+            d.rotation.set(-0.35 - wilt * 0.6, hash(i, 12) * 6, 0, "YXZ");
+            d.scale.set(sz, sz * (1.3 - open * 0.4), sz);
+            d.updateMatrix();
+            flowers.setMatrixAt(nf, d.matrix);
+            flowers.setColorAt(nf, col);
+            nf++;
+            // house behind hops on attack
+            const hi = Math.min(houses.length - 1, Math.max(0, Math.floor((n.m - 21) / 3)));
+            hop[hi] = Math.max(hop[hi], Math.exp(-age * 7) * Math.sin(Math.min(age * 14, Math.PI)) * n.vel);
+            // confetti puff
+            if (age < 1.8)
+              for (let k = 0; k < 7 && np < MAXP; k++, np++) {
+                const a = hash(i, 20 + k) * 6.283,
+                  sp = 1.3 + hash(i, 40 + k) * 1.8,
+                  up = 2.4 + hash(i, 60 + k) * 2.2;
+                const drift = Math.min(age, 0.5),
+                  fall = Math.max(0, age - 0.5); // ballistic up, then flutter down slowly
+                const y = S[1] + 0.45 + up * drift - 4.9 * drift * drift * 0.9 - fall * 0.55;
+                d.position.set(
+                  S[0] + Math.cos(a) * sp * (drift + fall * 0.25) + Math.sin(age * 5 + k) * 0.06,
+                  Math.max(0.2, y),
+                  S[2] + Math.sin(a) * sp * (drift + fall * 0.25),
+                );
+                d.rotation.set(age * (5 + k), age * (3 + k * 1.3), a);
+                d.scale.setScalar(1.2 * (1 - sstep(1.2, 1.8, age)));
+                d.updateMatrix();
+                confetti.setMatrixAt(np, d.matrix);
+                confetti.setColorAt(np, PAL[(n.m + k * 5) % 12]);
+              }
+          }
+        }
+        // park unused instances
+        d.position.set(0, -50, 0);
+        d.scale.setScalar(0);
+        d.rotation.set(0, 0, 0);
+        d.updateMatrix();
+        for (const [m, c] of [
+          [flowers, nf],
+          [stems, nf],
+          [leaves, nf],
+          [cranes, nc],
+          [wingsL, nc],
+          [wingsR, nc],
+          [confetti, np],
+        ]) {
+          for (let i = c; i < m.count; i++) m.setMatrixAt(i, d.matrix);
+          m.instanceMatrix.needsUpdate = true;
+          if (m.instanceColor) m.instanceColor.needsUpdate = true;
+        }
+        houses.forEach((h, i) => {
+          h.g.position.y = hop[i] * 0.35;
+          h.g.scale.set(1 + hop[i] * 0.04, 1 - hop[i] * 0.03, 1 + hop[i] * 0.04);
+        });
+        for (const c of clouds) {
+          c.c.position.set(((c.x + t * c.v + 100) % 200) - 100, c.y + Math.sin(t * 0.2 + c.x) * 0.3, c.z);
+        }
+
+        // camera: low three-quarter view over the flower bed, drifting with the music
+        const fx = camX(t);
+        camera.position.set(fx * 0.85 + Math.sin(t * 0.045) * 3, 3.0 + Math.sin(t * 0.07) * 0.35, 9.5 + Math.sin(t * 0.031) * 0.8);
+        camera.lookAt(fx * 0.9, 2.5, -3);
+        sun.position.set(camera.position.x - 18, 30, 16);
+        sun.target.position.set(camera.position.x, 0, -2);
+        sun.target.updateMatrixWorld();
+
+        const fade = Math.min(1, FS ? (t - FS) / 0.4 + 0.02 : t / 1.5, Math.max(0, (FE - t) / (FE < DUR ? 1.2 : 2)));
+        renderer.toneMappingExposure = C.exposure * fade;
+        titleEl.style.opacity = (
+          sstep(1.5, 3.5, t) * (1 - sstep(Math.min(12, FE - 3), Math.min(15, FE - 1), t)) +
+          sstep(DUR - 8, DUR - 5, t) * (1 - sstep(DUR - 2, DUR - 0.5, t)) * (FE < DUR ? 0 : 1)
+        ).toFixed(3);
+        composer.render();
+        return true;
+      };
+      window.ready = true;
+    </script>
+  </body>
+</html>

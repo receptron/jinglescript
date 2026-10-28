@@ -125,6 +125,10 @@ a jingle to two shots of *Big Buck Bunny* (CC BY) with ffmpeg: find the moments,
 render, mix, and check the frames line up; then burn in telops on cues and karaoke captions from the
 lyrics, with ffmpeg's ASS subtitles.
 
+## Make a music video
+
+[`tools/music-video`](tools/music-video/README.md) renders a score into a 3D music video synced to every note (Three.js + headless Chrome + ffmpeg). Design an original scene for each video; the bundled `crystal-stair` scene is only an example of the scene contract.
+
 ## Hear it in a GUI chat (GUI Chat Protocol)
 
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,

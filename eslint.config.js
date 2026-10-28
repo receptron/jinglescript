@@ -24,7 +24,9 @@ const enforced = (config) =>
 
 export default [
   // gui-plugin/ is a separate package (Vue + vite) with its own typecheck and tests.
-  { ignores: ["dist/", "node_modules/", "out/", "reference/", "gui-plugin/"] },
+  // tools/music-video/ is a separate package (browser scene + puppeteer scripts, plain .mjs); its
+  // prepare.ts imports src/ directly, so it is linted and type-checked with the rest.
+  { ignores: ["dist/", "node_modules/", "out/", "reference/", "gui-plugin/", "tools/music-video/*", "!tools/music-video/prepare.ts"] },
   {
     // A disable comment that no longer suppresses anything names a reason that has stopped being
     // true. At error the comment has to be removed when it goes stale.

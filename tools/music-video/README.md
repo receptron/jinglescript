@@ -4,6 +4,13 @@ Turn a JingleScript score into a 3D music video: the score is rendered to a WAV
 plus `timing.json`, a deterministic Three.js scene draws any moment `t` on
 request, headless Chrome captures it frame by frame, and ffmpeg muxes the MP4.
 
+> **Design a new scene for every video.** `scenes/crystal-stair` is only an
+> example of the scene contract and of useful techniques (bloom, reflections,
+> note-synced physics). Don't reuse it as-is — if everyone renders the same
+> scene, every video looks the same. Instead, the LLM proposes a few visual
+> concepts for the piece, the user picks one, and the LLM writes a new
+> `scenes/<name>/index.html`, using crystal-stair only as a reference.
+
 ![Crystal Stair over Still Water](docs/crystal-stair.jpg)
 
 ## Requirements
@@ -30,6 +37,8 @@ cd tools/music-video && yarn install # three (pinned) + puppeteer-core
 
 ## Workflow: still → clip → full
 
+First write your own scene (see [Designing a theme](#designing-a-theme)) and
+pass it with `--scene <name>`; the commands below use the default example scene.
 Always look at a still first, then a short clip, and only then render the
 whole piece (a full render can take a long time).
 
@@ -44,6 +53,11 @@ node render.mjs full  ../../examples/piano/nocturne-op9-2.json --cut 60
 Output goes to `out/music-video/` at the repo root (git-ignored):
 `still-<t>.png`, `clip-<s>s.mp4`, `music-video.mp4`, and `data/`
 (`score.json`, `music.wav`, `timing.json`, `notes.json`).
+
+The audio is rendered once per score (about 45 s for a 3.5-minute piece on an
+M2 Max); later runs with the same score, `--cut` and `--instrument` reuse
+`data/music.wav`. Use a separate `--out` per piece or instrument to keep them
+cached side by side.
 
 | Option                       | Meaning                                                                       |
 | ---------------------------- | ----------------------------------------------------------------------------- |
@@ -92,8 +106,10 @@ analytically from `t`, so any frame can be drawn in any order.
 
 The look is decided per video, in conversation: propose a few visual concepts
 for the piece, pick one, write it as a scene, then iterate with stills, a short
-clip, and finally the full render. `crystal-stair` (glowing stair spiral over
-reflecting water, one step per pitch) is one example.
+clip, and finally the full render. Write a new `scenes/<name>/index.html`
+for each video. `crystal-stair` (glowing stair spiral over reflecting water,
+one step per pitch) is only a reference for the contract and techniques; copy
+ideas from it, not the whole look.
 
 ### Scene contract
 

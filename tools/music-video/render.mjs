@@ -2,7 +2,7 @@
 //
 //   node render.mjs list                                         pieces in examples/piano
 //   node render.mjs still <score.json> [--t 8,30,58]            stills only (look check)
-//   node render.mjs clip  <score.json> [--seconds 15]            short clip from t=0
+//   node render.mjs clip  <score.json> [--seconds 15]            short clip starting at --t (default 0)
 //   node render.mjs full  <score.json> [--cut 60]                the whole (optionally cut) piece
 //
 // Options: --cut <s> (trim the score first), --w 1920 --h 1080 --fps 30, --cpu (SwiftShader, no GPU),
@@ -66,10 +66,21 @@ if (o.instrument) {
   const listing = execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "instruments"], { encoding: "utf8" });
   swapInstrument(score, o.instrument, instrumentRange(listing, o.instrument));
 }
-fs.writeFileSync(path.join(data, "score.json"), JSON.stringify(score, null, 1));
-execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "render", path.join(data, "score.json"), "-o", path.join(data, "music.wav")], {
-  stdio: "inherit",
-});
+const scoreText = JSON.stringify(score, null, 1);
+const scoreFile = path.join(data, "score.json");
+const cached =
+  fs.existsSync(scoreFile) &&
+  fs.readFileSync(scoreFile, "utf8") === scoreText &&
+  fs.existsSync(path.join(data, "music.wav")) &&
+  fs.existsSync(path.join(data, "music.timing.json"));
+if (cached) {
+  console.log("score unchanged: reusing data/music.wav");
+} else {
+  fs.writeFileSync(scoreFile, scoreText);
+  execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "render", scoreFile, "-o", path.join(data, "music.wav")], {
+    stdio: "inherit",
+  });
+}
 const timing = JSON.parse(fs.readFileSync(path.join(data, "music.timing.json"), "utf8"));
 fs.copyFileSync(path.join(data, "music.timing.json"), path.join(data, "timing.json"));
 const names = splitTitle(score.title);
@@ -100,12 +111,14 @@ const workers = Number(o.workers ?? (o.cpu ? 4 : 1));
 const frames = path.join(out, "frames");
 fs.rmSync(frames, { recursive: true, force: true });
 const chunk = Math.ceil(total / workers);
-const fadeEnd = mode === "clip" ? [`fadeEnd=${seconds}`] : [];
+// --t is the clip start (a single time; the still default "8,30,58" means 0 here)
+const start = mode === "clip" && process.argv.some((x) => x === "--t" || x.startsWith("--t=")) ? Number(o.t.split(",")[0]) : 0;
+const fadeEnd = mode === "clip" ? [`start=${start}`, `fadeEnd=${start + seconds}`] : [];
 await Promise.all(
   Array.from({ length: workers }, (_, i) => run([...common, ...fadeEnd, `out=${frames}`, `from=${i * chunk}`, `to=${Math.min(total, (i + 1) * chunk)}`])),
 );
 const mp4 = path.join(out, mode === "clip" ? `clip-${seconds}s.mp4` : "music-video.mp4");
-const afade = mode === "clip" ? ["-af", `afade=t=out:st=${Math.max(0, seconds - 1.2)}:d=1.2`] : [];
+const afade = mode === "clip" ? ["-af", `${start ? "afade=t=in:d=0.4," : ""}afade=t=out:st=${Math.max(0, seconds - 1.2)}:d=1.2`] : [];
 execFileSync(
   "ffmpeg",
   [
@@ -116,6 +129,8 @@ execFileSync(
     String(fps),
     "-i",
     path.join(frames, "f%05d.jpg"),
+    "-ss",
+    String(start),
     "-t",
     String(seconds),
     "-i",

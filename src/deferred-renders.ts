@@ -5,6 +5,7 @@
 // DEFERRED_KEEP_MS, and only the newest MAX_DEFERRED. An id that is unknown (dropped, or the
 // server restarted) answers "gone" and the view asks for a new render.
 import type { PlayerData } from "./player.ts";
+import type { RenderProgress } from "./render.ts";
 
 /** How long a finished render is kept for a view that has not collected it yet (a card mounted late). */
 export const DEFERRED_KEEP_MS = 30 * 60_000;
@@ -19,6 +20,8 @@ export type DeferredOutcome = { kind: "ready"; player: PlayerData } | { kind: "f
 interface Entry {
   outcome: Promise<DeferredOutcome>;
   settled: boolean;
+  /** How far the render is, as last reported. */
+  progress: () => RenderProgress | undefined;
 }
 
 /** In the order they were deferred. */
@@ -40,8 +43,8 @@ function trim(): void {
   }
 }
 
-/** Keeps `player` (still rendering) under a new id, and returns the id. */
-export function deferRender(player: Promise<PlayerData>): string {
+/** Keeps `player` (still rendering) under a new id, and returns the id; `progress` tells how far it is. */
+export function deferRender(player: Promise<PlayerData>, progress: () => RenderProgress | undefined = () => undefined): string {
   const id = crypto.randomUUID();
   const entry: Entry = {
     outcome: player.then(
@@ -49,6 +52,7 @@ export function deferRender(player: Promise<PlayerData>): string {
       (error: unknown): DeferredOutcome => ({ kind: "failed", message: error instanceof Error ? error.message : String(error) }),
     ),
     settled: false,
+    progress,
   };
   entries.set(id, entry);
   void entry.outcome.then(() => {
@@ -67,4 +71,10 @@ export async function awaitDeferredPlayer(id: string): Promise<DeferredOutcome> 
   // Collected: the view keeps it in the result from now on.
   if (outcome.kind === "ready") dropAfter(id, COLLECTED_KEEP_MS);
   return outcome;
+}
+
+/** How far the deferred render `id` is, as last reported; undefined when nothing was (or it is finished or gone). */
+export function deferredRenderProgress(id: string): RenderProgress | undefined {
+  const entry = entries.get(id);
+  return entry === undefined || entry.settled ? undefined : entry.progress();
 }

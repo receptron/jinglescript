@@ -5,7 +5,7 @@
 // The NEUTRINO folder is only read: labels, f0, mel and wav are written to a work dir in the cache.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { cpus } from "node:os";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
@@ -242,22 +242,45 @@ interface NeutrinoOptions {
 /** Default loudness of a NEUTRINO vocal over its accompaniment, LU. */
 export const VOCAL_LEVEL_DB = 4;
 
-/** Runs a NEUTRINO tool; `cwd` is the install (musicXMLtoLabel reads settings/dic relative to it). */
-export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string) => void;
+/**
+ * Runs a NEUTRINO tool; `cwd` is the install (musicXMLtoLabel reads settings/dic relative to it).
+ * `stdout`: a file for what the tool prints (NEUTRINO's progress), else it is dropped.
+ */
+export type NeutrinoExec = (file: string, args: readonly string[], env: NodeJS.ProcessEnv, cwd: string, stdout?: string) => void;
 
 /**
  * Runs synchronously (execFileSync) inside renderNow, which in Node runs on a render worker thread
  * (render-pool.ts): only that worker waits for NEUTRINO (tens of seconds uncached), not the caller.
  */
-const defaultExec: NeutrinoExec = (file, args, env, cwd) => {
+const defaultExec: NeutrinoExec = (file, args, env, cwd, stdout) => {
+  const out = stdout === undefined ? "ignore" : openSync(stdout, "w");
   try {
-    execFileSync(file, [...args], { env, cwd, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "ignore", "pipe"] });
+    execFileSync(file, [...args], { env, cwd, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", out, "pipe"] });
   } catch (error) {
     const stderr = error instanceof Error && "stderr" in error && error.stderr instanceof Buffer ? error.stderr.toString() : "";
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${file} failed: ${message}\n${stderr.slice(-2000)}`, { cause: error });
+  } finally {
+    if (out !== "ignore") closeSync(out);
   }
 };
+
+/**
+ * Told the file a NEUTRINO run writes its progress to, as it starts: the thread waiting for it is
+ * blocked meanwhile, so another one reads the file (render-pool.ts) with neutrinoProgress. Internal.
+ */
+let progressLogListener: ((file: string) => void) | undefined;
+/** Internal (render-worker.ts): where to hear of each NEUTRINO run's progress file; undefined stops. */
+export function onNeutrinoProgressLog(listener: ((file: string) => void) | undefined): void {
+  progressLogListener = listener;
+}
+
+/** NEUTRINO's latest `progress = N %` in what it printed (with -t), as 0…1; undefined before the first. */
+export function neutrinoProgress(printed: string): number | undefined {
+  const matches = [...printed.matchAll(/progress = (\d+) %/g)];
+  const last = matches.at(-1)?.[1];
+  return last === undefined ? undefined : Math.min(1, Number(last) / 100);
+}
 
 /** The render cache key: the MusicXML, the voice, the options that change the sound, and the install's version. */
 export function neutrinoCacheKey(xml: string, voice: string, options: Pick<NeutrinoOptions, "transpose" | "styleShift">, version: string): string {
@@ -304,6 +327,8 @@ function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, optio
     writeFileSync(p("score.musicxml"), xml);
     exec(join(bin, "musicXMLtoLabel"), [p("score.musicxml"), p("full.lab"), p("mono.lab")], env, install.dir);
     const threads = options.threads ?? Math.max(1, cpus().length);
+    const log = p("progress.log");
+    progressLogListener?.(log);
     exec(
       join(bin, "neutrino"),
       [
@@ -323,9 +348,11 @@ function neutrinoWav(install: NeutrinoInstall, voice: string, xml: string, optio
         String(NEUTRINO_SAMPLE_RATE),
         "-b",
         "16",
+        "-t", // prints its progress
       ],
       env,
       install.dir,
+      log,
     );
     const wav = readFileSync(p("out.wav"));
     writeFileSync(file, wav);

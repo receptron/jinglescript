@@ -2,7 +2,7 @@
 // heard, what it remembers, and where the sheet-music cursor stands. Hosts mount every card of a
 // chat and remount them often (a reload, another session, the pane reopened), so what happened
 // once is kept in the result's viewState, and only a fresh render plays by itself.
-import type { Presentation } from "jinglescript";
+import type { Presentation, RenderProgress } from "jinglescript";
 
 /** A render older than this is history: shown again, never autoplayed. */
 export const FRESH_MS = 120_000;
@@ -107,4 +107,14 @@ export function cursorIndex(positions: readonly number[], seconds: number): numb
     }
   }
   return found;
+}
+
+/** How often a pending card asks how far its render is, ms. */
+export const PROGRESS_POLL_MS = 1000;
+
+/** What a pending card says while its audio renders, with how far it is when the render has said. */
+export function renderingLabel(progress: RenderProgress | undefined): string {
+  if (progress?.stage === "singing") return `Singing the vocal… ${Math.floor(progress.done * 100)} %`;
+  if (progress?.stage === "mixing") return "Mixing the vocal with the accompaniment…";
+  return "Rendering the audio…";
 }

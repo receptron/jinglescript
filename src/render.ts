@@ -25,7 +25,19 @@ export interface RenderOptions {
    * PCM at `sampleRate` from time 0, mixed in place of the track's own instrument, before mastering.
    */
   prerendered?: ReadonlyMap<number, Float32Array>;
+  /**
+   * Told how far the render is, for a carrier to show (a view waiting for the audio). Only reported:
+   * it never changes the audio. A render on a worker thread reports NEUTRINO's share as it goes; one
+   * in place reports only when singing starts and ends.
+   */
+  onProgress?: (progress: RenderProgress) => void;
 }
+
+/**
+ * How far a render is: NEUTRINO singing the sung track (`done` 0…1, from NEUTRINO's own count of
+ * the seconds it has made), then the mix of the vocal with the other tracks.
+ */
+export type RenderProgress = { stage: "singing"; done: number } | { stage: "mixing" };
 
 export interface RenderResult {
   /** Left and right channels. */
@@ -249,7 +261,10 @@ function withSinging(score: Score, options: RenderOptions): RenderOptions {
   const track = sungTrack(score);
   if (track === undefined || options.prerendered?.has(track)) return options;
   if (singer === undefined) throw new SingerUnavailableError(score.tracks[track]?.sing?.engine ?? "a singer");
-  return { ...options, prerendered: new Map([...(options.prerendered ?? []), [track, singer(score, options, track)]]) };
+  options.onProgress?.({ stage: "singing", done: 0 });
+  const vocal = singer(score, options, track);
+  options.onProgress?.({ stage: "mixing" });
+  return { ...options, prerendered: new Map([...(options.prerendered ?? []), [track, vocal]]) };
 }
 
 /** Runs renderNow somewhere other than here: the Node entry registers a worker-thread pool (render-pool.ts). Internal. */

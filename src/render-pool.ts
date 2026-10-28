@@ -4,16 +4,19 @@
 // and the rest wait their turn. Idle workers are kept for the next render and unref'd, so they never
 // keep the process alive. Importing this module registers the pool with render(); where no worker
 // can run (a bundle that left the worker file behind) it says so once, and render() works in place.
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { SHARE_ENV, Worker } from "node:worker_threads";
 import type { RenderJob, RenderReply, SerializedError } from "./render-worker.ts";
-import { samplesNeeded, setRenderRunner, SingerUnavailableError, sungTrack, type RenderOptions, type RenderResult } from "./render.ts";
+import { samplesNeeded, setRenderRunner, SingerUnavailableError, sungTrack, type RenderOptions, type RenderProgress, type RenderResult } from "./render.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
 import { loadedSamples, SamplesNotLoadedError, type SampleData, type SampleSource } from "./samples/source.ts";
 import { JingleScriptError, type Score } from "./score.ts";
-import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
+import { NeutrinoMissingError, NeutrinoVoiceMissingError, neutrinoProgress } from "./singer/neutrino.ts";
+
+/** How often the file a running NEUTRINO reports its progress in is read, ms. */
+const PROGRESS_POLL_MS = 500;
 
 /** Renders at once: one per core but one, at most two (a GUI host may start several cards together). */
 const POOL_SIZE = Math.max(1, Math.min(2, availableParallelism() - 1));
@@ -64,7 +67,8 @@ function samplesFor(score: Score, source: SampleSource | undefined, seed: number
 }
 
 /**
- * The render options a worker receives: every field of RenderOptions but the samples (sent as data),
+ * The render options a worker receives: every field of RenderOptions but the samples (sent as data)
+ * and onProgress (the pool calls it with what the worker reports),
  * named one by one so a field added to RenderOptions is a type error here until it is passed on, and
  * so whatever else a caller's options object carries (renderToFiles' onDownload callback) stays behind.
  */
@@ -84,6 +88,7 @@ function sings(score: Score): boolean {
 interface Task {
   job: Omit<RenderJob, "id">;
   sung: boolean;
+  onProgress: ((progress: RenderProgress) => void) | undefined;
   resolve: (result: RenderResult) => void;
   reject: (error: Error) => void;
 }
@@ -108,12 +113,33 @@ function startWorker(url: URL): Worker {
   return worker;
 }
 
+/** Reads NEUTRINO's progress from `file` until cleared: the worker running it is blocked meanwhile. */
+function pollNeutrino(file: string, onProgress: (progress: RenderProgress) => void): ReturnType<typeof setInterval> {
+  let last: number | undefined;
+  const timer = setInterval(() => {
+    let printed: string;
+    try {
+      printed = readFileSync(file, "utf8");
+    } catch {
+      return; // not written yet, or removed as NEUTRINO finished
+    }
+    const done = neutrinoProgress(printed);
+    if (done === undefined || done === last) return;
+    last = done;
+    onProgress({ stage: "singing", done });
+  }, PROGRESS_POLL_MS);
+  timer.unref();
+  return timer;
+}
+
 function run(url: URL, worker: Worker, task: Task): void {
   const id = nextId++;
   let settled = false;
+  let polling: ReturnType<typeof setInterval> | undefined;
   if (task.sung) singing++;
   const settle = (): void => {
     settled = true;
+    clearInterval(polling);
     if (task.sung) singing--;
     worker.off("message", onMessage);
     worker.off("error", onError);
@@ -122,6 +148,13 @@ function run(url: URL, worker: Worker, task: Task): void {
   };
   const onMessage = (reply: RenderReply): void => {
     if (reply.id !== id || settled) return;
+    if ("progress" in reply || "neutrinoLog" in reply) {
+      clearInterval(polling);
+      if (task.onProgress === undefined) return;
+      polling = "neutrinoLog" in reply ? pollNeutrino(reply.neutrinoLog, task.onProgress) : undefined;
+      if ("progress" in reply) task.onProgress(reply.progress);
+      return;
+    }
     settle();
     if ("error" in reply) task.reject(revive(reply.error));
     else task.resolve(reply.result);
@@ -175,7 +208,7 @@ if (workerUrl === undefined) {
     (score, options) =>
       new Promise<RenderResult>((resolve, reject) => {
         const job = { score, options: workerOptions(options), samples: samplesFor(score, options.samples, options.seed) };
-        queue.push({ job, sung: sings(score), resolve, reject });
+        queue.push({ job, sung: sings(score), onProgress: options.onProgress, resolve, reject });
         pump(workerUrl);
       }),
   );

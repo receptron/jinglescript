@@ -9,6 +9,7 @@ import { z } from "zod";
 // The schema modules alone: the library's index needs Node (ffmpeg), which a page cannot load.
 import { ScoreBaseSchema } from "../../src/score-schema.ts";
 import { TimingSchema } from "../../src/timing.ts";
+import { PROGRESS_REQUEST } from "../src/audio-request.ts";
 import Preview from "../src/vue/Preview.vue";
 import View from "../src/vue/View.vue";
 
@@ -62,21 +63,31 @@ const collectedById = new Map(
   parsed.data.flatMap((sample) => (sample.data.pending && sample.collected ? [[sample.data.pending, sample.collected] as const] : [])),
 );
 
-/** A stand-in for the host's runtime: its dispatch answers a pending card's request for its audio. */
+const loadedAt = Date.now();
+
+/** How far the stand-in render is: NEUTRINO singing for most of COLLECT_MS, then the mix. */
+function standInProgress(): object {
+  const done = (Date.now() - loadedAt) / (0.8 * COLLECT_MS);
+  return done < 1 ? { progress: { stage: "singing", done }, message: "" } : { progress: { stage: "mixing" }, message: "" };
+}
+
+/** A stand-in for the host's runtime: its dispatch answers a pending card's requests for its audio and its progress. */
 const runtime: BrowserPluginRuntime = {
   pubsub: { subscribe: () => () => undefined },
   locale: ref("en"),
   log: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
   openUrl: (url: string) => window.open(url, "_blank", "noopener,noreferrer"),
   dispatch: (args: object) =>
-    new Promise((resolve) => {
-      const id: unknown = Reflect.get(args, "id");
-      const data = typeof id === "string" ? collectedById.get(id) : undefined;
-      setTimeout(
-        () => resolve(data ? { outcome: "ready", data, message: "The audio is ready." } : { outcome: "gone", message: "Not in this demo." }),
-        COLLECT_MS,
-      );
-    }),
+    Reflect.get(args, "kind") === PROGRESS_REQUEST
+      ? Promise.resolve(standInProgress())
+      : new Promise((resolve) => {
+          const id: unknown = Reflect.get(args, "id");
+          const data = typeof id === "string" ? collectedById.get(id) : undefined;
+          setTimeout(
+            () => resolve(data ? { outcome: "ready", data, message: "The audio is ready." } : { outcome: "gone", message: "Not in this demo." }),
+            COLLECT_MS,
+          );
+        }),
 };
 
 /** What the views would send the LLM, listed on the page. */

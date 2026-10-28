@@ -75,6 +75,7 @@ describe("jinglescript/browser", () => {
       "NeutrinoMissingError",
       "NeutrinoVoiceMissingError",
       "awaitDeferredPlayer",
+      "deferredRenderProgress",
       "DEFERRED_KEEP_MS",
     ];
     const browserOnly = ["DEFAULT_SFX_BASE_URL", "DEFAULT_CACHE_NAME"];

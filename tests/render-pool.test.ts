@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { JingleScriptError, NeutrinoMissingError, parseScore, render, SamplesNotLoadedError, type Score } from "../src/index.ts";
+import { JingleScriptError, NeutrinoMissingError, parseScore, render, SamplesNotLoadedError, type RenderProgress, type Score } from "../src/index.ts";
 import { renderNow } from "../src/render.ts";
 import { fixtureSamples } from "./sample-fixture.ts";
 
@@ -28,6 +30,50 @@ const sung = parseScore({
   length: { seconds: 2 },
   tracks: [{ instrument: "organ", sing: { engine: "neutrino" }, notes: [{ at: 1, pitch: "C4", lyric: "か" }] }],
 });
+
+/**
+ * A stand-in NEUTRINO install: musicXMLtoLabel writes empty labels; neutrino prints its progress as
+ * the real one does with -t (\r-separated), taking about a second, then writes 6 s of quiet tone.
+ */
+function fakeNeutrino(): string {
+  const dir = mkdtempSync(join(tmpdir(), "neutrino-progress-"));
+  mkdirSync(join(dir, "bin"));
+  mkdirSync(join(dir, "model", "REINA"), { recursive: true });
+  writeFileSync(join(dir, "model", "REINA", "info.toml"), "");
+  writeFileSync(join(dir, "model", "REINA", "version_information.txt"), "REINA v3.2.2");
+  const node = `#!${process.execPath}\nconst fs = require("node:fs");\nconst args = process.argv.slice(2);\n`;
+  writeFileSync(join(dir, "bin", "musicXMLtoLabel"), `${node}fs.writeFileSync(args[1], ""); fs.writeFileSync(args[2], "");\n`);
+  writeFileSync(
+    join(dir, "bin", "neutrino"),
+    `${node}const wait = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+for (const p of [10, 40, 70]) { process.stdout.write("   progress = " + p + " % (x / y sec)"); wait(400); }
+process.stdout.write("   progress = 100 % (y / y sec)finish\\n");
+const rate = 48000, n = rate * 6, wav = Buffer.alloc(44 + n * 2);
+wav.write("RIFF", 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16);
+wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(rate, 24); wav.writeUInt32LE(rate * 2, 28);
+wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34); wav.write("data", 36); wav.writeUInt32LE(n * 2, 40);
+for (let i = 0; i < n; i++) wav.writeInt16LE(i % 100 < 50 ? 1000 : -1000, 44 + i * 2);
+fs.writeFileSync(args[4], wav);
+`,
+  );
+  chmodSync(join(dir, "bin", "musicXMLtoLabel"), 0o755);
+  chmodSync(join(dir, "bin", "neutrino"), 0o755);
+  return dir;
+}
+
+/** Runs `body` with these environment variables set (the worker shares the environment), then restores them. */
+async function withEnv(vars: Record<string, string>, body: () => Promise<void>): Promise<void> {
+  const before = Object.fromEntries(Object.keys(vars).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, vars);
+  try {
+    await body();
+  } finally {
+    for (const [key, value] of Object.entries(before)) {
+      if (value === undefined) Reflect.deleteProperty(process.env, key);
+      else process.env[key] = value;
+    }
+  }
+}
 
 describe("render() on a worker thread", () => {
   it("gives the same audio, timing and stats as rendering in place", async () => {
@@ -72,5 +118,17 @@ describe("render() on a worker thread", () => {
       if (before === undefined) delete process.env.NEUTRINO_DIR;
       else process.env.NEUTRINO_DIR = before;
     }
+  });
+
+  it.runIf(onWorker && process.platform !== "win32")("reports NEUTRINO's progress while it sings, then the mix", async () => {
+    await withEnv({ NEUTRINO_DIR: fakeNeutrino(), JINGLESCRIPT_CACHE: mkdtempSync(join(tmpdir(), "jinglescript-cache-")) }, async () => {
+      const progress: RenderProgress[] = [];
+      await render(sung, { onProgress: (p) => progress.push(p) });
+      const singing = progress.flatMap((p) => (p.stage === "singing" ? [p.done] : []));
+      expect(singing[0]).toBe(0);
+      expect(singing.some((done) => done > 0 && done < 1)).toBe(true); // heard while NEUTRINO ran
+      expect(singing).toEqual([...singing].sort((a, b) => a - b));
+      expect(progress.at(-1)).toEqual({ stage: "mixing" });
+    });
   });
 });

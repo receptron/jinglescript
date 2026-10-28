@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { awaitDeferredPlayer, COLLECTED_KEEP_MS, DEFERRED_KEEP_MS, deferRender, MAX_DEFERRED } from "../src/deferred-renders.ts";
+import { awaitDeferredPlayer, COLLECTED_KEEP_MS, DEFERRED_KEEP_MS, deferRender, deferredRenderProgress, MAX_DEFERRED } from "../src/deferred-renders.ts";
+import type { RenderProgress } from "../src/render.ts";
 import type { PlayerData } from "../src/player.ts";
 
 const player = {} as PlayerData;
@@ -57,5 +58,23 @@ describe("deferred renders", () => {
     const waiting = awaitDeferredPlayer(running);
     finish?.(player);
     expect((await waiting).kind).toBe("ready");
+  });
+
+  it("tell how far a render is while it renders, and nothing once it is done or for an unknown id", async () => {
+    const reported: { latest?: RenderProgress } = {};
+    let finish: ((done: PlayerData) => void) | undefined;
+    const id = deferRender(
+      new Promise<PlayerData>((resolve) => {
+        finish = resolve;
+      }),
+      () => reported.latest,
+    );
+    expect(deferredRenderProgress(id)).toBeUndefined();
+    reported.latest = { stage: "singing", done: 0.4 };
+    expect(deferredRenderProgress(id)).toEqual({ stage: "singing", done: 0.4 });
+    finish?.(player);
+    await awaitDeferredPlayer(id);
+    expect(deferredRenderProgress(id)).toBeUndefined();
+    expect(deferredRenderProgress("no-such-render")).toBeUndefined();
   });
 });

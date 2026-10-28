@@ -1544,3 +1544,21 @@ Decided:
   getSchema() and the published schema files are unchanged. Not measured with the LLM eval. checkScore of a
   score that sings now also checks NEUTRINO and its voice (an error on the sung track), so a model
   can find out whether it can sing before rendering instead of guessing.
+- 2026-10-27 — The pending card (#49, #50, #51). User: the rendering note should be at the top in
+  both views; NEUTRINO takes the longest, so show how far it is; the sheet music cannot be
+  scrolled by hand before playback. NEUTRINO prints `progress = N %` with `-t`; checked on the
+  real one that it arrives during the run through a pipe (8 s song: 8 % at 1.1 s … 100 % at
+  13.7 s). It now runs with `-t` and its output in a file in the work folder; the worker thread
+  is blocked while it runs, so it sends the file's path and the pool reads it every 500 ms.
+  `render()` takes `onProgress` (singing 0…1, then mixing; in place only the two stages); it is
+  only reported and never touches the audio. `-t` itself: NEUTRINO's output differs run to run
+  by about as much as the signal (that is why it is cached), and with `-t` it differs by the same,
+  so no effect could be seen. manage's deferred render keeps the latest progress
+  (`deferredRenderProgress`); the plugin's view asks for it once a second (a `renderProgress`
+  request beside `collectRenderedAudio`) and shows the status, or the failure, under the title.
+  The sheet music would not scroll: MulmoChat's box is `overflow: hidden` and the card did not
+  scroll itself (during playback OSMD's `scrollIntoView` moved the clipped box, which looked like
+  scrolling). The card is now `height: 100%; overflow-y: auto`. Browser check with the demo's
+  stand-in runtime: status right under the title, 0 % → 84 % → audio; sheet music in a 300 px
+  box scrolled 400 px with the wheel; no console errors. Both packages 1.1.0 (new `onProgress`
+  and `deferredRenderProgress`; the plugin's peer ^1.1.0).

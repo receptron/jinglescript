@@ -11,7 +11,7 @@ export type { LoadSamplesOptions } from "./samples/load.ts";
 export { renderToFiles } from "./output.ts";
 export { manage, ManageInputSchema, manageInputJsonSchema, MANAGE_TOOL, MANAGE_ACTIONS, MANAGE_DESCRIPTION } from "./manage.ts";
 export type { ManageInput, ManageResult, ManageOptions, ManageAction } from "./manage.ts";
-export { awaitDeferredPlayer, DEFERRED_KEEP_MS } from "./deferred-renders.ts";
+export { awaitDeferredPlayer, deferredRenderProgress, DEFERRED_KEEP_MS } from "./deferred-renders.ts";
 export type { DeferredOutcome } from "./deferred-renders.ts";
 export { FfmpegMissingError } from "./encode.ts";
 export { AUDIO_FORMATS } from "./audio-format.ts";

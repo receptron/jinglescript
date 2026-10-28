@@ -4,10 +4,10 @@
 // A score `path` is read through the host's `files.byPath` (as presentDocument's is): the host
 // decides what a path may reach and what a relative one means. Without it, `path` is refused.
 // A host whose view can call back (`deferredAudio`) gets the card before a long render's audio:
-// the view collects it with an AudioRequest, answered here.
+// the view collects it with an AudioRequest, answered here, and asks how far it is meanwhile.
 import type { FileOps, ToolContext, ToolPluginCore, ToolResult } from "gui-chat-protocol";
-import { awaitDeferredPlayer, MANAGE_TOOL, ManageInputSchema, manage, type PlayerData } from "jinglescript";
-import { isAudioRequest, type AudioReply, type AudioRequest } from "./audio-request.ts";
+import { awaitDeferredPlayer, deferredRenderProgress, MANAGE_TOOL, ManageInputSchema, manage, type PlayerData } from "jinglescript";
+import { isAudioRequest, isProgressRequest, type AudioReply, type AudioRequest, type ProgressReply, type ProgressRequest } from "./audio-request.ts";
 import { TOOL_DEFINITION } from "./definition.ts";
 
 export { TOOL_DEFINITION };
@@ -36,6 +36,12 @@ export async function collectAudio(request: AudioRequest): Promise<AudioReply> {
     case "gone":
       return { outcome: "gone", message: "This render's audio is no longer on the server (it was restarted, or the render is too old)." };
   }
+}
+
+/** The answer to a view's ProgressRequest: how far the render it names is, at once. */
+export function renderProgress(request: ProgressRequest): Promise<ProgressReply> {
+  const progress = deferredRenderProgress(request.id);
+  return Promise.resolve(progress === undefined ? { message: "No progress to tell." } : { progress, message: `Rendering: ${progress.stage}.` });
 }
 
 export async function executeManage(context: ManageContext, args: object): Promise<ToolResult<PlayerData, never>> {
@@ -77,8 +83,8 @@ export function instructionsFor(player: PlayerData): string {
 
 export const pluginCore: ToolPluginCore<PlayerData, never, object> = {
   toolDefinition: TOOL_DEFINITION,
-  // The view's AudioRequest comes through the same execute (the host's dispatch route) as the tool calls.
-  execute: (context, args) => (isAudioRequest(args) ? collectAudio(args) : executeManage(context, args)),
+  // The view's requests come through the same execute (the host's dispatch route) as the tool calls.
+  execute: (context, args) => (isAudioRequest(args) ? collectAudio(args) : isProgressRequest(args) ? renderProgress(args) : executeManage(context, args)),
   generatingMessage: "Rendering the jingle…",
   isEnabled: () => true,
 };

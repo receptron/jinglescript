@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { definitionText } from "../scripts/definition.ts";
-import { AUDIO_REQUEST, isAudioRequest, parseAudioReply } from "../src/audio-request.ts";
+import { AUDIO_REQUEST, isAudioRequest, isProgressRequest, parseAudioReply, parseProgressReply, PROGRESS_REQUEST } from "../src/audio-request.ts";
 import { manage } from "jinglescript";
 import { executeManage, instructionsFor, pluginCore, TOOL_DEFINITION } from "../src/index.ts";
 import { karaoke, lanes, waveformPath, xOf } from "../src/vue/layout.ts";
@@ -147,6 +147,26 @@ describe("a card shown before its audio (a host that sets deferredAudio)", () =>
     expect(parseAudioReply({ outcome: "ready", message: "", data: { title: "t", audio: "", peaks: [], timing: {} } })).toBeUndefined();
     expect(parseAudioReply({ outcome: "failed", message: "boom" })).toEqual({ outcome: "failed", message: "boom" });
     expect(parseAudioReply("nope")).toBeUndefined();
+  });
+
+  it("answers how far a render is at once: nothing to tell for one that is done or not on the server", async () => {
+    const pending = (await manage({ action: "renderScore", score }, { player: true, deferAudio: { waitMs: 0 } })).player;
+    if (pending?.pending === undefined) throw new Error("expected a pending card");
+    // An unsung score reports no stages; the answer is still immediate.
+    expect(parseProgressReply(await pluginCore.execute({}, { kind: PROGRESS_REQUEST, id: pending.pending }))).toBeUndefined();
+    await pluginCore.execute({}, { kind: AUDIO_REQUEST, id: pending.pending });
+    expect(await pluginCore.execute({}, { kind: PROGRESS_REQUEST, id: pending.pending })).toEqual({ message: "No progress to tell." });
+    expect(await pluginCore.execute({}, { kind: PROGRESS_REQUEST, id: "no-such-render" })).toEqual({ message: "No progress to tell." });
+  });
+
+  it("checks the view's progress request and the server's answer", () => {
+    expect(isProgressRequest({ kind: PROGRESS_REQUEST, id: "x" })).toBe(true);
+    expect(isProgressRequest({ kind: AUDIO_REQUEST, id: "x" })).toBe(false);
+    expect(parseProgressReply({ progress: { stage: "singing", done: 0.52 }, message: "" })).toEqual({ stage: "singing", done: 0.52 });
+    expect(parseProgressReply({ progress: { stage: "mixing" }, message: "" })).toEqual({ stage: "mixing" });
+    expect(parseProgressReply({ progress: { stage: "singing", done: 7 }, message: "" })).toBeUndefined();
+    expect(parseProgressReply({ message: "No progress to tell." })).toBeUndefined();
+    expect(parseProgressReply("nope")).toBeUndefined();
   });
 
   it("tells the LLM the audio is on its way", () => {

@@ -63,10 +63,16 @@ export function serve(webDir, dataDir) {
     ["/", webDir],
   ];
   const server = http.createServer((req, res) => {
-    const url = decodeURIComponent((req.url ?? "/").split(/[?#]/)[0]);
-    const [prefix, root] = roots.find(([p]) => url.startsWith(p));
-    const file = path.resolve(root, url.slice(prefix.length));
-    if (!file.startsWith(path.resolve(root)) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    let url;
+    try {
+      url = decodeURIComponent((req.url ?? "/").split(/[?#]/)[0]);
+    } catch {
+      url = ""; // malformed %-escape: 404 below rather than crash the capture
+    }
+    const [prefix, root] = roots.find(([p]) => url.startsWith(p)) ?? ["", ""];
+    const base = path.resolve(root);
+    const file = path.resolve(base, url.slice(prefix.length));
+    if (!url || !file.startsWith(base + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
       res.writeHead(404);
       res.end();
       return;

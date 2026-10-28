@@ -19,7 +19,7 @@ Two sample scenes, deliberately different:
 
 ## Requirements
 
-- Node.js **>= 22.12** (the repo CLI runs TypeScript directly)
+- Node.js **>= 22.18** (the repo CLI and `prepare.ts` run TypeScript directly)
 - Google Chrome or Chromium (driven by `puppeteer-core`; no browser download)
 - ffmpeg
 
@@ -55,7 +55,7 @@ node render.mjs full  ../../examples/piano/nocturne-op9-2.json --cut 60
 ```
 
 Output goes to `out/music-video/` at the repo root (git-ignored):
-`still-<t>.png`, `clip-<s>s.mp4`, `music-video.mp4`, and `data/`
+`still-<t>.png`, `clip-<t>s+<s>s.mp4`, `music-video.mp4`, and `data/`
 (`score.json`, `music.wav`, `timing.json`, `notes.json`).
 
 Stills need no audio: they only resolve the score (about a second). Clips and

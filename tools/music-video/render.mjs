@@ -76,11 +76,14 @@ fs.writeFileSync(notesFile, JSON.stringify({ title: o.title ?? names.title, subt
 if (mode !== "still") {
   const rendered = path.join(data, "rendered-score.json");
   const wav = path.join(data, "music.wav");
-  const same = fs.existsSync(rendered) && fs.existsSync(wav) && fs.readFileSync(rendered, "utf8") === fs.readFileSync(scoreFile, "utf8");
+  // cache key: the engine version and the score as rendered
+  const version = /PACKAGE_VERSION = "([^"]+)"/.exec(fs.readFileSync(path.join(repo, "src/version.ts"), "utf8"))?.[1] ?? "?";
+  const key = `${version}\n${fs.readFileSync(scoreFile, "utf8")}`;
+  const same = fs.existsSync(rendered) && fs.existsSync(wav) && fs.readFileSync(rendered, "utf8") === key;
   if (same) console.log("score unchanged: reusing data/music.wav");
   else {
     execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "render", scoreFile, "-o", wav], { stdio: "inherit" });
-    fs.copyFileSync(scoreFile, rendered);
+    fs.writeFileSync(rendered, key);
   }
   fs.copyFileSync(path.join(data, "music.timing.json"), path.join(data, "timing.json"));
 }
@@ -114,7 +117,7 @@ const fadeEnd = mode === "clip" ? [`start=${start}`, `fadeEnd=${start + seconds}
 await Promise.all(
   Array.from({ length: workers }, (_, i) => run([...common, ...fadeEnd, `out=${frames}`, `from=${i * chunk}`, `to=${Math.min(total, (i + 1) * chunk)}`])),
 );
-const mp4 = path.join(out, mode === "clip" ? `clip-${seconds}s.mp4` : "music-video.mp4");
+const mp4 = path.join(out, mode === "clip" ? `clip-${start}s+${seconds}s.mp4` : "music-video.mp4");
 const afade = mode === "clip" ? ["-af", `${start ? "afade=t=in:d=0.4," : ""}afade=t=out:st=${Math.max(0, seconds - 1.2)}:d=1.2`] : [];
 execFileSync(
   "ffmpeg",

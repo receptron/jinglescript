@@ -4,14 +4,18 @@ Turn a JingleScript score into a 3D music video: the score is rendered to a WAV
 plus `timing.json`, a deterministic Three.js scene draws any moment `t` on
 request, headless Chrome captures it frame by frame, and ffmpeg muxes the MP4.
 
-> **Design a new scene for every video.** `scenes/crystal-stair` is only an
-> example of the scene contract and of useful techniques (bloom, reflections,
-> note-synced physics). Don't reuse it as-is — if everyone renders the same
-> scene, every video looks the same. Instead, the LLM proposes a few visual
-> concepts for the piece, the user picks one, and the LLM writes a new
-> `scenes/<name>/index.html`, using crystal-stair only as a reference.
+> **Design a new scene for every video.** The scenes in `scenes/` are only
+> samples of the scene contract and of useful techniques. Don't reuse them
+> as-is — if everyone renders the same scene, every video looks the same.
+> Instead, the LLM proposes a few visual concepts for the piece, the user picks
+> one, and the LLM writes a new `scenes/<name>/index.html` together with the
+> user, using the samples only as references.
 
-![Crystal Stair over Still Water](docs/crystal-stair.jpg)
+Two sample scenes, deliberately different:
+
+| `crystal-stair`: night, glowing stair spiral over reflecting water | `paper-garden`: daylight origami town; cranes land and bloom into paper flowers |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| ![Crystal Stair over Still Water](docs/crystal-stair.jpg)          | ![Paper Garden](docs/paper-garden.jpg)                                           |
 
 ## Requirements
 
@@ -118,9 +122,11 @@ drawn in any order — that is what lets stills, clips and parallel workers agre
 The look is decided per video, in conversation: propose a few visual concepts
 for the piece, pick one, write it as a scene, then iterate with stills, a short
 clip, and finally the full render. Write a new `scenes/<name>/index.html`
-for each video. `crystal-stair` (glowing stair spiral over reflecting water,
-one step per pitch) is only a reference for the contract and techniques; copy
-ideas from it, not the whole look.
+for each video. The samples are only references for the contract and
+techniques: `crystal-stair` (dark; bloom, reflections, depth of field,
+note-synced physics) and `paper-garden` (bright; sun shadows, procedural paper
+texture, instanced cranes/flowers/confetti, a title card that stays legible
+on bright frames). Copy ideas from them, not the whole look.
 
 ### Scene contract
 
@@ -162,7 +168,7 @@ It must:
 
 Long pieces have thousands of notes: `notes` is sorted by `t`, so a frame
 should only visit the notes near `t` (binary search) rather than all of them.
-Use `scenes/crystal-stair/index.html` as a reference for all of this.
+Use `scenes/crystal-stair/index.html` or `scenes/paper-garden/index.html` as a reference for all of this.
 
 ### Look parameters (`crystal-stair`)
 

@@ -85,11 +85,6 @@
       scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
       scene.environmentIntensity = C.env;
       const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 300);
-      const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-      const midi = (p) => {
-        const m = /^([A-G])([#b]?)(-?\d+)$/.exec(p);
-        return 12 * (+m[3] + 1) + NOTE[m[1]] + (m[2] == "#" ? 1 : m[2] == "b" ? -1 : 0);
-      };
       const sstep = (a, b, x) => {
         x = Math.min(1, Math.max(0, (x - a) / (b - a)));
         return x * x * (3 - 2 * x);
@@ -107,7 +102,20 @@
       const DUR = (window.DURATION = T.duration);
       const FE = +(P.get("fadeEnd") || DUR);
       const FS = +(P.get("fadeStart") || 0); // clip start: short fade-in there instead of at 0
-      const notes = ND.notes.map((n, i) => ({ ...n, m: midi(n.pitch), i }));
+      // notes.json: one entry per sounding pitch (chords give several), sorted by t; m = MIDI number
+      const notes = ND.notes.map((n, i) => ({ ...n, i }));
+      const MAXL = Math.max(0, ...notes.map((n) => n.len));
+      // first index with notes[i].t >= x (notes are sorted), so a frame only visits nearby notes
+      function lowerBound(x) {
+        let lo = 0,
+          hi = notes.length;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (notes[mid].t < x) lo = mid + 1;
+          else hi = mid;
+        }
+        return lo;
+      }
       // ---- geometry of the spiral: pitch -> place
       const MS = notes.map((n) => n.m);
       const M0 = Math.min(36, Math.max(21, Math.min(...MS)));
@@ -255,7 +263,8 @@
           sz = 0,
           sw = 0,
           sa = 0;
-        for (const n of notes) {
+        for (let i = lowerBound(t - 0.15 - 3.3); i < notes.length && notes[i].t <= t - 0.15 + 3.3; i++) {
+          const n = notes[i];
           const d = (t - n.t - 0.15) / 1.1;
           if (d < -3 || d > 3) continue;
           const w = Math.exp(-d * d) * (0.3 + n.vel) * (n.track == 0 ? 1 : 0.08);
@@ -313,7 +322,8 @@
         let di = 0,
           bi = 0,
           ri = 0;
-        for (const n of notes) {
+        for (let i = lowerBound(t - MAXL - 4); i < notes.length && notes[i].t <= t + FALL; i++) {
+          const n = notes[i];
           const dt = t - n.t;
           const r = R[n.m];
           if (dt >= -FALL && dt < 0 && di < 96) {
@@ -354,8 +364,8 @@
               bi++;
             }
           }
-          if (dt < 4 && ri < 300) {
-            for (let k = 0; k < 2; k++) {
+          if (dt < 4) {
+            for (let k = 0; k < 2 && ri < 300; k++) {
               const d = dt - k * 0.35;
               if (d < 0) continue;
               const s = 0.3 + d * 2.2;

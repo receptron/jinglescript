@@ -13,7 +13,7 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { trimScore, notesWithLength, splitTitle, swapInstrument, instrumentRange } from "./lib.mjs";
+import { splitTitle } from "./lib.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, "../..");
@@ -59,35 +59,32 @@ const out = path.resolve(o.out);
 const data = path.join(out, "data");
 fs.mkdirSync(data, { recursive: true });
 
-// 1. Score -> audio + timing map (the JingleScript CLI of this repo).
-let score = JSON.parse(fs.readFileSync(scorePath, "utf8"));
-if (o.cut) score = trimScore(score, Number(o.cut));
-if (o.instrument) {
-  const listing = execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "instruments"], { encoding: "utf8" });
-  swapInstrument(score, o.instrument, instrumentRange(listing, o.instrument));
-}
-const scoreText = JSON.stringify(score, null, 1);
-const scoreFile = path.join(data, "score.json");
-const cached =
-  fs.existsSync(scoreFile) &&
-  fs.readFileSync(scoreFile, "utf8") === scoreText &&
-  fs.existsSync(path.join(data, "music.wav")) &&
-  fs.existsSync(path.join(data, "music.timing.json"));
-if (cached) {
-  console.log("score unchanged: reusing data/music.wav");
-} else {
-  fs.writeFileSync(scoreFile, scoreText);
-  execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "render", scoreFile, "-o", path.join(data, "music.wav")], {
-    stdio: "inherit",
-  });
-}
-const timing = JSON.parse(fs.readFileSync(path.join(data, "music.timing.json"), "utf8"));
-fs.copyFileSync(path.join(data, "music.timing.json"), path.join(data, "timing.json"));
-const names = splitTitle(score.title);
-fs.writeFileSync(
-  path.join(data, "notes.json"),
-  JSON.stringify({ title: o.title ?? names.title, subtitle: o.subtitle ?? names.subtitle, notes: notesWithLength(score, timing) }),
+// 1. Score -> data/score.json, timing.json, notes.json (prepare.ts: JingleScript's own resolver).
+execFileSync(
+  process.execPath,
+  [path.join(here, "prepare.ts"), scorePath, data, ...(o.cut ? ["--cut", o.cut] : []), ...(o.instrument ? ["--instrument", o.instrument] : [])],
+  { stdio: "inherit" },
 );
+const scoreFile = path.join(data, "score.json");
+const score = JSON.parse(fs.readFileSync(scoreFile, "utf8"));
+const names = splitTitle(score.title);
+const notesFile = path.join(data, "notes.json");
+const nd = JSON.parse(fs.readFileSync(notesFile, "utf8"));
+fs.writeFileSync(notesFile, JSON.stringify({ title: o.title ?? names.title, subtitle: o.subtitle ?? names.subtitle, ...nd }));
+
+// 2. Audio, only for clips and full renders; reused while the score is unchanged.
+if (mode !== "still") {
+  const rendered = path.join(data, "rendered-score.json");
+  const wav = path.join(data, "music.wav");
+  const same = fs.existsSync(rendered) && fs.existsSync(wav) && fs.readFileSync(rendered, "utf8") === fs.readFileSync(scoreFile, "utf8");
+  if (same) console.log("score unchanged: reusing data/music.wav");
+  else {
+    execFileSync(process.execPath, [path.join(repo, "src/cli.ts"), "render", scoreFile, "-o", wav], { stdio: "inherit" });
+    fs.copyFileSync(scoreFile, rendered);
+  }
+  fs.copyFileSync(path.join(data, "music.timing.json"), path.join(data, "timing.json"));
+}
+const timing = JSON.parse(fs.readFileSync(path.join(data, "timing.json"), "utf8"));
 
 const fps = Number(o.fps);
 const common = [`data=${data}`, `scene=${o.scene}`, `w=${o.w}`, `h=${o.h}`, `fps=${fps}`, `gpu=${o.cpu ? 0 : 1}`, ...(o.cfg ? [`cfg=${o.cfg}`] : [])];
@@ -97,14 +94,14 @@ const run = (args) =>
     p.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`capture exited ${code}`))));
   });
 
-// 2. Stills: one Chrome per time.
+// 3. Stills: one Chrome per time.
 if (mode === "still") {
   for (const t of o.t.split(",")) await run([...common, `still=${t}`, `png=${path.join(out, `still-${t}.png`)}`]);
   console.log(`done in ${((Date.now() - started) / 1000).toFixed(0)} s`);
   process.exit(0);
 }
 
-// 3. Frames, split across workers, then ffmpeg with the audio.
+// 4. Frames, split across workers, then ffmpeg with the audio.
 const seconds = mode === "clip" ? Number(o.seconds) : timing.duration;
 const total = Math.round(seconds * fps);
 const workers = Number(o.workers ?? (o.cpu ? 4 : 1));

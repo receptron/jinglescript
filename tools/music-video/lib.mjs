@@ -6,18 +6,6 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 
-/** Cut a score to its first `cut` seconds (notes and pedal starting before cut - 0.5 s) and add a fade-out. */
-export function trimScore(score, cut, fade = 1.5) {
-  const s = structuredClone(score);
-  for (const t of s.tracks) {
-    t.notes = (t.notes ?? []).filter((n) => n.at?.seconds === undefined || n.at.seconds < cut - 0.5);
-    if (t.pedal) t.pedal = t.pedal.filter((p) => p.at?.seconds === undefined || p.at.seconds < cut - 0.5);
-  }
-  s.length = { seconds: cut + fade };
-  s.master = { ...(s.master ?? {}), fadeOut: fade };
-  return s;
-}
-
 const COMPOSERS = {
   Debussy: "Claude Debussy",
   Chopin: "Frédéric Chopin",
@@ -36,23 +24,6 @@ export function splitTitle(title = "") {
   if (!m) return { title, subtitle: "" };
   const composer = m[2].trim();
   return { title: `${m[1].trim()} ${m[3].trim()}`.trim(), subtitle: COMPOSERS[composer] ?? composer };
-}
-
-/**
- * Every note with its sounding length from the score. Onsets come from the timing map (the public
- * contract); `len` is read from the score where notes are placed in seconds, matched by onset and pitch.
- */
-export function notesWithLength(score, timing) {
-  const lens = new Map();
-  for (const t of score.tracks)
-    for (const n of t.notes ?? []) {
-      if (n.at?.seconds === undefined) continue;
-      const len = n.len?.seconds;
-      if (len !== undefined) lens.set(`${n.at.seconds.toFixed(2)}|${n.pitch}`, len);
-    }
-  return timing.notes
-    .filter((n) => n.pitch)
-    .map((n) => ({ t: n.t, pitch: n.pitch, vel: n.vel ?? 0.5, track: n.track ?? 0, len: lens.get(`${n.t.toFixed(2)}|${n.pitch}`) ?? 0.5 }));
 }
 
 const CHROME_PATHS = {
@@ -104,37 +75,4 @@ export function serve(webDir, dataDir) {
     fs.createReadStream(file).pipe(res);
   });
   return new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
-}
-
-const NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const STEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
-const toMidi = (p) => {
-  const m = /^([A-G])([#b]?)(-?\d+)$/.exec(p);
-  return m ? 12 * (Number(m[3]) + 1) + STEP[m[1]] + ({ "#": 1, b: -1 }[m[2]] ?? 0) : undefined;
-};
-const fromMidi = (n) => `${NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
-
-/** Read "<name> (instrument, C2–C7, ..." from `jinglescript instruments` output: the pitched range. */
-export function instrumentRange(listing, name) {
-  const line = listing.split("\n").find((l) => l.startsWith(`${name} (`));
-  if (!line) throw new Error(`unknown instrument "${name}" (see: node src/cli.ts instruments)`);
-  const m = /\(\w+, ([A-G][#b]?-?\d)–([A-G][#b]?-?\d)/.exec(line);
-  return m ? [toMidi(m[1]), toMidi(m[2])] : undefined;
-}
-
-/** Play every track on `name`: drop pedals (only grandpiano has dampers) and fold pitches into range by octaves. */
-export function swapInstrument(score, name, range) {
-  for (const t of score.tracks) {
-    t.instrument = name;
-    if (name !== "grandpiano") delete t.pedal;
-    if (!range) continue;
-    for (const n of t.notes ?? []) {
-      let m = toMidi(n.pitch);
-      if (m === undefined) continue;
-      while (m < range[0]) m += 12;
-      while (m > range[1]) m -= 12;
-      n.pitch = fromMidi(m);
-    }
-  }
-  return score;
 }

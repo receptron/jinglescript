@@ -54,8 +54,9 @@ Output goes to `out/music-video/` at the repo root (git-ignored):
 `still-<t>.png`, `clip-<s>s.mp4`, `music-video.mp4`, and `data/`
 (`score.json`, `music.wav`, `timing.json`, `notes.json`).
 
-The audio is rendered once per score (about 45 s for a 3.5-minute piece on an
-M2 Max); later runs with the same score, `--cut` and `--instrument` reuse
+Stills need no audio: they only resolve the score (about a second). Clips and
+full renders also render the audio (about 45 s for a 3.5-minute piece on an
+M2 Max), once per score; later runs with the same score, `--cut` and `--instrument` reuse
 `data/music.wav`. Use a separate `--out` per piece or instrument to keep them
 cached side by side.
 
@@ -95,12 +96,22 @@ outside the instrument's range are moved by octaves into it.
 
 ## How the timing is used
 
-`node src/cli.ts render score.json -o music.wav` also writes
-`music.timing.json`, the exact onset (seconds) of every note. `timing.json` has
-no durations, so `notes.json` joins each onset with the score note's
-`len.seconds` (default 0.5 s) — that drives how long a light glows. The scene
-reads `data/timing.json` and `data/notes.json` and computes everything
-analytically from `t`, so any frame can be drawn in any order.
+`prepare.ts` runs JingleScript's own resolver (`expandScore`) on the score, so
+notes placed by seconds, beats, cues or `end`, repeats, chords and strums all
+come out exactly as they will sound. It writes to `data/`:
+
+- `score.json`: the score as rendered (after `--cut` / `--instrument`)
+- `timing.json`: the timing map (the same one `node src/cli.ts render` writes
+  next to the WAV; for clips and full renders it is replaced by that one)
+- `notes.json`: what scenes animate — one entry per sounding pitch (a chord
+  gives one per note), sorted by `t`:
+  `{ t, m, pitch, vel, len, track }`, where `m` is the MIDI number and `len` is
+  how long the key is held (its `len`, or 0.5 s for notes left to ring).
+
+`--cut` drops every note (and repeat) starting in the last 0.5 s before the cut
+whatever its placement, clamps pedals, removes cues after the cut, and adds a
+fade-out. Scenes compute everything analytically from `t`, so any frame can be
+drawn in any order — that is what lets stills, clips and parallel workers agree.
 
 ## Designing a theme
 
@@ -118,16 +129,34 @@ A scene is a directory `scenes/<name>/index.html`, served with:
 - `/vendor/three/…` → the pinned `three` package (use an import map:
   `"three": "./vendor/three/build/three.module.js"`,
   `"three/addons/": "./vendor/three/examples/jsm/"`)
-- `/data/…` → `timing.json`, `notes.json` (`{title, subtitle, notes:[{t, m, vel, len}]}`)
-- URL params `cfg`, `title`, `subtitle`, `fadeEnd`
+- `/data/…` → `timing.json` and `notes.json` (`{title, subtitle, notes:[{t, m, pitch, vel, len, track}]}`, sorted by `t`; see above)
+- URL params:
+  - `w`, `h`: output size in pixels (the page viewport is set to it; size the
+    canvas from these, at device pixel ratio 1)
+  - `fadeStart`, `fadeEnd`: a clip's start and end in seconds (fade picture in
+    and out there; absent for full renders: fade in at 0 and out at the end)
+  - `cfg`: JSON of look parameters to merge over the scene's defaults
+  - `title`, `subtitle`: optional overrides of `notes.json`'s
 
 It must:
 
-1. Initialise from the timing (`init(timing)`: load data, build the scene) and
-   then set `window.ready = true` and `window.DURATION` (seconds).
-2. Expose `window.renderFrame(t)` that draws time `t` deterministically
-   (no clocks, no randomness without a fixed seed, no state carried between
-   frames).
+1. Initialise from the data (`init(timing)`: fetch `data/timing.json` and
+   `data/notes.json`, build everything, and wait for every texture, font and
+   shader to be ready), then set `window.DURATION = timing.duration` and
+   finally `window.ready = true`. Capture waits up to 120 s for `ready`;
+   errors are printed as `[pageerror]`.
+2. Expose `window.renderFrame(t)` that draws time `t` synchronously (the
+   screenshot is taken right after it returns) and deterministically: no
+   clocks or `requestAnimationFrame` loop, randomness only from a seeded
+   generator, and nothing carried over from the previous frame (reset any
+   shared scratch objects; disable frustum culling on instanced meshes whose
+   instances move). Stills, clips and parallel workers then agree exactly.
+3. Show the title/subtitle from `notes.json` and the small "Powered by
+   JingleScript" credit.
+
+Long pieces have thousands of notes: `notes` is sorted by `t`, so a frame
+should only visit the notes near `t` (binary search) rather than all of them.
+Use `scenes/crystal-stair/index.html` as a reference for all of this.
 
 ### Look parameters (`crystal-stair`)
 

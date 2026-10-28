@@ -153,6 +153,12 @@ It must:
    instances move). Stills, clips and parallel workers then agree exactly.
 3. Show the title/subtitle from `notes.json` and the small "Powered by
    JingleScript" credit.
+   Size this text relative to `h` (the page is exactly `w`×`h` pixels, so
+   fixed `px` sizes look tiny at 4K) and keep it legible on both bright and
+   dark frames (a halo or shadow); nothing in the scene should cover it.
+4. Fade the picture in at the start (or at `fadeStart`, quickly) and out
+   towards `fadeEnd`; the title is shown in the first seconds and before the
+   end of a full render, but not at the end of a clip.
 
 Long pieces have thousands of notes: `notes` is sorted by `t`, so a frame
 should only visit the notes near `t` (binary search) rather than all of them.

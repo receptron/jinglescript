@@ -1,4 +1,4 @@
-// Shared helpers: score trimming, note extraction, Chrome discovery and a tiny static server.
+// Shared helpers: title splitting, Chrome discovery and a tiny static server.
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";

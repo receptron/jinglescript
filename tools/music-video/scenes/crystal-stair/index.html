@@ -1,0 +1,395 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #000;
+        overflow: hidden;
+      }
+      #title {
+        position: absolute;
+        right: 56px;
+        top: 44px;
+        text-align: right;
+        color: #e8dcc4;
+        font-family: "DejaVu Serif", Georgia, serif;
+        letter-spacing: 0.18em;
+        text-shadow: 0 0 12px rgba(0, 0, 0, 0.8);
+        opacity: 0;
+      }
+      #title .a {
+        font-size: 22px;
+        font-style: italic;
+        letter-spacing: 0.06em;
+      }
+      #title .b {
+        font-size: 13px;
+        margin-top: 6px;
+        opacity: 0.75;
+        text-transform: uppercase;
+      }
+      #credit {
+        position: absolute;
+        right: 40px;
+        bottom: 30px;
+        color: #efe6d6;
+        font-family: "DejaVu Serif", Georgia, serif;
+        font-size: 13px;
+        letter-spacing: 0.12em;
+        opacity: 0.45;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="credit">Powered by JingleScript</div>
+    <div id="title">
+      <div class="a"></div>
+      <div class="b"></div>
+    </div>
+    <script type="importmap">
+      { "imports": { "three": "./vendor/three/build/three.module.js", "three/addons/": "./vendor/three/examples/jsm/" } }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+      import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+      import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+      import { BokehPass } from "three/addons/postprocessing/BokehPass.js";
+      import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
+      import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+      import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+      import { Reflector } from "three/addons/objects/Reflector.js";
+      const P = new URLSearchParams(location.search);
+      const W = +(P.get("w") || 1920),
+        H = +(P.get("h") || 1080);
+      const C = (window.CFG = Object.assign(
+        { exposure: 1.8, bloom: 0.7, bloomR: 0.55, bloomT: 0.62, aperture: 0.0002, maxblur: 0.006, fog: 0.02, env: 0.3, glow: 4.5 },
+        JSON.parse(P.get("cfg") || "{}"),
+      ));
+      const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1);
+      renderer.setSize(W, H);
+      document.body.appendChild(renderer.domElement);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = C.exposure;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x06070c);
+      scene.fog = new THREE.FogExp2(0x06070c, C.fog);
+      const pm = new THREE.PMREMGenerator(renderer);
+      scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+      scene.environmentIntensity = C.env;
+      const camera = new THREE.PerspectiveCamera(38, W / H, 0.1, 300);
+      const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+      const midi = (p) => {
+        const m = /^([A-G])([#b]?)(-?\d+)$/.exec(p);
+        return 12 * (+m[3] + 1) + NOTE[m[1]] + (m[2] == "#" ? 1 : m[2] == "b" ? -1 : 0);
+      };
+      const sstep = (a, b, x) => {
+        x = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return x * x * (3 - 2 * x);
+      };
+      function rng(s) {
+        return () => {
+          s |= 0;
+          s = (s + 0x6d2b79f5) | 0;
+          let t = Math.imul(s ^ (s >>> 15), 1 | s);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+      const [T, ND] = await Promise.all([fetch("data/timing.json").then((r) => r.json()), fetch("data/notes.json").then((r) => r.json())]);
+      const DUR = (window.DURATION = T.duration);
+      const FE = +(P.get("fadeEnd") || DUR);
+      const notes = ND.notes.map((n, i) => ({ ...n, m: midi(n.pitch), i }));
+      // ---- geometry of the spiral: pitch -> place
+      const MS = notes.map((n) => n.m);
+      const M0 = Math.min(36, Math.max(21, Math.min(...MS)));
+      const SPAN = Math.max(52, Math.max(...MS) - M0);
+      function place(m) {
+        const k = m - M0;
+        const a = k * 0.17;
+        const r = 17 - k * 0.09;
+        return { a, r, x: Math.cos(a) * r, z: Math.sin(a) * r, y: 1.0 + k * 0.15 };
+      }
+      function hue(m) {
+        const k = Math.min(1, Math.max(0, (m - M0) / SPAN));
+        return new THREE.Color().setHSL(0.06 + k * 0.52, 0.9, 0.5);
+      }
+      const rodLen = (m) => 3.4 - (m - M0) * 0.042;
+      // ---- lights
+      scene.add(new THREE.HemisphereLight(0x50608a, 0x1a120a, 0.9));
+      const spot = new THREE.SpotLight(0xffd29a, 400, 90, 0.55, 0.6, 1.6);
+      spot.position.set(4, 34, 4);
+      spot.target.position.set(0, 4, 0);
+      scene.add(spot, spot.target);
+      spot.castShadow = true;
+      spot.shadow.mapSize.set(2048, 2048);
+      spot.shadow.radius = 6;
+      spot.shadow.bias = -0.0004;
+      spot.shadow.camera.near = 10;
+      spot.shadow.camera.far = 60;
+      const fill = new THREE.DirectionalLight(0xffc890, 0.9);
+      fill.position.set(18, 14, 22);
+      scene.add(fill);
+      const rim = new THREE.DirectionalLight(0x7f9cff, 1.4);
+      rim.position.set(-20, 8, -15);
+      scene.add(rim);
+      // ---- water: mirror + dark tinted film
+      const refl = new Reflector(new THREE.CircleGeometry(120, 64), { textureWidth: W / 3, textureHeight: H / 3, color: 0xb8bec8 });
+      refl.rotation.x = -Math.PI / 2;
+      scene.add(refl);
+      const film = new THREE.Mesh(
+        new THREE.CircleGeometry(120, 64),
+        new THREE.MeshStandardMaterial({ color: 0x02040a, roughness: 0.45, metalness: 0.0, transparent: true, opacity: 0.22 }),
+      );
+      film.rotation.x = -Math.PI / 2;
+      film.position.y = 0.01;
+      film.receiveShadow = true;
+      scene.add(film);
+      // ---- steps (dark marble) + crystal rods, one per pitch
+      const pitches = [...new Set(notes.map((n) => n.m))].sort((a, b) => a - b);
+      const stepGeo = new THREE.BoxGeometry(2.4, 0.22, 1.3, 1, 1, 1);
+      const stepMat = new THREE.MeshPhysicalMaterial({ color: 0x2a2420, roughness: 0.32, metalness: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.25 });
+      const brass = new THREE.MeshStandardMaterial({ color: 0xc89b55, roughness: 0.25, metalness: 1 });
+      const R = {};
+      for (let m = pitches[0]; m <= pitches[pitches.length - 1]; m++) {
+        const p = place(m);
+        const step = new THREE.Mesh(stepGeo, stepMat);
+        step.position.set(p.x, p.y, p.z);
+        step.rotation.y = -p.a;
+        step.castShadow = step.receiveShadow = true;
+        scene.add(step);
+        if (!pitches.includes(m)) continue;
+        const L = rodLen(m),
+          col = hue(m);
+        const mat = new THREE.MeshPhysicalMaterial({
+          color: col.clone().lerp(new THREE.Color(0.08, 0.09, 0.11), 0.75),
+          roughness: 0.04,
+          metalness: 0,
+          transmission: 0,
+          transparent: true,
+          opacity: 0.82,
+          clearcoat: 1,
+          ior: 1.5,
+          iridescence: 0.6,
+          emissive: col,
+          emissiveIntensity: 0,
+        });
+        const g = new THREE.CylinderGeometry(0.16, 0.16, L, 32, 1);
+        g.translate(0, L / 2, 0);
+        const rod = new THREE.Mesh(g, mat);
+        rod.position.set(p.x, p.y + 0.11 + 0.08, p.z);
+        rod.castShadow = true;
+        scene.add(rod);
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.08, 24), brass);
+        cap.position.set(p.x, p.y + 0.15, p.z);
+        cap.castShadow = true;
+        scene.add(cap);
+        R[m] = { rod, mat, col, top: new THREE.Vector3(p.x, p.y + 0.19 + L, p.z), p };
+      }
+      // ---- droplets (liquid glass, glowing core), splash beads, water ripples
+      const G = 7.5,
+        FALL = 1.1;
+      const dropMat = new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        roughness: 0.02,
+        metalness: 0,
+        clearcoat: 1,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.6,
+      });
+      const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.11, 24, 16), dropMat, 96);
+      drops.castShadow = true;
+      scene.add(drops);
+      const SPL = 10;
+      const beads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }), 1200);
+      scene.add(beads);
+      const ripples = new THREE.InstancedMesh(
+        new THREE.RingGeometry(0.96, 1, 96),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }),
+        300,
+      );
+      ripples.renderOrder = 2;
+      scene.add(ripples);
+      const r0 = rng(11);
+      const bv = notes.map(() =>
+        Array.from({ length: SPL }, () => {
+          const a = r0() * 6.283,
+            s = 0.8 + r0() * 1.6;
+          return [Math.cos(a) * s, 1.5 + r0() * 2.2, Math.sin(a) * s];
+        }),
+      );
+      // dust motes
+      {
+        const r = rng(3),
+          g = new THREE.BufferGeometry(),
+          a = [];
+        for (let i = 0; i < 1500; i++) a.push((r() - 0.5) * 60, r() * 22, (r() - 0.5) * 60);
+        g.setAttribute("position", new THREE.Float32BufferAttribute(a, 3));
+        window.dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe0b0, size: 0.04, transparent: true, opacity: 0.35 }));
+        scene.add(window.dust);
+      }
+      // ---- post
+      const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: 4 }));
+      composer.addPass(new RenderPass(scene, camera));
+      const bokeh = new BokehPass(scene, camera, { focus: 20, aperture: C.aperture, maxblur: C.maxblur });
+      composer.addPass(bokeh);
+      const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), C.bloom, C.bloomR, C.bloomT);
+      composer.addPass(bloom);
+      composer.addPass(new OutputPass());
+      composer.addPass(new SMAAPass(W, H));
+      // ---- camera playhead (analytic smoothing over notes)
+      const center = new THREE.Vector3();
+      function focusAt(t) {
+        let sx = 0,
+          sy = 0,
+          sz = 0,
+          sw = 0,
+          sa = 0;
+        for (const n of notes) {
+          const d = (t - n.t - 0.15) / 1.1;
+          if (d < -3 || d > 3) continue;
+          const w = Math.exp(-d * d) * (0.3 + n.vel) * (n.track == 0 ? 1 : 0.08);
+          const p = place(n.m);
+          sx += p.x * w;
+          sy += p.y * w;
+          sz += p.z * w;
+          sw += w;
+          sa += p.a * w;
+        }
+        return sw > 1e-4 ? { x: sx / sw, y: sy / sw, z: sz / sw, a: sa / sw, w: sw } : null;
+      }
+      function smoothFocus(t) {
+        let acc = { x: 0, y: 0, z: 0, a: 0 },
+          n = 0;
+        for (let k = -6; k <= 6; k++) {
+          const f = focusAt(t + k * 0.25);
+          if (!f) continue;
+          const w = Math.exp(-(k * k) / 18) * Math.min(1, f.w);
+          acc.x += f.x * w;
+          acc.y += f.y * w;
+          acc.z += f.z * w;
+          acc.a += f.a * w;
+          n += w;
+        }
+        if (n < 1e-4) {
+          const p = place(66);
+          return p;
+        }
+        return { x: acc.x / n, y: acc.y / n, z: acc.z / n, a: acc.a / n };
+      }
+      const dummy = new THREE.Object3D(),
+        col = new THREE.Color();
+      const titleEl = document.getElementById("title");
+      titleEl.querySelector(".a").textContent = P.get("title") || ND.title || "";
+      titleEl.querySelector(".b").textContent = P.get("subtitle") || ND.subtitle || "";
+      window.renderFrame = function (t) {
+        // camera
+        const f = smoothFocus(t);
+        const ca = f.a - 0.55 + 0.08 * Math.sin(t * 0.13);
+        const cr = Math.hypot(f.x, f.z) + 15;
+        const near = new THREE.Vector3(Math.cos(ca) * cr, f.y + 5 + 0.8 * Math.sin(t * 0.21), Math.sin(ca) * cr);
+        const look = new THREE.Vector3(f.x, f.y + 1.8, f.z);
+        const rv = sstep(DUR - 9, DUR - 1.5, t);
+        const wa = ca + rv * 0.6;
+        const far = new THREE.Vector3(Math.cos(wa) * 46, 30, Math.sin(wa) * 46),
+          lookFar = new THREE.Vector3(0, 5, 0);
+        camera.position.lerpVectors(near, far, rv);
+        const lk = look.clone().lerp(lookFar, rv);
+        camera.lookAt(lk);
+        bokeh.uniforms.focus.value = camera.position.distanceTo(lk);
+        bokeh.uniforms.aperture.value = C.aperture * (1 - 0.7 * rv);
+        // rods glow/ring
+        for (const m in R) ((R[m].e = 0), (R[m].w = 0));
+        let di = 0,
+          bi = 0,
+          ri = 0;
+        for (const n of notes) {
+          const dt = t - n.t;
+          const r = R[n.m];
+          if (dt >= -FALL && dt < 0 && di < 96) {
+            // falling droplet arriving exactly at onset
+            const y = r.top.y + 0.11 + 0.5 * G * dt * dt;
+            dummy.position.set(r.top.x, y, r.top.z);
+            const s = 1 + Math.min(0.5, -dt * 0.3);
+            dummy.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
+            dummy.updateMatrix();
+            drops.setMatrixAt(di, dummy.matrix);
+            drops.setColorAt(
+              di,
+              col
+                .copy(r.col)
+                .lerp(new THREE.Color(1, 1, 1), 0.6)
+                .multiplyScalar(sstep(-FALL, -FALL + 0.35, dt)),
+            );
+            di++;
+          }
+          if (dt < 0) continue;
+          const L = Math.max(0.25, n.len);
+          const env = dt < L ? Math.exp(-dt / (L * 1.2 + 0.4)) : Math.exp(-L / (L * 1.2 + 0.4)) * Math.exp(-(dt - L) / 0.35);
+          const e = env * (0.35 + n.vel * 1.3);
+          if (e > r.e) r.e = e;
+          r.w = Math.max(r.w, Math.exp(-dt * 5) * n.vel);
+          if (dt < 1.2) {
+            for (let k = 0; k < SPL && bi < 1200; k++) {
+              const v = bv[n.i][k];
+              const y = r.top.y + v[1] * dt - 0.5 * G * dt * dt;
+              if (y < r.p.y) continue;
+              dummy.position.set(r.top.x + v[0] * dt, y, r.top.z + v[2] * dt);
+              dummy.scale.setScalar(1 - dt / 1.2);
+              dummy.rotation.set(0, 0, 0);
+              dummy.updateMatrix();
+              beads.setMatrixAt(bi, dummy.matrix);
+              beads.setColorAt(bi, col.copy(r.col).multiplyScalar(2.5));
+              bi++;
+            }
+          }
+          if (dt < 4 && ri < 300) {
+            for (let k = 0; k < 2; k++) {
+              const d = dt - k * 0.35;
+              if (d < 0) continue;
+              const s = 0.3 + d * 2.2;
+              dummy.position.set(r.p.x * 1.0, 0.03, r.p.z);
+              dummy.rotation.set(-Math.PI / 2, 0, 0);
+              dummy.scale.set(s, s, s);
+              dummy.updateMatrix();
+              ripples.setMatrixAt(ri, dummy.matrix);
+              ripples.setColorAt(ri, col.copy(r.col).multiplyScalar(0.9 * (1 - d / 4) * (1 - d / 4) * (0.4 + n.vel)));
+              ri++;
+            }
+          }
+        }
+        drops.count = di;
+        beads.count = bi;
+        ripples.count = ri;
+        for (const im of [drops, beads, ripples]) {
+          im.instanceMatrix.needsUpdate = true;
+          if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        }
+        for (const m in R) {
+          const r = R[m];
+          r.mat.emissiveIntensity = r.e * C.glow;
+          const wob = 1 + 0.06 * r.w * Math.sin(t * 95);
+          r.rod.scale.set(wob, 1, 2 - wob);
+        }
+        window.dust.rotation.y = t * 0.01;
+        window.dust.position.y = Math.sin(t * 0.1) * 0.3;
+        const fade = Math.min(1, t / 1.5, Math.max(0, (FE - t) / (FE < DUR ? 1.2 : 2)));
+        renderer.toneMappingExposure = C.exposure * fade;
+        titleEl.style.opacity = (
+          sstep(1.5, 3.5, t) * (1 - sstep(Math.min(12, FE - 3), Math.min(15, FE - 1), t)) +
+          sstep(DUR - 8, DUR - 5, t) * (1 - sstep(DUR - 2, DUR - 0.5, t)) * (FE < DUR ? 0 : 1)
+        ).toFixed(3);
+        composer.render();
+        return true;
+      };
+      window.ready = true;
+    </script>
+  </body>
+</html>

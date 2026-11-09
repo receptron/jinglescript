@@ -122,6 +122,11 @@ function runPython(python: string, input: string, options: Yue2RunOptions): Prom
       else reject(error);
     });
     child.on("close", (code) => resolve({ code, stdout, stderr }));
+    // Python can exit before reading the request (yue2 does not import): the write then fails with
+    // EPIPE, and its exit code, reported on close, says why. Any other write error is a failure.
+    child.stdin.on("error", (error: Error & { code?: string }) => {
+      if (error.code !== "EPIPE") reject(error);
+    });
     child.stdin.end(input);
   });
 }

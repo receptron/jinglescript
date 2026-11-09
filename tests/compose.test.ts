@@ -49,6 +49,12 @@ describe("planWithYuE2", () => {
     await expect(planWithYuE2({ style: "s", lyrics: "l" }, { python: noWeights })).rejects.toThrow(/weights are not downloaded/);
   });
 
+  it("reports a Python that exits before reading a long request, instead of crashing on the closed pipe", async () => {
+    const early = fakePython("early-exit", "echo 'cannot import yue2: No module named yue2' >&2; exit 3");
+    const lyrics = "らららら\n".repeat(200_000);
+    await expect(planWithYuE2({ style: "s", lyrics }, { python: early })).rejects.toThrow(/cannot import yue2/);
+  });
+
   it("reports a crash with the end of YuE2's output", async () => {
     const crash = fakePython("crash", "echo 'RuntimeError: MPS backend out of memory' >&2; exit 1");
     await expect(planWithYuE2({ style: "s", lyrics: "l" }, { python: crash })).rejects.toThrow(Yue2Error);

@@ -2,13 +2,19 @@
 
 A [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol/blob/main/spec/GUI_CHAT_PROTOCOL.md) plugin for JingleScript. It offers
 the same single tool as the MCP server, **`manageJingleScript`** (actions `getGuide`, `getSchema`,
-`listInstruments`, `getInstrument`, `checkScore`, `renderScore`), and adds a **player view**: a
+`listInstruments`, `getInstrument`, `checkScore`, `renderScore`, `composeScore`), and adds a **player view**: a
 successful `renderScore` returns the jingle as `data`, and the view plays it with its waveform,
 beat grid, named cues (click one to jump there) and a lane of notes per track; effects with a
 length (risers, whooshes) show as bars. When the score has lyrics, the view shows them
 karaoke-style: the line being played and the next, each syllable filling in as its note plays.
 The audio and the music as MIDI (the library's `scoreToMidi`) can be downloaded from the view;
 the data also carries the score that was rendered. Every other action answers the LLM in text and shows no card.
+
+**Composing.** `composeScore` has [YuE2](https://github.com/receptron/jinglescript#compose-with-yue2-optional) write a melody
+and chords for lyrics, when it is set up on the host's machine (`YUE2_PYTHON`; its weights are
+non-commercial). The host's server waits 20–40 s for it, with no card. The score is saved as
+`jinglescript/<fileName>.json` through the host's `files.byPath`, and its path goes back to the LLM
+for `renderScore`; a host without `files.byPath` gets the score itself in the answer.
 
 **Sheet music, for teaching.** `renderScore` takes three options for the view:
 

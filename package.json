@@ -59,6 +59,7 @@
     "format:check": "prettier --check .",
     "schema": "node scripts/write-schema.ts",
     "readme": "node scripts/write-readme.ts",
+    "release": "node scripts/release.ts",
     "version": "node scripts/write-version.ts && git add src/version.ts"
   },
   "dependencies": {

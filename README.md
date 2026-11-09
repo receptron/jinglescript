@@ -70,7 +70,9 @@ They are in the repository only, not the npm package; see [examples/piano/README
 
 `jinglescript mcp` is an MCP server with a single tool, **`manageJingleScript`**. Its `action`
 says what to do: `getGuide`, `getSchema`, `listInstruments`, `getInstrument`, `checkScore`,
-`renderScore`. Rendered files go to the folder given by `--out` (default `out/jinglescript`).
+`renderScore`, and `composeScore` (a melody composed by YuE2, when it is set up:
+[Compose with YuE2](#compose-with-yue2-optional)). Rendered files go to the folder given by `--out`
+(default `out/jinglescript`).
 `checkScore` and `renderScore` take the score inline (`score`) or as a file (`path`: a `.json`
 file, relative to the directory the server runs in or absolute), so a long score need not travel
 in the tool call; renders are then named after the file.
@@ -659,6 +661,61 @@ separate API (Node only; the browser build throws `SingerUnavailableError`). It 
 `.env` file in the project directory (or the environment) says. `level` is the vocal's loudness over
 the other tracks in LU (default 4); the track's `gain` adds to it. A missing NEUTRINO or voice is an
 error, never a silent fallback. Details (in Japanese): [docs/singing-neutrino.md](docs/singing-neutrino.md).
+
+## Compose with YuE2 (optional)
+
+JingleScript can have [YuE2](https://github.com/multimodal-art-projection/YuE), an AI composer,
+write the music for your lyrics. YuE2's `plan()` step turns a style and the lyrics into a melody
+with chords, and JingleScript turns that into an ordinary score: a melody track, chords, a bass
+line on the chord roots, and the song's sections (verse, chorus, …) as cues. YuE2 generates no
+audio here: JingleScript plays the score. With `--sing`, NEUTRINO sings the lyrics on the melody.
+
+```sh
+jinglescript compose --style "Japanese, bright children's TV jingle, marimba, female vocal, 120 BPM" \
+  --lyrics '[Verse]\nあさの ひかり\n\n[Chorus]\nハテナマルモ はじまるよ' \
+  --section chorus --sing -o out/song.json --abc out/song.abc
+jinglescript render out/song.json -o out/song.mp3
+```
+
+- **Sections:** YuE2 plans whole songs, even for one line of lyrics. `--section chorus` keeps one
+  section (`chorus_2` for the second chorus), with any pickup that leads into it. Without
+  `--section` the whole song is kept, and the command lists the sections.
+- **Lyrics:** written YuE2's way, `[Tag]` lines followed by the words. YuE2's melody follows them
+  one note per mora, so the words are put back on its notes phrase by phrase, matching sections
+  by name. When a phrase has more notes than morae, the last mora is held; when it has fewer,
+  the longest notes are split. The command prints how each phrase fitted.
+- **Singing** (`--sing`, `--voice <name>`) needs the words in hiragana or katakana: no kanji, no
+  English. The vocal is moved by octaves to sit around A4, and a bar is added before it when it
+  would start too soon.
+- **Options:** `--seed` (another seed gives another melody), `--melody`, `--ins`, `--chords` and
+  `--bass` (an instrument, or `none`), `--device` (`auto`, `mps`, `cuda`, `cpu`).
+- **`jinglescript abc <file.abc>`** converts an ABC file YuE2 wrote before (`--abc` saves one),
+  with the same options plus `--lyrics`.
+- **The tool:** `composeScore` (MCP and the GUI plugin) takes `style`, `lyrics`, `seed`, `section`,
+  `sing`, `voice`, `melody` and `fileName`. It saves the score (and YuE2's ABC) where the carrier
+  keeps files and answers with its path for `renderScore`, the sections and how the lyrics fitted.
+- **The library:** `compose(options)` returns `{ score, abc, sections, lyrics }`;
+  `abcToScore(abc, options)` and `fitLyrics(parsed, lyrics)` work on ABC you already have.
+
+**Not repeatable.** YuE2 samples on a GPU, and the same request and seed compose differently on
+another machine or runtime. Keep the score it made: that score renders bit-identically, like any
+other.
+
+**Set it up yourself.** YuE2 is located, never bundled or downloaded by JingleScript. Its code is
+Apache-2.0, but its weights are **CC BY-NC 4.0** (non-commercial; companies need a licence from
+its authors). It needs Python 3.12, about 8 GB for the weights, and in practice a GPU (Apple
+Silicon or CUDA); a plan takes 20–40 s on an M2 Max.
+
+```sh
+uv venv --python 3.12 ~/yue2-venv
+uv pip install --python ~/yue2-venv/bin/python git+https://github.com/multimodal-art-projection/YuE
+~/yue2-venv/bin/python -c 'from yue2.storage import resolve_model; [resolve_model(m) for m in ("m-a-p/YuE2-3B", "m-a-p/YuE2-Vae")]'
+```
+
+Then put `YUE2_PYTHON=/full/path/to/yue2-venv/bin/python` in `.env` in the project directory (or in
+the environment). Without it, composing fails with these steps, and everything else works as
+before. As with `NEUTRINO_DIR`, a `.env` names a program JingleScript runs: check it in a checkout
+you do not trust.
 
 ## Licence
 

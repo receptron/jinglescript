@@ -473,7 +473,9 @@ export function sliceSection(parsed: ParsedAbc, name: string): ParsedAbc {
   }
   const end = parsed.sections[index + 1]?.at ?? parsed.length;
   // Notes of the Vocal line that run without a rest into the section are its pickup.
-  const start = section.at - pickupBefore(parsed.voices.Vocal ?? [], section.at);
+  const meter = parseMeter(parsed.meter);
+  const bar = meter === undefined ? 4 : barQuarters(meter);
+  const start = section.at - pickupBefore(parsed.voices.Vocal ?? [], section.at, bar);
   const voices: Record<string, AbcNote[]> = {};
   for (const [voice, notes] of Object.entries(parsed.voices)) {
     // A note tied in from before the section sounds from its start: it is kept, cut to begin there —
@@ -495,14 +497,14 @@ export function sliceSection(parsed: ParsedAbc, name: string): ParsedAbc {
 }
 
 /** Beats of notes running, with no rest, into a note at `at` (less than one bar's worth is a pickup). */
-function pickupBefore(notes: AbcNote[], at: number): number {
+function pickupBefore(notes: AbcNote[], at: number, bar: number): number {
   if (!notes.some((note) => Math.abs(note.at - at) < 1e-9)) return 0;
   let from = at;
   for (const note of notes.filter((n) => n.at < at).reverse()) {
     if (Math.abs(note.at + note.len - from) > 1e-9) break;
     from = note.at;
   }
-  return at - from < 4 ? at - from : 0;
+  return at - from < bar - 1e-9 ? at - from : 0;
 }
 
 /** Everything moved later by `beats`; the first chord is carried back to 0. */

@@ -149,6 +149,14 @@ describe("abcToScore options", () => {
     expect(score.tracks.some((t) => t.name === "vocal")).toBe(false);
   });
 
+  it("takes as a pickup less than a bar of the meter, not a whole bar", () => {
+    const song = (run: string) => `X:1\nM:3/4\nL:1/4\nQ:1/4=120\nK:C\n% verse\nV: Vocal\n${run}|\n% chorus\nV: Vocal\nc3|\n`;
+    expect(abcToScore(song("zAB"), { section: "chorus" }).pickup).toBe(2);
+    const whole = abcToScore(song("GAB"), { section: "chorus" });
+    expect(whole.pickup).toBeUndefined();
+    expect(whole.tracks[0]?.notes.map((n) => n.pitch)).toEqual(["C5"]);
+  });
+
   it("keeps a note tied into the section, from the section's start", () => {
     const abc = `X:1\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\n% verse\nV: Vocal\nC3D-|\n% chorus\nV: Vocal\nD2E2|\n`;
     expect(abcToScore(abc, { section: "chorus" }).tracks[0]?.notes.map((n) => [n.at, n.pitch, n.len])).toEqual([

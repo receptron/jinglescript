@@ -27,14 +27,30 @@ function composeOptions(input: ManageInput): ComposeOptions {
   };
 }
 
-/** Where the score went: a file the model passes back as `path`, or the score itself when the carrier keeps no files. */
+/** Most names tried for one composition ("song", "song-2" … "song-1000") before giving up. */
+const MAX_NAMES = 1000;
+
+/**
+ * Where the score went: a file the model passes back as `path`, or the score itself when the
+ * carrier keeps no files. A composition never replaces an earlier one: when "<stem>.json" is
+ * taken it is saved as "<stem>-2.json", "<stem>-3.json", …, and its ABC next to it.
+ */
 async function saved(score: unknown, abc: string, stem: string, options: ManageOptions): Promise<Record<string, unknown>> {
-  if (options.saveFile === undefined) return { score, next: "Render it: renderScore with this score (pass it as `score`)." };
-  const path = await options.saveFile(`${stem}.json`, `${JSON.stringify(score, null, 2)}\n`);
-  const abcFile = await options.saveFile(`${stem}.abc`, abc);
+  const { saveFile } = options;
+  if (saveFile === undefined) return { score, next: "Render it: renderScore with this score (pass it as `score`)." };
+  const text = `${JSON.stringify(score, null, 2)}\n`;
+  for (let n = 1; n <= MAX_NAMES; n += 1) {
+    const name = n === 1 ? stem : `${stem}-${n}`;
+    const path = await saveFile(`${name}.json`, text);
+    if (path !== undefined) return savedAt(path, await saveFile(`${name}.abc`, abc));
+  }
+  throw new Error(`composeScore: ${stem}.json and ${MAX_NAMES - 1} numbered names after it are all taken`);
+}
+
+function savedAt(path: string, abcFile: string | undefined): Record<string, unknown> {
   return {
     path,
-    abcFile,
+    ...(abcFile === undefined ? {} : { abcFile }),
     next: `Render it: renderScore with path ${JSON.stringify(path)}. To change it, read and edit that file, then checkScore and renderScore.`,
   };
 }

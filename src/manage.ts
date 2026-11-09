@@ -98,7 +98,7 @@ export const ManageInputSchema = z
       .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
       .optional()
       .describe(
-        'renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle"). composeScore: file stem of the score it saves (default "song").',
+        'renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle"). composeScore: file stem of the score it saves (default "song"); when that name is taken it saves as "<stem>-2", "<stem>-3" …, never over an earlier score, and answers with the path it used.',
       ),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
     view: z
@@ -199,9 +199,11 @@ export interface ManageOptions {
   deferAudio?: boolean | { waitMs: number };
   /**
    * Saves a file the tool made (composeScore's score, named "<stem>.json", and its ABC) and returns
-   * the path the model gives back as `path`. Without it, composeScore returns the score itself.
+   * the path the model gives back as `path` — or undefined, without writing, when a file of that
+   * name exists: it never overwrites (composeScore then tries "<stem>-2", "<stem>-3", …). Without
+   * it, composeScore returns the score itself.
    */
-  saveFile?: (name: string, content: string) => Promise<string>;
+  saveFile?: (name: string, content: string) => Promise<string | undefined>;
 }
 
 /** How long a deferred renderScore waits for the audio before answering without it: a short jingle is done by then. */

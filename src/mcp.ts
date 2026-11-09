@@ -19,10 +19,16 @@ interface ToolResult {
 }
 
 export async function handleManage(input: ManageInput, outDir: string): Promise<ToolResult> {
-  const saveFile = async (name: string, content: string): Promise<string> => {
+  // Never overwrites ("wx"): a name that is taken answers undefined, and composeScore tries another.
+  const saveFile = async (name: string, content: string): Promise<string | undefined> => {
     await mkdir(outDir, { recursive: true });
     const file = join(outDir, name);
-    await writeFile(file, content);
+    try {
+      await writeFile(file, content, { flag: "wx" });
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "EEXIST") return undefined;
+      throw error;
+    }
     return file;
   };
   const result = await manage(input, { outDir, readScoreFile: (path) => readFile(resolve(path), "utf8"), saveFile });

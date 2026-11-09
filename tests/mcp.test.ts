@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createMcpServer, MCP_TOOL } from "../src/mcp.ts";
 
 const outDir = mkdtempSync(join(tmpdir(), "jinglescript-mcp-"));
@@ -97,6 +97,23 @@ describe("MCP server", () => {
     expect(JSON.parse((await call({ action: "checkScore", path: join(nearby, "near.json") })).text)).toMatchObject({ ok: true });
     expect((await call({ action: "checkScore", path: relative(process.cwd(), file) })).text).toContain("without `.` or `..` segments");
     expect(await call({ action: "checkScore", path: join(scoreDir, "missing.json") })).toMatchObject({ isError: true });
+  });
+
+  it("saves composeScore's score in its output folder, never over an earlier one", async () => {
+    const python = join(outDir, "fake-python");
+    const abc = String.raw`X:1\nM:4/4\nL:1/8\nQ:1/4=120\nV: Vocal\nK:C\n% chorus\nV: Vocal\n\"C\"CDE z5|\n`;
+    writeFileSync(python, `#!/bin/sh\ncat >/dev/null; printf '%s' '{"abc": "${abc}", "truncated": false, "tokens": 9, "seconds": 1}'\n`);
+    chmodSync(python, 0o755);
+    vi.stubEnv("YUE2_PYTHON", python);
+    try {
+      const first = await call({ action: "composeScore", style: "s", lyrics: "la", fileName: "tune" });
+      const second = await call({ action: "composeScore", style: "s", lyrics: "la", fileName: "tune" });
+      expect(first.text).toContain(JSON.stringify(join(outDir, "tune.json")));
+      expect(second.text).toContain(JSON.stringify(join(outDir, "tune-2.json")));
+      expect(existsSync(join(outDir, "tune.abc")) && existsSync(join(outDir, "tune-2.abc"))).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns errors instead of rendering an invalid score", async () => {

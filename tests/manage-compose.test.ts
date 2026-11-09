@@ -38,7 +38,9 @@ describe("composeScore", () => {
     vi.stubEnv("YUE2_PYTHON", ok);
     const files = new Map<string, string>();
     const options = {
+      // Like the real carriers: a name that is taken is not overwritten.
       saveFile: (name: string, content: string) => {
+        if (files.has(`songs/${name}`)) return Promise.resolve(undefined);
         files.set(`songs/${name}`, content);
         return Promise.resolve(`songs/${name}`);
       },
@@ -53,6 +55,24 @@ describe("composeScore", () => {
     expect(files.get("songs/hatena.json")).toContain('"lyric": "は"');
     const rendered = await manage({ action: "renderScore", path: "songs/hatena.json" }, options);
     expect(rendered.isError).toBe(false);
+  });
+
+  it("never replaces an earlier composition: the next one of the same name is numbered", async () => {
+    vi.stubEnv("YUE2_PYTHON", ok);
+    const files = new Map<string, string>([["songs/song.abc", "an ABC left on its own"]]);
+    const saveFile = (name: string, content: string) => {
+      if (files.has(`songs/${name}`)) return Promise.resolve(undefined);
+      files.set(`songs/${name}`, content);
+      return Promise.resolve(`songs/${name}`);
+    };
+    const paths: unknown[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const result = await manage({ action: "composeScore", style: "s", lyrics: "la la" }, { saveFile });
+      paths.push(Answer.parse(JSON.parse(result.text)).path);
+    }
+    expect(paths).toEqual(["songs/song.json", "songs/song-2.json", "songs/song-3.json"]);
+    expect(files.get("songs/song.abc")).toBe("an ABC left on its own");
+    expect(files.has("songs/song-2.abc")).toBe(true);
   });
 
   it("answers with the score itself when the carrier keeps no files", async () => {

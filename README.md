@@ -693,7 +693,8 @@ jinglescript render out/song.json -o out/song.mp3
   with the same options plus `--lyrics`.
 - **The tool:** `composeScore` (MCP and the GUI plugin) takes `style`, `lyrics`, `seed`, `section`,
   `sing`, `voice`, `melody` and `fileName`. It saves the score (and YuE2's ABC) where the carrier
-  keeps files and answers with its path for `renderScore`, the sections and how the lyrics fitted.
+  keeps files, never over an earlier one (a name that is taken becomes `<name>-2`, `<name>-3`, …),
+  and answers with its path for `renderScore`, the sections and how the lyrics fitted.
 - **The library:** `compose(options)` returns `{ score, abc, sections, lyrics }`;
   `abcToScore(abc, options)` and `fitLyrics(parsed, lyrics)` work on ABC you already have.
 

@@ -58,7 +58,7 @@ describe("the GUI Chat Protocol plugin", () => {
     expect((await executeManage({}, { action: "renderScore", path: "/work/plugin-test.json" })).message).toContain("cannot read files");
   });
 
-  it("composeScore saves its score under jinglescript/ through files.byPath, for renderScore to read back", async () => {
+  it("composeScore saves its score under jinglescript/ through files.byPath, never over an earlier one, for renderScore to read back", async () => {
     const dir = mkdtempSync(join(tmpdir(), "plugin-compose-"));
     const abc = String.raw`X:1\nM:4/4\nL:1/8\nQ:1/4=120\nV: Vocal\nK:C\n% chorus\nV: Vocal\n\"C\"CDE z5|\n`;
     const python = join(dir, "python");
@@ -73,7 +73,7 @@ describe("the GUI Chat Protocol plugin", () => {
       write: (path: string, content: string | Uint8Array): Promise<void> => Promise.resolve(void written.set(path, content)),
       readDir: unused,
       stat: unused,
-      exists: () => Promise.resolve(true),
+      exists: (path: string) => Promise.resolve(written.has(path)),
       unlink: unused,
     };
     try {
@@ -83,6 +83,10 @@ describe("the GUI Chat Protocol plugin", () => {
       expect([...written.keys()]).toEqual(["jinglescript/song.json", "jinglescript/song.abc"]);
       const rendered = await executeManage({ files: { byPath } }, { action: "renderScore", path: "jinglescript/song.json" });
       expect(rendered.data?.title).toBe("song");
+      // The next composition does not replace it.
+      const again = await executeManage({ files: { byPath } }, { action: "composeScore", style: "s", lyrics: "はてな" });
+      expect(again.message).toContain('"path": "jinglescript/song-2.json"');
+      expect(written.size).toBe(4);
     } finally {
       vi.unstubAllEnvs();
     }

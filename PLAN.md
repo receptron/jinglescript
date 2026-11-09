@@ -1608,3 +1608,9 @@ Decided:
   Live through the MCP handler: 32–35 s to compose, then renderScore by path rendered
   out/yue2/live-chorus-sung.mp3 (19.5 s, −14.0 LUFS, −2.4 dBTP); not listened to. The plugin's
   card shows nothing for composeScore (text only; renderScore shows the player).
+- 2026-11-09 — composeScore never overwrites an earlier score (1.2.1). CodeRabbit on MulmoChat
+  #307: a second composition without a new `fileName` replaced `song.json`, so the earlier path
+  played the new song. `saveFile` (the carrier option) now answers undefined for a taken name
+  without writing (MCP: `wx`; plugin: `files.byPath.exists`), and composeScore tries
+  `<stem>-2`, `<stem>-3` … up to 1000, saving the ABC under the same stem (left out when only it
+  is taken).

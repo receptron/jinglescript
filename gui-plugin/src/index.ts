@@ -49,8 +49,10 @@ export function renderProgress(request: ProgressRequest): Promise<ProgressReply>
 /** Where composeScore's score is saved through the host's files, as a path renderScore can read back. */
 const COMPOSED_DIR = "jinglescript";
 
-async function saveComposed(files: FileOps, name: string, content: string): Promise<string> {
+/** Never overwrites: a name that is taken answers undefined, and composeScore tries another. */
+async function saveComposed(files: FileOps, name: string, content: string): Promise<string | undefined> {
   const path = `${COMPOSED_DIR}/${name}`;
+  if (await files.exists(path)) return undefined;
   await files.write(path, content);
   return path;
 }

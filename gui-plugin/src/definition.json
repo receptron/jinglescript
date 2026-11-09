@@ -43,7 +43,7 @@
         "type": "string"
       },
       "fileName": {
-        "description": "renderScore: file stem for the outputs (default: the score file's name with `path`, otherwise \"jingle\"). composeScore: file stem of the score it saves (default \"song\").",
+        "description": "renderScore: file stem for the outputs (default: the score file's name with `path`, otherwise \"jingle\"). composeScore: file stem of the score it saves (default \"song\"); when that name is taken it saves as \"<stem>-2\", \"<stem>-3\" …, never over an earlier score, and answers with the path it used.",
         "type": "string",
         "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$"
       },

@@ -5,13 +5,18 @@
 //
 // Runs only from a clean main that matches origin/main, so what is published is what is merged.
 // `yarn release --dry-run` checks everything and says what it would publish, without publishing.
-// npm asks for a one-time password itself when the account needs one.
+// npm asks for a one-time password itself when the account needs one. It publishes to the
+// registry npm is configured with (`npm config get registry`), not yarn's.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 
 const root = join(import.meta.dirname, "..");
+
+// yarn 1 runs scripts with npm_config_registry set to its own mirror (registry.yarnpkg.com), which
+// npm would then publish to — where nobody is logged in. npm's own configuration decides instead.
+const npmEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toLowerCase() !== "npm_config_registry"));
 const dryRun = process.argv.includes("--dry-run");
 
 const Manifest = z.object({
@@ -34,13 +39,13 @@ function run(command: string, args: string[], cwd = root): string {
 
 /** Runs a command with the terminal attached (npm publish may ask for a one-time password). */
 function runAttached(command: string, args: string[], cwd: string): void {
-  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  const result = spawnSync(command, args, { cwd, stdio: "inherit", env: npmEnv });
   if (result.status !== 0) fail(`${command} ${args.join(" ")} failed in ${cwd}`);
 }
 
 /** Whether npm has this exact version of the package. */
 function published(name: string, version: string): boolean {
-  const result = spawnSync("npm", ["view", `${name}@${version}`, "version"], { cwd: root, encoding: "utf8" });
+  const result = spawnSync("npm", ["view", `${name}@${version}`, "version"], { cwd: root, encoding: "utf8", env: npmEnv });
   if (result.status === 0) return result.stdout.trim() === version;
   if (result.stderr.includes("E404")) return false;
   return fail(`cannot ask npm about ${name}@${version}:\n${result.stderr.trim()}`);

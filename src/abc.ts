@@ -210,6 +210,15 @@ class AbcReader {
     this.readMusic(text);
   }
 
+  /** A score has one tempo: a Q: that changes it once the music has begun would retime what came before. */
+  setTempo(tempo: number): void {
+    const begun = [...this.voices.values()].some((voice) => voice.time > 0) || this.chords.length > 0;
+    if (begun && tempo !== this.tempo) {
+      this.fail(`a tempo change in the music (Q: to ${tempo} after ${this.tempo}) is not supported: a score has one tempo`);
+    }
+    this.tempo = tempo;
+  }
+
   readField(name: string, value: string): void {
     const fields: Record<string, () => void> = {
       X: () => undefined,
@@ -217,7 +226,7 @@ class AbcReader {
         if (value !== "") this.title ??= value;
       },
       L: () => (this.unit = parseUnit(value, this.line)),
-      Q: () => (this.tempo = parseTempo(value, this.line)),
+      Q: () => this.setTempo(parseTempo(value, this.line)),
       M: () => (this.meter = parseAbcMeter(value, this.line)),
       K: () => {
         this.setKey(value);
@@ -467,9 +476,15 @@ export function sliceSection(parsed: ParsedAbc, name: string): ParsedAbc {
   const start = section.at - pickupBefore(parsed.voices.Vocal ?? [], section.at);
   const voices: Record<string, AbcNote[]> = {};
   for (const [voice, notes] of Object.entries(parsed.voices)) {
+    // A note tied in from before the section sounds from its start: it is kept, cut to begin there —
+    // unless it carries a word: then it ends the phrase before (YuE2 holds a line's last mora over
+    // into the next section), and singing it again would put a stray syllable at the start.
     voices[voice] = notes
-      .filter((note) => note.at >= start && note.at < end)
-      .map((note) => ({ ...note, at: note.at - start, len: Math.min(note.len, end - note.at) }));
+      .filter((note) => note.at < end && (note.at >= start || (note.lyric === undefined && note.at + note.len > start + 1e-9)))
+      .map((note) => {
+        const at = Math.max(note.at, start);
+        return { ...note, at: at - start, len: Math.min(note.at + note.len, end) - at };
+      });
   }
   // The chord sounding when the section starts is carried in at beat 0.
   const sounding = parsed.chords.filter((chord) => chord.at <= start).at(-1);

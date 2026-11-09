@@ -83,6 +83,12 @@ describe("parseAbc", () => {
     expect(() => parseAbc(`${HEADER}K:C\nV: Vocal\nC8-D8|\n`)).toThrow(/tie joins C4 to a different pitch, D4/);
     expect(() => parseAbc(`${HEADER}K:C\nV: Vocal\nC/2|\n`)).toThrow(/fractional/);
   });
+
+  it("takes a Q: before the music, and refuses a tempo change once it has begun (a score has one tempo)", () => {
+    expect(parseAbc(`${HEADER}K:C\nV: Vocal\n[Q:1/4=100]C32|\n`).tempo).toBe(100);
+    expect(parseAbc(`${HEADER}K:C\nV: Vocal\nC32|[Q:1/4=88]D32|\n`).tempo).toBe(88);
+    expect(() => parseAbc(`${HEADER}K:C\nV: Vocal\nC32|[Q:1/4=140]D32|\n`)).toThrow(/tempo change in the music \(Q: to 140 after 88\)/);
+  });
 });
 
 describe("voiceChord", () => {
@@ -141,6 +147,14 @@ describe("abcToScore options", () => {
     ]);
     expect(score.tracks.find((t) => t.name === "chords")?.notes.map((n) => [n.at, n.chord])).toEqual([[0, "Am7"]]);
     expect(score.tracks.some((t) => t.name === "vocal")).toBe(false);
+  });
+
+  it("keeps a note tied into the section, from the section's start", () => {
+    const abc = `X:1\nM:4/4\nL:1/4\nQ:1/4=120\nK:C\n% verse\nV: Vocal\nC3D-|\n% chorus\nV: Vocal\nD2E2|\n`;
+    expect(abcToScore(abc, { section: "chorus" }).tracks[0]?.notes.map((n) => [n.at, n.pitch, n.len])).toEqual([
+      [0, "D4", 2],
+      [2, "E4", 2],
+    ]);
   });
 
   it("names the sections there are when the one asked for is missing", () => {

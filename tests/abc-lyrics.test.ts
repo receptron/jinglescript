@@ -89,6 +89,14 @@ describe("placeLyrics", () => {
 });
 
 describe("sung scores", () => {
+  it("leave out the tail of a word held over from the section before", () => {
+    const abc = `${HEADER}K:C\n% verse\nV: Vocal\nz4CDE2-|\n% chorus\nV: Vocal\nE2z2GAB2|\n`;
+    const placed = fitLyrics(parseAbc(abc), "[Verse]\nあいう\n[Chorus]\nかきく");
+    const score = abcToScore(placed.parsed, { section: "chorus", melody: "organ" });
+    expect(score.tracks[0]?.notes.map((n) => n.lyric)).toEqual(["か", "き", "く"]);
+    expect(abcToScore(abc, { section: "chorus", melody: "organ" }).tracks[0]?.notes).toHaveLength(4);
+  });
+
   // A pickup (G A) runs into the chorus; YuE2 writes the line around A5.
   const HIGH = `${HEADER}K:C\n% intro\nV: Vocal\nz6ga|\n% chorus\nV: Vocal\nc'2b2a4|\n`;
 

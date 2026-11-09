@@ -1,5 +1,7 @@
-import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it, vi } from "vitest";
 import { definitionText } from "../scripts/definition.ts";
 import { AUDIO_REQUEST, isAudioRequest, isProgressRequest, parseAudioReply, parseProgressReply, PROGRESS_REQUEST } from "../src/audio-request.ts";
 import { manage } from "jinglescript";
@@ -54,6 +56,36 @@ describe("the GUI Chat Protocol plugin", () => {
     expect(reads).toEqual(["/work/plugin-test.json"]);
     expect(result.data?.title).toBe("Plugin test");
     expect((await executeManage({}, { action: "renderScore", path: "/work/plugin-test.json" })).message).toContain("cannot read files");
+  });
+
+  it("composeScore saves its score under jinglescript/ through files.byPath, for renderScore to read back", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "plugin-compose-"));
+    const abc = String.raw`X:1\nM:4/4\nL:1/8\nQ:1/4=120\nV: Vocal\nK:C\n% chorus\nV: Vocal\n\"C\"CDE z5|\n`;
+    const python = join(dir, "python");
+    writeFileSync(python, `#!/bin/sh\ncat >/dev/null; printf '%s' '{"abc": "${abc}", "truncated": false, "tokens": 9, "seconds": 1}'\n`);
+    chmodSync(python, 0o755);
+    vi.stubEnv("YUE2_PYTHON", python);
+    const written = new Map<string, string | Uint8Array>();
+    const unused = (): Promise<never> => Promise.reject(new Error("unused"));
+    const byPath = {
+      read: (path: string): Promise<string> => Promise.resolve(String(written.get(path))),
+      readBytes: unused,
+      write: (path: string, content: string | Uint8Array): Promise<void> => Promise.resolve(void written.set(path, content)),
+      readDir: unused,
+      stat: unused,
+      exists: () => Promise.resolve(true),
+      unlink: unused,
+    };
+    try {
+      const composed = await executeManage({ files: { byPath } }, { action: "composeScore", style: "s", lyrics: "はてな" });
+      expect(composed.data).toBeUndefined();
+      expect(composed.message).toContain('"path": "jinglescript/song.json"');
+      expect([...written.keys()]).toEqual(["jinglescript/song.json", "jinglescript/song.abc"]);
+      const rendered = await executeManage({ files: { byPath } }, { action: "renderScore", path: "jinglescript/song.json" });
+      expect(rendered.data?.title).toBe("song");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("other actions answer in text and show no card", async () => {

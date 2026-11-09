@@ -88,6 +88,9 @@ same conventions; when in doubt about setup, look at how it does it.
   the score says; the existing `render()` / CLI / MCP handle it. Don't add parallel entry points
   like `renderWithNeutrino`. Why: apps that use JingleScript (e.g. MulmoCast) gain new features just
   by updating the npm package, with no code changes of their own.
+  Exception (user, 2026-11-08): composing with YuE2 (`compose()`, `jinglescript compose`, and the
+  tool's `composeScore` action) is its own entry point. It runs before there is a score, and what
+  it returns is an ordinary score.
 - **Only the GUI plugin may lean on its host.** As a GUI Chat Protocol plugin, JingleScript may use
   what a host offers (a runtime with `dispatch`, a flag in the execute context such as
   `deferredAudio`), always as an opt-in a host turns on, with today's behaviour for a host that
@@ -96,7 +99,9 @@ same conventions; when in doubt about setup, look at how it does it.
   Carrier options of `manage()` (`player`, `outDir`, `deferAudio`) and what a carrier needs to
   serve them (`awaitDeferredPlayer`) are not score features, so they are allowed as API.
 - **External engines are located, never bundled.** NEUTRINO is found via `.env` (`NEUTRINO_DIR`,
-  default `/Applications/NEUTRINO`; a real environment variable overrides it). If a score requires
+  default `/Applications/NEUTRINO`; a real environment variable overrides it). YuE2 is found the same
+  way (`YUE2_PYTHON`: a Python with `yue2` and its weights; only its plan() step runs, and the
+  score it writes is not reproducible across machines — keep the score). If a score requires
   an engine or voice that isn't available, throw a clear error listing what is available — never
   silently fall back.
 

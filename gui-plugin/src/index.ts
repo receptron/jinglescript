@@ -3,6 +3,8 @@
 // view in "./vue" plays. Every other action answers the LLM in text and shows no card.
 // A score `path` is read through the host's `files.byPath` (as presentDocument's is): the host
 // decides what a path may reach and what a relative one means. Without it, `path` is refused.
+// composeScore saves the score it makes through the same files (under jinglescript/), or, without
+// them, answers with the score itself.
 // A host whose view can call back (`deferredAudio`) gets the card before a long render's audio:
 // the view collects it with an AudioRequest, answered here, and asks how far it is meanwhile.
 import type { FileOps, ToolContext, ToolPluginCore, ToolResult } from "gui-chat-protocol";
@@ -44,6 +46,15 @@ export function renderProgress(request: ProgressRequest): Promise<ProgressReply>
   return Promise.resolve(progress === undefined ? { message: "No progress to tell." } : { progress, message: `Rendering: ${progress.stage}.` });
 }
 
+/** Where composeScore's score is saved through the host's files, as a path renderScore can read back. */
+const COMPOSED_DIR = "jinglescript";
+
+async function saveComposed(files: FileOps, name: string, content: string): Promise<string> {
+  const path = `${COMPOSED_DIR}/${name}`;
+  await files.write(path, content);
+  return path;
+}
+
 export async function executeManage(context: ManageContext, args: object): Promise<ToolResult<PlayerData, never>> {
   const input = ManageInputSchema.safeParse(args);
   if (!input.success) {
@@ -54,7 +65,7 @@ export async function executeManage(context: ManageContext, args: object): Promi
   const result = await manage(input.data, {
     player: true,
     deferAudio: context.deferredAudio === true,
-    ...(byPath ? { readScoreFile: (path: string) => byPath.read(path) } : {}),
+    ...(byPath ? { readScoreFile: (path: string) => byPath.read(path), saveFile: (name: string, content: string) => saveComposed(byPath, name, content) } : {}),
   });
   if (result.player === undefined) return { toolName: MANAGE_TOOL, message: result.text };
   return {

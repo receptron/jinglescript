@@ -1,6 +1,6 @@
 {
   "name": "jinglescript",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A score language for short jingles and sound effects that an LLM writes, rendered to audio plus a timing map for syncing animation.",
   "keywords": [
     "jingle",
@@ -59,6 +59,7 @@
     "format:check": "prettier --check .",
     "schema": "node scripts/write-schema.ts",
     "readme": "node scripts/write-readme.ts",
+    "release": "node scripts/release.ts",
     "version": "node scripts/write-version.ts && git add src/version.ts"
   },
   "dependencies": {

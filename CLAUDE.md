@@ -110,6 +110,10 @@ same conventions; when in doubt about setup, look at how it does it.
 - **Ask before anything outward-facing:** creating the GitHub repository, pushing, publishing to
   npm, downloading sample libraries (PLAN.md M5). PLAN.md's Open questions are the user's to answer.
 - Don't start optional milestones (M5, M6, M7) without the user saying so.
+- **Releasing:** both packages get the same version in a PR (`package.json`, `src/version.ts` via
+  `node scripts/write-version.ts`, `gui-plugin/package.json` and its peer `^<version>`). Once it is
+  merged, the user runs `yarn release` on a clean, up-to-date main: it publishes whichever package
+  npm does not have at that version (the library first) and tags `v<version>`.
 
 ## GUI plugin (gui-plugin/)
 

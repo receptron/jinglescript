@@ -913,6 +913,9 @@ Decided:
   wrapping the API for LLMs (2026-10-08).
 - Lyrics: in scope as text on melody notes for a karaoke view, not sung; the timing map gains an
   optional `lyrics` field and stays `jinglescript-timing/1` (2026-10-08).
+- Composing with YuE2's plan() (github.com/multimodal-art-projection/YuE): allowed as its own
+  entry point, `compose()` / `jinglescript compose`, an exception to "extensions are expressed in
+  the score" (2026-11-08).
 - Text notation (`.jgs`): not in v1 — the primary author is an LLM, and JSON + schema is safer
   for it (2026-10-08).
 
@@ -1562,3 +1565,46 @@ Decided:
   stand-in runtime: status right under the title, 0 % → 84 % → audio; sheet music in a 300 px
   box scrolled 400 px with the wheel; no console errors. Both packages 1.1.0 (new `onProgress`
   and `deferredRenderProgress`; the plugin's peer ^1.1.0).
+- 2026-11-08 — Composing with YuE2 (branch yue2-compose). User: look at YuE's 作曲 part; the
+  score-only rule may be relaxed; add a way to make JingleScript with plan(), and try it. YuE is
+  now YuE2: one 3B model plans a melody-and-chord score in ABC (`plan()`), then renders audio; only
+  plan() is used. `src/abc.ts` reads YuE2's native ABC dialect (two monophonic voices Vocal/Ins,
+  quoted chords, ties, Z bar rests, accidentals carried by letter across octaves, `% section`
+  comments) into a score: Vocal and Ins as melody tracks (moved by octaves into the instrument's
+  range), chord symbols as a chord track (m7b5, 7sus4, m(maj7) spelled as pitches), a bass line
+  on the roots or slash basses, sections as cues; `section` keeps one section from beat 0.
+  `src/compose.ts` runs plan() in the user's own Python (`YUE2_PYTHON`, like NEUTRINO_DIR; clear
+  errors when Python, `yue2` or the weights are missing). CLI: `compose` and `abc`. Tried on an
+  M2 Max (MPS, YuE2 "experimental" there): model load 5 s, plan() 20–36 s at ~28 tokens/s, 5 runs.
+  Even for one lyric line YuE2 plans a whole song (jingle-en: 7 sections, 218 beats), so
+  `--section` matters. Five sections rendered to out/yue2/: −14.0 LUFS, true peak −5.1 to −1.9
+  dBTP, all scores pass checkScore; not listened to. Lyrics are not placed on the notes (YuE2's
+  ABC has none). Weights CC BY-NC 4.0 with a creator permission: companies need a licence.
+- 2026-11-08 — Lyrics on YuE2's melody, sung by NEUTRINO. User: put the lyrics on the melody's
+  notes and have NEUTRINO sing them. YuE2's melody follows its lyrics one note per mora, a phrase
+  (notes between rests) per line or chunk: ja-seed1's verse came out 6 5 6 5 notes for
+  ハテナマルモ / はじまるよ. `src/abc-lyrics.ts` splits kana into morae (small kana joined; kanji
+  or English is an error naming the character when singing, skipped when not), matches ABC
+  sections to the lyrics' [Tags] by name (else all the words when there is one section), gives
+  each phrase the run of chunks nearest its note count (cycling, as YuE2 repeats lines; crossing
+  a line end is penalized), then holds the last mora over extra notes or splits the longest notes
+  for missing ones. `sliceSection` now keeps a pickup that runs into the section (ja-seed7's
+  chorus starts with 3 notes in the intro). `sing` moves the line by octaves to sit around A4
+  (YuE2 writes it around A5) and adds a bar before it when it would start too soon. CLI:
+  `--sing [--voice]`, and `abc --lyrics`. Fits on the 3 Japanese plans: 4/7, 3/6 and 4/7 phrases
+  exact, the rest held or split (each listed by the CLI). Rendered with NEUTRINO (REINA):
+  ja-seed7-chorus-sung (29.75 s), ja-seed1-verse-sung (31 s), asa-seed3-sung-full (39 s, verse and
+  chorus with their own words): −14.0 LUFS, true peak −1.9 to −1.7 dBTP, ~50 s to render each;
+  not listened to.
+- 2026-11-08 — `composeScore`, an action of manageJingleScript (so the MCP server and the GUI
+  plugin both have it). User: make composing callable from the gui-chat-plugin. Input: `style`,
+  `lyrics` (required), `seed`, `section`, `sing`, `voice`, `melody`, `fileName`
+  (`src/manage-compose.ts`). The score is saved through a new carrier option `saveFile` (MCP: the
+  output directory; plugin: `jinglescript/<stem>.json` through the host's `files.byPath`), and the
+  answer gives the path for renderScore, the sections, how the lyrics fitted (only the phrases of
+  the section kept, via the new `phrasesIn`), and whether it can be sung here. Without `saveFile`
+  the score itself comes back. YuE2 missing → its setup text as a tool error. The schema
+  descriptions say it is only for when the user asks, CC BY-NC weights, 20–40 s, not repeatable.
+  Live through the MCP handler: 32–35 s to compose, then renderScore by path rendered
+  out/yue2/live-chorus-sung.mp3 (19.5 s, −14.0 LUFS, −2.4 dBTP); not listened to. The plugin's
+  card shows nothing for composeScore (text only; renderScore shows the player).

@@ -9,6 +9,8 @@ export { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutri
 export { loadSamples, defaultCacheDir } from "./samples/load.ts";
 export type { LoadSamplesOptions } from "./samples/load.ts";
 export { renderToFiles } from "./output.ts";
+export { compose, planWithYuE2, yue2Python, Yue2Error, Yue2MissingError } from "./compose.ts";
+export type { ComposeOptions, Composition, Yue2Plan, Yue2Request, Yue2RunOptions } from "./compose.ts";
 export { manage, ManageInputSchema, manageInputJsonSchema, MANAGE_TOOL, MANAGE_ACTIONS, MANAGE_DESCRIPTION } from "./manage.ts";
 export type { ManageInput, ManageResult, ManageOptions, ManageAction } from "./manage.ts";
 export { awaitDeferredPlayer, deferredRenderProgress, DEFERRED_KEEP_MS } from "./deferred-renders.ts";

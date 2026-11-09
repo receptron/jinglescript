@@ -1,5 +1,7 @@
 // Which errors the CLI reports as a one-line message instead of a stack trace: the ones a user (or
 // an LLM driving `npx jinglescript`) can fix. Anything else is a bug and keeps its stack.
+import { AbcError } from "./abc.ts";
+import { Yue2Error, Yue2MissingError } from "./compose.ts";
 import { FfmpegMissingError, FfmpegWriteError } from "./encode.ts";
 import { NeutrinoMissingError, NeutrinoVoiceMissingError } from "./singer/neutrino.ts";
 import { SampleDownloadError } from "./samples/fetch-sample.ts";
@@ -42,7 +44,10 @@ export function userFacingMessage(error: unknown): string | undefined {
     error instanceof FfmpegWriteError ||
     error instanceof SampleDownloadError ||
     error instanceof NeutrinoMissingError ||
-    error instanceof NeutrinoVoiceMissingError
+    error instanceof NeutrinoVoiceMissingError ||
+    error instanceof AbcError ||
+    error instanceof Yue2MissingError ||
+    error instanceof Yue2Error
   ) {
     return error.message;
   }

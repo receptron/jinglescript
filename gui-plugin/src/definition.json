@@ -1,7 +1,7 @@
 {
   "type": "function",
   "name": "manageJingleScript",
-  "description": "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. renderScore shows a player with the waveform, cues and beats.",
+  "description": "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. Only when the user asks for a song composed by YuE2: composeScore writes a melody and chords for lyrics, and the score it saves is rendered with renderScore. renderScore shows a player with the waveform, cues and beats.",
   "parameters": {
     "type": "object",
     "properties": {
@@ -13,9 +13,10 @@
           "listInstruments",
           "getInstrument",
           "checkScore",
-          "renderScore"
+          "renderScore",
+          "composeScore"
         ],
-        "description": "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds."
+        "description": "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds. composeScore has YuE2 (an AI composer) write a melody and chords for lyrics, only when the user asks for that."
       },
       "part": {
         "description": "getSchema: one part only (\"score\" is the whole format, \"instrument\" a custom instrument's, \"timing\" the timing map's).",
@@ -42,7 +43,7 @@
         "type": "string"
       },
       "fileName": {
-        "description": "renderScore: file stem for the outputs (default: the score file's name with `path`, otherwise \"jingle\").",
+        "description": "renderScore: file stem for the outputs (default: the score file's name with `path`, otherwise \"jingle\"). composeScore: file stem of the score it saves (default \"song\").",
         "type": "string",
         "pattern": "^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$"
       },
@@ -80,6 +81,38 @@
       "includeTiming": {
         "description": "renderScore: true to get the whole timing map back (every beat, note and lyric syllable). By default only its summary comes back — tempo, duration, cues, audibleUntil, note counts — which is enough to check that cues land where intended.",
         "type": "boolean"
+      },
+      "style": {
+        "description": "composeScore: genre, instruments, voice, language and tempo for YuE2, e.g. \"Japanese, bright children's TV jingle, marimba, female vocal, 120 BPM\". Needs YuE2 set up on this machine (YUE2_PYTHON); its weights are CC BY-NC 4.0 (non-commercial; companies need a licence from its authors). Takes 20–40 s. Not repeatable: the same request composes differently on another machine, so keep the score it saves and render or edit that.",
+        "type": "string",
+        "minLength": 1
+      },
+      "lyrics": {
+        "description": "composeScore: the words, in sections YuE2 writes a melody for: \"[Verse]\\nline\\nline\\n\\n[Chorus]\\nline\". One melody note per mora: to be sung (`sing`), write them in hiragana or katakana (no kanji, no English).",
+        "type": "string",
+        "minLength": 1
+      },
+      "seed": {
+        "description": "composeScore: YuE2's sampling seed (default 1); another seed gives another melody.",
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "section": {
+        "description": "composeScore: keep only this section of the song YuE2 plans (it plans whole songs even for one line), e.g. \"chorus\", \"chorus_2\" for the second chorus. Without it the whole song is kept; the answer lists the sections.",
+        "type": "string"
+      },
+      "sing": {
+        "description": "composeScore: true to have NEUTRINO sing the lyrics on the melody (they must be kana).",
+        "type": "boolean"
+      },
+      "voice": {
+        "description": "composeScore: the NEUTRINO voice to sing with (implies `sing`).",
+        "type": "string"
+      },
+      "melody": {
+        "description": "composeScore: the instrument playing the melody (default \"marimba\"; with `sing` it doubles the voice).",
+        "type": "string"
       }
     },
     "required": [

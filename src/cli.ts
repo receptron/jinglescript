@@ -3,6 +3,9 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import { parseArgs } from "node:util";
+import { abcToScore, parseAbc, sectionNames, type AbcToScoreOptions } from "./abc.ts";
+import { describeFit, phrasesIn, placeLyrics, type PhraseFit } from "./abc-lyrics.ts";
+import { compose } from "./compose.ts";
 import { demoScore } from "./demo.ts";
 import { AUDIO_FORMATS, isAudioFormat } from "./audio-format.ts";
 import { fileProblem, userFacingMessage } from "./cli-errors.ts";
@@ -25,6 +28,15 @@ const USAGE = `Usage:
                        (--notation: also what sheet music would round or shorten)
   jinglescript notation <score.json> -o <out.musicxml>
                        write the score as sheet music (MusicXML, for MuseScore and the like)
+  jinglescript compose --style <text> --lyrics <text>|--lyrics-file <f> -o <score.json>
+                       [--seed <n>] [--section <name>] [--abc <out.abc>] [instrument options]
+                       compose with YuE2's plan() (needs YUE2_PYTHON; not deterministic across
+                       machines — keep the score). --section keeps one section, e.g. chorus
+  jinglescript abc <score.abc> -o <score.json> [--section <name>] [instrument options]
+                       turn YuE2's ABC (melody, chords, sections) into a score
+                       [--lyrics <text>|--lyrics-file <f>] puts the words (kana) on the melody
+                       instrument options: --melody <i> --ins <i> --chords <i>|none --bass <i>|none
+                       --sing [--voice <name>]: sing the melody with NEUTRINO (lyrics in kana)
   jinglescript schema [${SCHEMA_PARTS.join("|")}]   print the JSON Schema (for LLM prompts)
   jinglescript guide                          print the authoring guide for LLMs
   jinglescript instruments [name] [--json]    list instruments and sound effects
@@ -56,6 +68,19 @@ function parseCli() {
         bits: { type: "string" },
         json: { type: "boolean" },
         notation: { type: "boolean" },
+        style: { type: "string" },
+        lyrics: { type: "string" },
+        "lyrics-file": { type: "string" },
+        section: { type: "string" },
+        abc: { type: "string" },
+        melody: { type: "string" },
+        ins: { type: "string" },
+        chords: { type: "string" },
+        bass: { type: "string" },
+        title: { type: "string" },
+        device: { type: "string" },
+        sing: { type: "boolean" },
+        voice: { type: "string" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -193,6 +218,67 @@ function instrumentsCommand(name: string | undefined): void {
   }
 }
 
+function arrangementArgs(): AbcToScoreOptions {
+  const offOr = (value: string | undefined): string | false | undefined => (value === "none" ? false : value);
+  return {
+    ...(args.melody === undefined ? {} : { melody: args.melody }),
+    ...(args.ins === undefined ? {} : { ins: args.ins }),
+    ...(args.chords === undefined ? {} : { chords: offOr(args.chords) }),
+    ...(args.bass === undefined ? {} : { bass: offOr(args.bass) }),
+    ...(args.section === undefined ? {} : { section: args.section }),
+    ...(args.title === undefined ? {} : { title: args.title }),
+    ...(args.sing === true || args.voice !== undefined ? { sing: args.voice === undefined ? {} : { voice: args.voice } } : {}),
+  };
+}
+
+function reportLyrics(phrases: PhraseFit[], skipped: string | undefined): void {
+  if (phrases.length > 0) console.log(describeFit(phrases));
+  if (skipped !== undefined) console.log(`lyrics not placed on the notes: ${skipped}`);
+}
+
+/** --lyrics or --lyrics-file; a typed "\n" is a line break. */
+async function lyricsArg(): Promise<string | undefined> {
+  const file = args["lyrics-file"];
+  const text = args.lyrics ?? (file === undefined ? undefined : await readFile(file, "utf8"));
+  return text?.replaceAll("\\n", "\n");
+}
+
+async function writeScore(out: string, score: unknown, sections: string[]): Promise<void> {
+  await writeFile(out, `${JSON.stringify(score, null, 2)}\n`);
+  const check = checkScore(score);
+  console.log(`wrote ${out}: ${check.duration} s, ${check.notes} notes`);
+  if (sections.length > 0) console.log(`sections (for --section): ${sections.join(", ")}`);
+}
+
+async function composeCommand(): Promise<void> {
+  const out = args.out ?? fail(`compose needs -o <score.json>\n\n${USAGE}`);
+  const style = args.style ?? fail('compose needs --style, e.g. --style "Japanese, bright children\'s TV jingle, marimba, 120 BPM"');
+  const lyrics = (await lyricsArg()) ?? fail('compose needs --lyrics "[Chorus]\\n…" or --lyrics-file');
+  const seed = intArg(args.seed, "--seed");
+  const composition = await compose({
+    style,
+    lyrics,
+    ...(seed === undefined ? {} : { seed }),
+    ...(args.device === undefined ? {} : { device: args.device }),
+    ...arrangementArgs(),
+    onProgress: (line) => process.stderr.write(`${line}\n`),
+  });
+  if (args.abc !== undefined) await writeFile(args.abc, composition.abc);
+  console.log(`YuE2 plan(): ${composition.plan.seconds.toFixed(1)} s, ${composition.plan.tokens} tokens${composition.plan.truncated ? " (truncated)" : ""}`);
+  reportLyrics(composition.lyrics, composition.lyricsSkipped);
+  await writeScore(out, composition.score, composition.sections);
+}
+
+async function abcCommand(file: string | undefined): Promise<void> {
+  if (file === undefined) fail(`Missing ABC file.\n\n${USAGE}`);
+  const out = args.out ?? fail(`abc needs -o <score.json>\n\n${USAGE}`);
+  const parsed = parseAbc(await readFile(file, "utf8"));
+  const options = arrangementArgs();
+  const placed = placeLyrics(parsed, await lyricsArg(), options.sing !== undefined);
+  reportLyrics(phrasesIn(placed.phrases, parsed, options.section), placed.skipped);
+  await writeScore(out, abcToScore(placed.parsed, options), sectionNames(parsed));
+}
+
 async function main(): Promise<void> {
   const [command, target] = positionals;
   if (args.version) {
@@ -205,6 +291,10 @@ async function main(): Promise<void> {
     await checkCommand(target);
   } else if (command === "notation") {
     await notationCommand(target);
+  } else if (command === "compose") {
+    await composeCommand();
+  } else if (command === "abc") {
+    await abcCommand(target);
   } else if (command === "schema") {
     const part = target ?? "score";
     if (!isSchemaPart(part)) fail(`Unknown schema part "${part}". Parts: ${SCHEMA_PARTS.join(", ")}`);

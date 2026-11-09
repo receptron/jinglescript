@@ -31,9 +31,10 @@ import { checkSinger, NeutrinoMissingError, NeutrinoVoiceMissingError } from "./
 import { checkScore, parseScore, type CheckResult, type Score, type ScoreProblem } from "./score.ts";
 import type { TimingMap } from "./timing.ts";
 import { tagsOf } from "./tags.ts";
+import { COMPOSE_NOTE, composeAction } from "./manage-compose.ts";
 
 export const MANAGE_TOOL = "manageJingleScript";
-export const MANAGE_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore"] as const;
+export const MANAGE_ACTIONS = ["getGuide", "getSchema", "listInstruments", "getInstrument", "checkScore", "renderScore", "composeScore"] as const;
 export type ManageAction = (typeof MANAGE_ACTIONS)[number];
 
 /** A score file the tool call names: a `.json` path, relative or absolute, with no `.` / `..` / empty segment. */
@@ -55,24 +56,25 @@ function stemOf(path: string): string | undefined {
 /** A file stem: letters, digits, dot, dash, underscore — never a path. */
 const FILE_STEM = /^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$/;
 
-const REQUIRED: Record<ManageAction, readonly ("instrument" | "score")[]> = {
+const REQUIRED: Record<ManageAction, readonly ("instrument" | "score" | "style" | "lyrics")[]> = {
   getGuide: [],
   getSchema: [],
   listInstruments: [],
   getInstrument: ["instrument"],
   checkScore: ["score"],
   renderScore: ["score"],
+  composeScore: ["style", "lyrics"],
 };
 
 export const MANAGE_DESCRIPTION =
-  "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`.";
+  "Write and render jingles and songs (short music, played or sung, with sound effects) plus a timing map an animation can sync to. Start with action getGuide, then getSchema; write a score; checkScore and fix every error; then renderScore. A long score can be written to a .json file and passed as `path` instead of `score`. Only when the user asks for a song composed by YuE2: composeScore writes a melody and chords for lyrics, and the score it saves is rendered with renderScore.";
 
 export const ManageInputSchema = z
   .object({
     action: z
       .enum(MANAGE_ACTIONS)
       .describe(
-        "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds.",
+        "What to do. The loop: getGuide (how to write a jingle) → getSchema (the exact format) → write a score → checkScore → fix every error → renderScore. listInstruments / getInstrument show the sounds. composeScore has YuE2 (an AI composer) write a melody and chords for lyrics, only when the user asks for that.",
       ),
     part: z
       .enum(SCHEMA_PARTS)
@@ -95,7 +97,9 @@ export const ManageInputSchema = z
       .string()
       .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
       .optional()
-      .describe('renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle").'),
+      .describe(
+        'renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle"). composeScore: file stem of the score it saves (default "song").',
+      ),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
     view: z
       .enum(VIEWS)
@@ -127,6 +131,30 @@ export const ManageInputSchema = z
       .describe(
         "renderScore: true to get the whole timing map back (every beat, note and lyric syllable). By default only its summary comes back — tempo, duration, cues, audibleUntil, note counts — which is enough to check that cues land where intended.",
       ),
+    style: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        `composeScore: genre, instruments, voice, language and tempo for YuE2, e.g. "Japanese, bright children's TV jingle, marimba, female vocal, 120 BPM". ${COMPOSE_NOTE}`,
+      ),
+    lyrics: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'composeScore: the words, in sections YuE2 writes a melody for: "[Verse]\\nline\\nline\\n\\n[Chorus]\\nline". One melody note per mora: to be sung (`sing`), write them in hiragana or katakana (no kanji, no English).',
+      ),
+    seed: z.int().min(0).optional().describe("composeScore: YuE2's sampling seed (default 1); another seed gives another melody."),
+    section: z
+      .string()
+      .optional()
+      .describe(
+        'composeScore: keep only this section of the song YuE2 plans (it plans whole songs even for one line), e.g. "chorus", "chorus_2" for the second chorus. Without it the whole song is kept; the answer lists the sections.',
+      ),
+    sing: z.boolean().optional().describe("composeScore: true to have NEUTRINO sing the lyrics on the melody (they must be kana)."),
+    voice: z.string().optional().describe("composeScore: the NEUTRINO voice to sing with (implies `sing`)."),
+    melody: z.string().optional().describe('composeScore: the instrument playing the melody (default "marimba"; with `sing` it doubles the voice).'),
   })
   .superRefine((input, ctx) => {
     for (const field of REQUIRED[input.action]) {
@@ -169,6 +197,11 @@ export interface ManageOptions {
    * awaitDeferredPlayer. Only for a carrier whose view can call back.
    */
   deferAudio?: boolean | { waitMs: number };
+  /**
+   * Saves a file the tool made (composeScore's score, named "<stem>.json", and its ABC) and returns
+   * the path the model gives back as `path`. Without it, composeScore returns the score itself.
+   */
+  saveFile?: (name: string, content: string) => Promise<string>;
 }
 
 /** How long a deferred renderScore waits for the audio before answering without it: a short jingle is done by then. */
@@ -436,6 +469,8 @@ export async function manage(input: ManageInput, options: ManageOptions = {}): P
     }
     case "renderScore":
       return renderAction(input, options);
+    case "composeScore":
+      return composeAction(input, options, withSinger);
   }
 }
 

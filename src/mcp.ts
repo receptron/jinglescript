@@ -1,8 +1,9 @@
 // The MCP server: one tool, `manageJingleScript` (src/manage.ts), carried over MCP. Rendering
 // writes only inside the output directory fixed when the server starts. A score `path` is read
 // relative to the directory the server runs in (the client's project), or as given when absolute.
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+// A score composeScore makes is saved in the output directory too.
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { MANAGE_TOOL, ManageInputSchema, manage, type ManageInput } from "./manage.ts";
@@ -18,7 +19,13 @@ interface ToolResult {
 }
 
 export async function handleManage(input: ManageInput, outDir: string): Promise<ToolResult> {
-  const result = await manage(input, { outDir, readScoreFile: (path) => readFile(resolve(path), "utf8") });
+  const saveFile = async (name: string, content: string): Promise<string> => {
+    await mkdir(outDir, { recursive: true });
+    const file = join(outDir, name);
+    await writeFile(file, content);
+    return file;
+  };
+  const result = await manage(input, { outDir, readScoreFile: (path) => readFile(resolve(path), "utf8"), saveFile });
   return { content: [{ type: "text", text: result.text }], ...(result.isError ? { isError: true } : {}) };
 }
 

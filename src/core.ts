@@ -34,3 +34,7 @@ export { scoreToNotation, DIVISIONS } from "./notation.ts";
 export type { Notation, NotationPart, NotationStaff, NotationItem, NotationMeasure } from "./notation.ts";
 export { scoreToMusicXml, notationToMusicXml, MUSICXML_MIME_TYPE } from "./musicxml.ts";
 export { KEYS, parseKey, parseMeter } from "./meter.ts";
+export { AbcError, abcToScore, parseAbc, sectionNames, sliceSection, voiceChord } from "./abc.ts";
+export type { AbcChord, AbcNote, AbcSection, AbcToScoreOptions, ChordVoicing, ParsedAbc } from "./abc.ts";
+export { describeFit, fitLyrics, parseLyrics, phrasesIn, placeLyrics, splitMorae } from "./abc-lyrics.ts";
+export type { LyricsFit, PhraseFit, PlacedLyrics } from "./abc-lyrics.ts";

@@ -77,6 +77,11 @@ describe("jinglescript/browser", () => {
       "awaitDeferredPlayer",
       "deferredRenderProgress",
       "DEFERRED_KEEP_MS",
+      "compose",
+      "planWithYuE2",
+      "yue2Python",
+      "Yue2Error",
+      "Yue2MissingError",
     ];
     const browserOnly = ["DEFAULT_SFX_BASE_URL", "DEFAULT_CACHE_NAME"];
     expect(Object.keys(browser).sort()).toEqual([...Object.keys(node).filter((name) => !nodeOnly.includes(name)), ...browserOnly].sort());

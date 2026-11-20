@@ -51,7 +51,7 @@ describe("renderScore with renderFiles (a carrier that keeps renders as files)",
     const summary = summaryOf(result.text);
     expect(summary).toMatchObject({ audioFile: `work/jingle.${extension}`, timingFile: "work/jingle.timing.json" });
     expect(summary.timing.omitted).toContain("in timingFile");
-    expect([...stored.keys()].sort()).toEqual([`jingle.${extension}`, "jingle.timing.json"]);
+    expect([...stored.keys()].sort()).toEqual([`jingle.${extension}`, "jingle.timing.json"].sort());
 
     const audio = stored.get(`jingle.${extension}`);
     if (!(audio instanceof Uint8Array)) throw new Error("the audio is written as bytes");

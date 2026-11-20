@@ -234,7 +234,8 @@ pass `path` to `checkScore` / `renderScore` instead of the score itself.
 
 ### Work in this order (a jingle for a video)
 
-For a song see **Songs and melodies** below; for a lesson, **Sheet music**.
+For a song see **Songs and melodies** below; for how the player shows the notes, and for a
+lesson, **Sheet music**.
 
 1. **Cues first.** Write down the moments the video needs, in seconds, as cues:
    `"cues": { "hit": { "seconds": 1.5 }, "voice": { "seconds": 1.8 } }`. Never convert seconds to
@@ -549,21 +550,22 @@ and leave rests between phrases to breathe. The other tracks accompany it.
 Two phrases on one motif (a rising leap E–G–C, then down by step): the first ends open on G over
 G, the second takes the motif a step higher (F–A–D) and lands on C.
 
-### Sheet music (teaching and reading music)
+### Sheet music
 
-A score can also be shown as sheet music, for a lesson: a scale, a rhythm, a song to sing along to.
-The score only needs the fields below; how the player shows it is chosen **in the renderScore call,
-not in the score**: `{ "action": "renderScore", "score": { … }, "view": "notation", "autoplay": true,
-"notifyWhenDone": true }`. `"view": "notation"` shows the notes on staves with a cursor that
-follows playback; `"autoplay": true` starts it by itself; `"notifyWhenDone": true` sends you a
-message when the user has heard it to the end, so you can ask about it or go on to the next
-exercise. Say what to listen for before renderScore, and say nothing while it plays: speech over
-the music drowns it out. In a voice chat the player waits until you have answered the render and
-fallen quiet; `"autoplayDelay": n` makes it wait n seconds after it appears instead. The sound is the same either way: sheet music is drawn from the score you
-wrote. Without `view`, every score with pitched notes opens as sheet music (a jingle or a sung
-song too, so give it a `meter` and a `key` and put its notes on the grid); a score of sound
-effects only opens as its waveform. `"view": "waveform"` opens the waveform, and the user can
-switch between the two.
+The player shows every score that has pitched notes as **sheet music**, with a cursor that follows
+playback: a jingle, a song and a lesson alike. The user can switch to the waveform in the player.
+So **leave `view` out of renderScore**. Pass `"view": "waveform"` only when the user asks to see
+the waveform instead of the notes; a score of sound effects only has no notes and shows its
+waveform by itself. The sound is the same either way: the sheet music is drawn from the score you
+wrote, so write every score with the points below, and its page reads well.
+
+For a lesson (a scale, a rhythm, a song to sing along to), let it play by itself and tell you when
+it was heard: `{ "action": "renderScore", "score": { … }, "autoplay": true, "notifyWhenDone": true }`.
+`"autoplay": true` starts it by itself; `"notifyWhenDone": true` sends you a message when the
+user has heard it to the end, so you can ask about it or go on to the next exercise. Say what to
+listen for before renderScore, and say nothing while it plays: speech over the music drowns it out.
+In a voice chat the player waits until you have answered the render and fallen quiet;
+`"autoplayDelay": n` makes it wait n seconds after it appears instead.
 
 - Set `"meter"` ("4/4", "3/4", "2/4", "6/8") and `"key"` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
   They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).

@@ -109,7 +109,7 @@ export const ManageInputSchema = z
       .enum(VIEWS)
       .optional()
       .describe(
-        'renderScore: what the player shows the user first — "notation" (the default: sheet music with a cursor following playback; give the score a `meter`, and `key` when it has one, so it reads well) or "waveform" (the sound with its cues and beats; also what a score with no pitched notes shows). The user can switch between the two. checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
+        'renderScore: leave it out. The player shows a score with pitched notes as sheet music (with a cursor following playback) and the user can switch to the waveform there; a score of sound effects only shows its waveform. Give "waveform" only when the user asks to see the waveform instead of the notes ("notation" is the default). checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
       ),
     autoplay: z
       .boolean()

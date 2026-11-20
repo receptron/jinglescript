@@ -31,21 +31,27 @@
         display: flex;
         gap: 12px;
       }
+      /* A host's list of cards: it sets the background and the text colour, and a preview takes
+         the text colour from it. Open the page with ?dark for a dark host, whatever the system's
+         colour scheme is. */
       .previews > div {
         flex: 1;
         background: #fff;
+        color: #1d2330;
         padding: 8px;
         border-radius: 8px;
       }
-      @media (prefers-color-scheme: dark) {
-        .previews > div {
-          background: #161a22;
-        }
+      body.dark .previews > div {
+        background: #161a22;
+        color: #e6e9ef;
       }
     </style>
   </head>
   <body>
     <main id="app"></main>
+    <script>
+      if (new URLSearchParams(location.search).has("dark")) document.body.classList.add("dark");
+    </script>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

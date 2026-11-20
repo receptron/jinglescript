@@ -29,7 +29,7 @@ export interface PlayerData {
   written?: unknown;
   /** The score as a Standard MIDI File, as a data URI. */
   midi: string;
-  /** The score as sheet music (MusicXML), when it was asked for or the score sets a meter, key or pickup, and has pitched notes to show. */
+  /** The score as sheet music (MusicXML), when it has pitched notes to show. */
   musicxml?: string;
   /** How the view shows it; absent in results rendered before 0.10 (a view then shows the waveform). */
   presentation?: Presentation;
@@ -58,19 +58,21 @@ export interface Presentation {
   renderedAt?: number;
 }
 
-export const DEFAULT_PRESENTATION: Presentation = { view: "waveform", autoplay: false, notifyWhenDone: false };
+/**
+ * What a view shows first when nothing was asked: the sheet music. A score with no pitched notes
+ * (only sound effects) has none, and its view shows the waveform instead.
+ */
+export const DEFAULT_VIEW: PlayerView = "notation";
 
-/** Sheet music goes with a score written for it, or one the LLM asked to see as sheet music. */
-export function wantsNotation(score: Score, view: PlayerView): boolean {
-  return view === "notation" || score.meter !== undefined || score.key !== undefined || score.pickup !== undefined;
-}
+export const DEFAULT_PRESENTATION: Presentation = { view: DEFAULT_VIEW, autoplay: false, notifyWhenDone: false };
 
 /**
- * What the view shows first: what the LLM asked for, else the sheet music of a score written for
- * it (it sets a meter, key or pickup) and the waveform of any other.
+ * A score written for sheet music (it sets a meter, key or pickup), or one asked to be seen as
+ * sheet music: what a carrier without a view writes a notation file for. A player always carries
+ * the sheet music of a score that has any.
  */
-export function firstView(score: Score, asked: PlayerView | undefined): PlayerView {
-  return asked ?? (wantsNotation(score, "waveform") ? "notation" : "waveform");
+export function wantsNotation(score: Score, view: PlayerView): boolean {
+  return view === "notation" || score.meter !== undefined || score.key !== undefined || score.pickup !== undefined;
 }
 
 /** The formats a player's audio comes in: MP3 when ffmpeg is there, otherwise WAV. */
@@ -118,7 +120,8 @@ function scorePart(
   title: string,
   presentation: Presentation,
 ): Pick<PlayerData, "title" | "tracks" | "score" | "midi" | "musicxml" | "presentation"> {
-  const musicxml = wantsNotation(score, presentation.view) ? scoreToMusicXml(score) : undefined;
+  // Whatever the first view is, the sheet music is there to switch to.
+  const musicxml = scoreToMusicXml(score);
   return {
     title: score.title ?? title,
     tracks: score.tracks.map((t) => t.name ?? t.instrument),

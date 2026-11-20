@@ -20,7 +20,7 @@ import {
   toPlayerData,
   VIEWS,
   wantsNotation,
-  firstView,
+  DEFAULT_VIEW,
   wavPlayerAudio,
   type PlayerAudio,
   type PlayerAudioFormat,
@@ -109,7 +109,7 @@ export const ManageInputSchema = z
       .enum(VIEWS)
       .optional()
       .describe(
-        'renderScore: what the player shows the user first — "waveform" (the sound with its cues and beats) or "notation" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). Default: "notation" for a score that sets `meter`, `key` or `pickup`, else "waveform". checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
+        'renderScore: what the player shows the user first — "notation" (the default: sheet music with a cursor following playback; give the score a `meter`, and `key` when it has one, so it reads well) or "waveform" (the sound with its cues and beats; also what a score with no pitched notes shows). The user can switch between the two. checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
       ),
     autoplay: z
       .boolean()
@@ -341,9 +341,9 @@ async function writeNotation(score: Score, dir: string, stem: string): Promise<s
 }
 
 /** What the player was asked to do with the render. */
-function presentationOf(input: ManageInput, score: Score): Presentation {
+function presentationOf(input: ManageInput): Presentation {
   return {
-    view: firstView(score, input.view),
+    view: input.view ?? DEFAULT_VIEW,
     autoplay: input.autoplay === true,
     ...(input.autoplayDelay === undefined ? {} : { autoplayDelay: input.autoplayDelay }),
     notifyWhenDone: input.notifyWhenDone === true,
@@ -467,7 +467,7 @@ async function renderNow(job: RenderJob, options: ManageOptions): Promise<Manage
     ...renderSummary(input, score, result, job.warnings, files || slot ? TIMING_IN_FILE : FULL_TIMING_AT),
   };
   if (options.player !== true || audio === undefined) return { text: json(summary), isError: false };
-  const player = { ...toPlayerData(score, result, stem, audio, presentationOf(input, score)), written: job.written };
+  const player = { ...toPlayerData(score, result, stem, audio, presentationOf(input)), written: job.written };
   return { text: json(summary), isError: false, player };
 }
 
@@ -509,7 +509,7 @@ const FULL_TIMING_AT = "render again with includeTiming: true to get them";
  */
 async function deferredRenderAction(job: RenderJob, waitMs: number): Promise<ManageResult> {
   const { input, score, written, stem, warnings, slot } = job;
-  const presentation = presentationOf(input, score);
+  const presentation = presentationOf(input);
   let progress: RenderProgress | undefined;
   const rendering = renderPlayer(score, stem, presentation, slot, (latest) => (progress = latest)).then(({ result, player }) => ({
     result,

@@ -1638,3 +1638,17 @@ Decided:
   own path (the same name in another folder is another song), and composeScore does not take a
   name a running render holds (`renderStemHeld`). Not yet tried from
   MulmoChat, nor read by AvatarScript.
+- 2026-11-21 — Every score with pitched notes opens as sheet music (1.5.0; user: "音程のある
+  スコアはすべて楽譜で開く"). Since 1.3.0 only a score that sets `meter`, `key` or `pickup` did,
+  and in MulmoChat songs and jingles, whose prompt asks for neither, still opened as a waveform.
+  Now the player always carries the sheet music of a score that has any (`scoreToMusicXml`),
+  and the default view is "notation" (`DEFAULT_VIEW`); a score of sound effects only shows its
+  waveform, and `"view": "waveform"` still opens the waveform. Unchanged: the MCP server writes
+  a notation file, and checkScore reports what sheet music rounds, only for a score written for
+  sheet music or asked for it (`wantsNotation`), so a jingle placed in seconds or on cues opens
+  as sheet music with its times rounded and no warning. Not looked at in a browser.
+- 2026-11-21 — The preview takes its text colour from the host (also 1.5.0). It chose near-black or
+  near-white text from the system's colour scheme and set no background, so in MulmoChat it was
+  unreadable where the list of cards and the system disagreed (the user: "it seems made for a
+  black background"). The player view was not affected: it sets its background and its text
+  together. The demo's preview cards now set a host's colours (`?dark` for a dark host).

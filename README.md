@@ -136,9 +136,9 @@ lyrics, with ffmpeg's ASS subtitles.
 `gui-plugin/` is a [GUI Chat Protocol](https://github.com/receptron/gui-chat-protocol) plugin with the same tool,
 `manageJingleScript`, for hosts such as MulmoTerminal and MulmoClaude. A rendered jingle opens in a
 **player view**: waveform, beats, named cues you can click to jump to, and a lane of notes per
-track, with downloads of the audio, of the music as MIDI and of the score itself. For teaching, the same view shows
-**sheet music** with a cursor following playback: `renderScore` takes `view: "notation"` or
-`"waveform"` (by default sheet music for a score that sets `meter`, `key` or `pickup`, else the waveform), `autoplay: true` to start playing as the card appears, and
+track, with downloads of the audio, of the music as MIDI and of the score itself. The same view shows the
+**sheet music** of a score that has pitched notes, with a cursor following playback, and opens with it:
+`renderScore` takes `view: "notation"` (the default) or `"waveform"`, `autoplay: true` to start playing as the card appears, and
 `notifyWhenDone: true` to have the view tell the LLM, in one chat message, when the user has
 heard it to the end — so a lesson can go on by itself. See [gui-plugin/README.md](gui-plugin/README.md) for adding it to a host.
 
@@ -560,9 +560,10 @@ message when the user has heard it to the end, so you can ask about it or go on 
 exercise. Say what to listen for before renderScore, and say nothing while it plays: speech over
 the music drowns it out. In a voice chat the player waits until you have answered the render and
 fallen quiet; `"autoplayDelay": n` makes it wait n seconds after it appears instead. The sound is the same either way: sheet music is drawn from the score you
-wrote. Without `view`, a score that sets `meter`, `key` or `pickup` (a sung one too) opens as
-sheet music and any other as its waveform; `"view": "waveform"` opens the waveform whatever the
-score sets.
+wrote. Without `view`, every score with pitched notes opens as sheet music (a jingle or a sung
+song too, so give it a `meter` and a `key` and put its notes on the grid); a score of sound
+effects only opens as its waveform. `"view": "waveform"` opens the waveform, and the user can
+switch between the two.
 
 - Set `"meter"` ("4/4", "3/4", "2/4", "6/8") and `"key"` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
   They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).

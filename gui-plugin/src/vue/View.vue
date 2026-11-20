@@ -86,6 +86,12 @@ const extension = computed(() => (data.value?.mimeType === "audio/mpeg" ? "mp3" 
 const musicxmlHref = computed(() =>
   data.value?.musicxml === undefined ? undefined : `data:application/vnd.recordare.musicxml+xml;charset=utf-8,${encodeURIComponent(data.value.musicxml)}`,
 );
+/** The score as it was written (a render from before `written` has only the one with defaults filled in), as a file renderScore (`path`) or the CLI takes back. */
+const scoreHref = computed(() =>
+  data.value === undefined
+    ? undefined
+    : `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data.value.written ?? data.value.score, null, 2))}`,
+);
 const progress = computed(() => (duration.value > 0 ? Math.min(1, now.value / duration.value) : 0));
 
 /** Keeps what happened in the result's viewState (the whole result, as every host accepts it). */
@@ -401,6 +407,7 @@ onBeforeUnmount(() => {
         <a v-if="!pending" :href="data.audio" :download="`${data.title}.${extension}`">Download {{ extension.toUpperCase() }}</a>
         <a :href="data.midi" :download="`${data.title}.mid`">Download MIDI</a>
         <a v-if="musicxmlHref" :href="musicxmlHref" :download="`${data.title}.musicxml`">Download MusicXML</a>
+        <a v-if="scoreHref" :href="scoreHref" :download="`${data.title}.json`">Download JingleScript</a>
       </span>
     </div>
 
@@ -575,6 +582,8 @@ h2 {
 .downloads {
   margin-left: auto;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 12px;
 }
 .downloads a {

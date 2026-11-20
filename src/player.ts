@@ -25,6 +25,8 @@ export interface PlayerData {
   loudness: number;
   /** The score that was rendered, with its defaults filled in. */
   score: Score;
+  /** The same score as it was written (a valid score, nothing filled in), for saving it; absent in results rendered before 1.3. */
+  written?: unknown;
   /** The score as a Standard MIDI File, as a data URI. */
   midi: string;
   /** The score as sheet music (MusicXML), when it was asked for or the score sets a meter, key or pickup, and has pitched notes to show. */
@@ -61,6 +63,14 @@ export const DEFAULT_PRESENTATION: Presentation = { view: "waveform", autoplay: 
 /** Sheet music goes with a score written for it, or one the LLM asked to see as sheet music. */
 export function wantsNotation(score: Score, view: PlayerView): boolean {
   return view === "notation" || score.meter !== undefined || score.key !== undefined || score.pickup !== undefined;
+}
+
+/**
+ * What the view shows first: what the LLM asked for, else the sheet music of a score written for
+ * it (it sets a meter, key or pickup) and the waveform of any other.
+ */
+export function firstView(score: Score, asked: PlayerView | undefined): PlayerView {
+  return asked ?? (wantsNotation(score, "waveform") ? "notation" : "waveform");
 }
 
 /** The embedded audio: a data URI and its type. */

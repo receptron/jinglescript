@@ -57,7 +57,7 @@
         ]
       },
       "view": {
-        "description": "renderScore: what the player shows the user first — \"waveform\" (default: the sound with its cues and beats) or \"notation\" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). checkScore: \"notation\" also reports what the sheet music had to round or shorten. Only where a player view shows the result.",
+        "description": "renderScore: what the player shows the user first — \"waveform\" (the sound with its cues and beats) or \"notation\" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). Default: \"notation\" for a score that sets `meter`, `key` or `pickup`, else \"waveform\". checkScore: \"notation\" also reports what the sheet music had to round or shorten. Only where a player view shows the result.",
         "type": "string",
         "enum": [
           "waveform",

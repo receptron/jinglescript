@@ -73,6 +73,9 @@ export function firstView(score: Score, asked: PlayerView | undefined): PlayerVi
   return asked ?? (wantsNotation(score, "waveform") ? "notation" : "waveform");
 }
 
+/** The formats a player's audio comes in: MP3 when ffmpeg is there, otherwise WAV. */
+export type PlayerAudioFormat = "mp3" | "wav";
+
 /** The embedded audio: a data URI and its type. */
 export interface PlayerAudio {
   audio: string;

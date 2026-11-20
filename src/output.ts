@@ -11,6 +11,7 @@ import { encodeAudio } from "./encode.ts";
 import { toWav, type WavBits } from "./wav.ts";
 import { loadSamples } from "./samples/load.ts";
 import { tagsOf } from "./tags.ts";
+import { timingFileText } from "./timing.ts";
 
 export interface RenderedFiles {
   audio: string;
@@ -38,6 +39,6 @@ export async function renderToFiles(score: Score, dir: string, stem: string, opt
   const tags = tagsOf(score);
   if (format === "wav") await writeFile(audio, toWav(result.audio, result.sampleRate, options.bits ?? 24, tags));
   else await encodeAudio(result.audio, result.sampleRate, format, audio, tags);
-  await writeFile(timing, `${JSON.stringify(result.timing, null, 2)}\n`);
+  await writeFile(timing, timingFileText(result.timing));
   return { audio, timing, result };
 }

@@ -4,11 +4,22 @@
 // A score `path` is read through the host's `files.byPath` (as presentDocument's is): the host
 // decides what a path may reach and what a relative one means. Without it, `path` is refused.
 // composeScore saves the score it makes through the same files (under jinglescript/), or, without
-// them, answers with the score itself.
+// them, answers with the score itself. With them, every render's audio and timing map are kept
+// there too, and their paths go back to the LLM for a tool that animates to the song.
 // A host whose view can call back (`deferredAudio`) gets the card before a long render's audio:
 // the view collects it with an AudioRequest, answered here, and asks how far it is meanwhile.
 import type { FileOps, ToolContext, ToolPluginCore, ToolResult } from "gui-chat-protocol";
-import { awaitDeferredPlayer, deferredRenderProgress, MANAGE_TOOL, ManageInputSchema, manage, type PlayerData } from "jinglescript";
+import {
+  awaitDeferredPlayer,
+  deferredRenderProgress,
+  MANAGE_TOOL,
+  ManageInputSchema,
+  manage,
+  renderFileNames,
+  renderStemHeld,
+  type PlayerData,
+  type RenderFiles,
+} from "jinglescript";
 import { isAudioRequest, isProgressRequest, type AudioReply, type AudioRequest, type ProgressReply, type ProgressRequest } from "./audio-request.ts";
 import { TOOL_DEFINITION } from "./definition.ts";
 
@@ -46,13 +57,27 @@ export function renderProgress(request: ProgressRequest): Promise<ProgressReply>
   return Promise.resolve(progress === undefined ? { message: "No progress to tell." } : { progress, message: `Rendering: ${progress.stage}.` });
 }
 
-/** Where composeScore's score is saved through the host's files, as a path renderScore can read back. */
+/** Where the tool's files go through the host's files: composeScore's score (a path renderScore reads back) and every render's audio and timing map. */
 const COMPOSED_DIR = "jinglescript";
 
-/** Never overwrites: a name that is taken answers undefined, and composeScore tries another. */
+/** Renders kept in the host's files, for a tool that animates to the song (it is handed the two paths). */
+const renderFilesIn = (files: FileOps): RenderFiles => ({
+  pathOf: (name) => `${COMPOSED_DIR}/${name}`,
+  exists: (name) => files.exists(`${COMPOSED_DIR}/${name}`),
+  write: (name, content) => files.write(`${COMPOSED_DIR}/${name}`, content),
+});
+
+/**
+ * Never overwrites: a name that is taken answers undefined, and composeScore tries another. A
+ * score's name is taken too when a render is kept under it ("song-2.mp3", of an earlier song), or
+ * will be (a render still running that holds the name).
+ */
 async function saveComposed(files: FileOps, name: string, content: string): Promise<string | undefined> {
   const path = `${COMPOSED_DIR}/${name}`;
-  if (await files.exists(path)) return undefined;
+  const stem = name.endsWith(".json") ? name.slice(0, -".json".length) : undefined;
+  if (stem !== undefined && renderStemHeld(renderFilesIn(files), stem)) return undefined;
+  const others = stem === undefined ? [] : renderFileNames(stem).map((file) => `${COMPOSED_DIR}/${file}`);
+  if ((await Promise.all([path, ...others].map((file) => files.exists(file)))).some(Boolean)) return undefined;
   await files.write(path, content);
   return path;
 }
@@ -67,7 +92,13 @@ export async function executeManage(context: ManageContext, args: object): Promi
   const result = await manage(input.data, {
     player: true,
     deferAudio: context.deferredAudio === true,
-    ...(byPath ? { readScoreFile: (path: string) => byPath.read(path), saveFile: (name: string, content: string) => saveComposed(byPath, name, content) } : {}),
+    ...(byPath
+      ? {
+          readScoreFile: (path: string) => byPath.read(path),
+          saveFile: (name: string, content: string) => saveComposed(byPath, name, content),
+          renderFiles: renderFilesIn(byPath),
+        }
+      : {}),
   });
   if (result.player === undefined) return { toolName: MANAGE_TOOL, message: result.text };
   return {

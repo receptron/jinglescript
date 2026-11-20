@@ -1622,3 +1622,19 @@ Decided:
   as sheet music (`firstView` in src/player.ts); `"view": "waveform"` still opens the waveform.
   The player data carries the score as written (`written`), and the view has "Download
   JingleScript" (.json). Not looked at in a browser.
+- 2026-11-20 — The plugin keeps every render as files, for a tool that animates to the song (1.4.0)
+  (the aim: an AvatarScript avatar that sings a JingleScript song; AvatarScript takes character
+  times from outside, so lyric syllables in the timing map are all it needs). New carrier option
+  `renderFiles` of `manage()` (src/render-files.ts): with it, renderScore writes
+  `<stem>.mp3|wav` and `<stem>.timing.json` and answers `audioFile` and `timingFile`. Names are
+  held before the render (a deferred render says them at once) and never an earlier render's or
+  another score's ("-2", "-3" …). The plugin turns it on when the host gives `files.byPath`
+  (MulmoChat does), under `jinglescript/`. Measured on a real folder: the MP3 decodes to the
+  score's length plus 32 ms at the end, and starts 1105 samples (23.0 ms at 48 kHz) late — a
+  constant of this encoder, not recorded in the file (written through a pipe, it has no header,
+  so ffprobe also estimates its length wrongly: 2.85 s for 4 s). A reader takes the length from
+  the timing map's `duration` and shifts times by 23 ms for an MP3 (0 for a WAV). User,
+  2026-11-20: MP3 stays. Codex review: a score file is the render's own only at the kept files'
+  own path (the same name in another folder is another song), and composeScore does not take a
+  name a running render holds (`renderStemHeld`). Not yet tried from
+  MulmoChat, nor read by AvatarScript.

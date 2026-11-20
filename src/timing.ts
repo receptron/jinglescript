@@ -59,6 +59,9 @@ export const TimingSchema = z
   .describe("When everything in a rendered jingle happens, in seconds rounded to 1 ms. Animation syncs to this.");
 
 export type TimingMap = z.infer<typeof TimingSchema>;
+
+/** A timing map as the text of its file (`<stem>.timing.json`). */
+export const timingFileText = (timing: TimingMap): string => `${JSON.stringify(timing, null, 2)}\n`;
 export type TimingNote = z.infer<typeof TimingNoteSchema>;
 export type TimingLyricLine = z.infer<typeof TimingLyricLineSchema>;
 

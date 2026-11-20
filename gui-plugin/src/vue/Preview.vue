@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The compact card in the chat history: title, length and a small waveform.
+// The compact card in the chat history: title, length and a small waveform. It sets no text
+// colour of its own (see the style below).
 import type { ToolResultComplete } from "gui-chat-protocol";
 import type { PlayerData } from "jinglescript";
 import { computed } from "vue";
@@ -20,15 +21,12 @@ const path = computed(() => waveformPath(data.value?.peaks ?? [], 20, 18));
 </template>
 
 <style scoped>
+/* The text colour is the host's: its list of cards may be light or dark whatever the system's
+   colour scheme is, and a colour chosen here from that scheme was unreadable on the other. */
 .preview {
   font-family: system-ui, sans-serif;
   font-size: 0.85rem;
-  color: #1d2330;
-}
-@media (prefers-color-scheme: dark) {
-  .preview {
-    color: #e6e9ef;
-  }
+  color: inherit;
 }
 svg {
   width: 100%;

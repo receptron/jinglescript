@@ -49,17 +49,22 @@ describe("manageJingleScript, carried by any protocol", () => {
     expect(player?.midi.startsWith("data:audio/midi;base64,TVRoZA")).toBe(true);
   });
 
-  it("opens a score written for sheet music (meter, key or pickup) as sheet music, unless the waveform is asked for", async () => {
+  it("opens every score with pitched notes as sheet music, unless the waveform is asked for; sound effects alone open as the waveform", async () => {
     const first = async (extra: object, view?: "waveform" | "notation") =>
       (await manage({ action: "renderScore", score: { ...score, ...extra }, ...(view === undefined ? {} : { view }) }, { player: true })).player;
-    expect((await first({}))?.presentation?.view).toBe("waveform");
-    expect((await first({}))?.musicxml).toBeUndefined();
-    expect((await first({ meter: "4/4" }))?.presentation?.view).toBe("notation");
-    expect((await first({ key: "C" }))?.presentation?.view).toBe("notation");
-    const asked = await first({ meter: "4/4" }, "waveform");
+    // a jingle that sets no meter or key
+    const plain = await first({});
+    expect(plain?.presentation?.view).toBe("notation");
+    expect(plain?.musicxml).toContain("<score-partwise");
+    expect((await first({ meter: "3/4", key: "G" }))?.presentation?.view).toBe("notation");
+    const asked = await first({}, "waveform");
     expect(asked?.presentation?.view).toBe("waveform");
     expect(asked?.musicxml).toEqual(expect.any(String));
-    expect((await first({}, "notation"))?.presentation?.view).toBe("notation");
+    // nothing to draw: the waveform, whatever was asked
+    const effects = { tracks: [{ instrument: "clap", notes: [{ at: 0 }] }] };
+    expect(await first(effects)).toMatchObject({ presentation: { view: "waveform" } });
+    expect((await first(effects))?.musicxml).toBeUndefined();
+    expect((await first(effects, "notation"))?.presentation?.view).toBe("waveform");
   });
 
   it("writes no files without an output folder, and no player data unless asked", async () => {

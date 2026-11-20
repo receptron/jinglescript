@@ -156,20 +156,23 @@ describe("the plugin's instructions to the LLM", () => {
     );
   });
 
-  it("say sheet music for a score written for it (a meter), without `view`", async () => {
-    const result = await executeManage({}, { action: "renderScore", score });
-    expect(result.data?.presentation?.view).toBe("notation");
-    expect(result.instructions).toBe(
-      "The music is shown to the user as sheet music, with a cursor that follows playback. Ask whether it fits, and offer changes.",
-    );
-    const asked = await executeManage({}, { action: "renderScore", score, view: "waveform" });
-    expect(asked.instructions).toContain("waveform");
+  it("say sheet music for any score with pitched notes, without `view`", async () => {
+    const { meter: _meter, ...plain } = score;
+    for (const given of [score, plain]) {
+      const result = await executeManage({}, { action: "renderScore", score: given });
+      expect(result.data?.presentation?.view).toBe("notation");
+      expect(result.instructions).toBe(
+        "The music is shown to the user as sheet music, with a cursor that follows playback. Ask whether it fits, and offer changes.",
+      );
+    }
   });
 
-  it("keep the old wording for a plain render", async () => {
-    const { meter: _meter, ...plain } = score;
-    const result = await executeManage({}, { action: "renderScore", score: plain });
-    expect(result.instructions).toBe("The jingle is shown to the user in a player with its waveform, cues and beats. Ask whether it fits, and offer changes.");
-    if (result.data) expect(instructionsFor({ ...result.data, presentation: undefined })).toContain("waveform");
+  it("say the waveform when it was asked for, when there is nothing to draw, and for a result from before views", async () => {
+    const waveform = "The jingle is shown to the user in a player with its waveform, cues and beats. Ask whether it fits, and offer changes.";
+    const asked = await executeManage({}, { action: "renderScore", score, view: "waveform" });
+    expect(asked.instructions).toBe(waveform);
+    const effects = { ...score, tracks: [{ instrument: "clap", notes: [{ at: 0 }] }] };
+    expect((await executeManage({}, { action: "renderScore", score: effects })).instructions).toBe(waveform);
+    if (asked.data) expect(instructionsFor({ ...asked.data, presentation: undefined })).toContain("waveform");
   });
 });

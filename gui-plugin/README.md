@@ -16,14 +16,14 @@ non-commercial). The host's server waits 20–40 s for it, with no card. The sco
 `jinglescript/<fileName>.json` through the host's `files.byPath`, and its path goes back to the LLM
 for `renderScore`; a host without `files.byPath` gets the score itself in the answer.
 
-**Sheet music, for teaching.** `renderScore` takes three options for the view:
+**Sheet music.** `renderScore` takes three options for the view:
 
-- `view`: `"waveform"` or `"notation"` (the default for a score that sets `meter`, `key` or
-  `pickup`; any other opens as its waveform): sheet music drawn by
+- `view`: `"notation"` (the default) or `"waveform"`. Sheet music is drawn by
   [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) from the library's MusicXML, with a
-  cursor on the note being played and a bar to seek. A score that sets `meter`, `key` or `pickup`
-  carries its sheet music either way, and the view offers a Waveform / Sheet music switch; the
-  MusicXML can be downloaded. The renderer is loaded only when sheet music is shown.
+  cursor on the note being played and a bar to seek. Every score with pitched notes carries its
+  sheet music and opens with it; the view offers a Waveform / Sheet music switch, and the MusicXML
+  can be downloaded. A score of sound effects only has no sheet music and shows its waveform. The
+  renderer is loaded only when sheet music is shown.
 - `autoplay: true`: the card starts playing when it appears. Only a fresh render does (one made in
   the last two minutes), and only once: the card remembers it in the result's `viewState`, so a
   chat reopened or replayed never plays old cards. When the browser wants a click first, the card

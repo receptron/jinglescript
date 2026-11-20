@@ -13,6 +13,8 @@ export { compose, planWithYuE2, yue2Python, Yue2Error, Yue2MissingError } from "
 export type { ComposeOptions, Composition, Yue2Plan, Yue2Request, Yue2RunOptions } from "./compose.ts";
 export { manage, ManageInputSchema, manageInputJsonSchema, MANAGE_TOOL, MANAGE_ACTIONS, MANAGE_DESCRIPTION } from "./manage.ts";
 export type { ManageInput, ManageResult, ManageOptions, ManageAction } from "./manage.ts";
+export { renderFileNames } from "./render-files.ts";
+export type { RenderFiles } from "./render-files.ts";
 export { awaitDeferredPlayer, deferredRenderProgress, DEFERRED_KEEP_MS } from "./deferred-renders.ts";
 export type { DeferredOutcome } from "./deferred-renders.ts";
 export { FfmpegMissingError } from "./encode.ts";

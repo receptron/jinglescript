@@ -58,6 +58,16 @@ host's `files.byPath` capability — the one presentDocument uses — so the hos
 may reach and what a relative path is relative to. A host that does not provide `files.byPath` to
 `manageJingleScript` gets an error asking for the score inline.
 
+**Renders kept as files.** With `files.byPath`, every `renderScore` also writes the audio and its
+timing map to the host's files, `jinglescript/<stem>.mp3` (`.wav` without ffmpeg) and
+`jinglescript/<stem>.timing.json` (`jinglescript-timing/1`: every note, beat, cue and lyric syllable
+in seconds), and tells the LLM their paths as `audioFile` and `timingFile`, to hand to a tool that
+animates to the song (an avatar that sings it). `<stem>` is `fileName`, else the score file's name,
+else `jingle`. A render never takes an earlier render's names, nor a name that is another score's:
+it becomes `<stem>-2`, `<stem>-3` …, and `composeScore` skips those names in turn. When the card is
+shown before its audio (`deferredAudio`), the paths are told at once and the files are written when
+the audio is ready. A host without `files.byPath` keeps no files, as before.
+
 - **`"@gui-chat-plugin/jinglescript"`** (main entry, Node): `TOOL_DEFINITION`, `pluginCore`
   (`execute` renders on the host's server, on a worker thread, so the server keeps answering). The
   audio is embedded as a data URI — MP3 when ffmpeg is on the server, otherwise 16-bit WAV — so no

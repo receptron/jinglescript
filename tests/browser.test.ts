@@ -70,6 +70,7 @@ describe("jinglescript/browser", () => {
       "MANAGE_TOOL",
       "MANAGE_ACTIONS",
       "MANAGE_DESCRIPTION",
+      "renderFileNames",
       "AUDIO_FORMATS",
       "FfmpegMissingError",
       "NeutrinoMissingError",

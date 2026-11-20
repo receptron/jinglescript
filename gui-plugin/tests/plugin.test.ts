@@ -46,16 +46,44 @@ describe("the GUI Chat Protocol plugin", () => {
         return Promise.resolve(JSON.stringify(score));
       },
       readBytes: unused,
-      write: unused,
+      write: (): Promise<void> => Promise.resolve(),
       readDir: unused,
       stat: unused,
-      exists: () => Promise.resolve(true),
+      exists: () => Promise.resolve(false),
       unlink: unused,
     };
     const result = await executeManage({ files: { byPath } }, { action: "renderScore", path: "/work/plugin-test.json" });
     expect(reads).toEqual(["/work/plugin-test.json"]);
     expect(result.data?.title).toBe("Plugin test");
     expect((await executeManage({}, { action: "renderScore", path: "/work/plugin-test.json" })).message).toContain("cannot read files");
+  });
+
+  it("keeps every render's audio and timing map under jinglescript/ through files.byPath, and tells the LLM their paths", async () => {
+    const stored = new Map<string, string | Uint8Array>();
+    const unused = (): Promise<never> => Promise.reject(new Error("unused"));
+    const byPath = {
+      read: unused,
+      readBytes: unused,
+      write: (path: string, content: string | Uint8Array): Promise<void> => {
+        stored.set(path, content);
+        return Promise.resolve();
+      },
+      readDir: unused,
+      stat: unused,
+      exists: (path: string) => Promise.resolve(stored.has(path)),
+      unlink: unused,
+    };
+    const first = JSON.parse((await executeManage({ files: { byPath } }, { action: "renderScore", score })).message) as {
+      audioFile: string;
+      timingFile: string;
+    };
+    expect(first.audioFile).toMatch(/^jinglescript\/jingle\.(mp3|wav)$/);
+    expect(first.timingFile).toBe("jinglescript/jingle.timing.json");
+    expect(stored.get(first.audioFile)).toBeInstanceOf(Uint8Array);
+    expect(JSON.parse(String(stored.get(first.timingFile)))).toMatchObject({ format: "jinglescript-timing/1", cues: { hit: 1 } });
+    const second = JSON.parse((await executeManage({ files: { byPath } }, { action: "renderScore", score })).message) as { timingFile: string };
+    expect(second.timingFile).toBe("jinglescript/jingle-2.timing.json");
+    expect(JSON.parse((await executeManage({}, { action: "renderScore", score })).message)).not.toHaveProperty("audioFile");
   });
 
   it("composeScore saves its score under jinglescript/ through files.byPath, never over an earlier one, for renderScore to read back", async () => {
@@ -83,10 +111,17 @@ describe("the GUI Chat Protocol plugin", () => {
       expect([...written.keys()]).toEqual(["jinglescript/song.json", "jinglescript/song.abc"]);
       const rendered = await executeManage({ files: { byPath } }, { action: "renderScore", path: "jinglescript/song.json" });
       expect(rendered.data?.title).toBe("song");
+      // The render is kept beside its score, under the same name.
+      expect(rendered.message).toMatch(/"audioFile": "jinglescript\/song\.(mp3|wav)"/);
+      expect(written.has("jinglescript/song.timing.json")).toBe(true);
       // The next composition does not replace it.
       const again = await executeManage({ files: { byPath } }, { action: "composeScore", style: "s", lyrics: "はてな" });
       expect(again.message).toContain('"path": "jinglescript/song-2.json"');
-      expect(written.size).toBe(4);
+      // Rendered again, the first song is not kept as "song-2" (the second song's name), and a third song is not named like that render.
+      const rerendered = await executeManage({ files: { byPath } }, { action: "renderScore", path: "jinglescript/song.json" });
+      expect(rerendered.message).toMatch(/"audioFile": "jinglescript\/song-3\.(mp3|wav)"/);
+      const third = await executeManage({ files: { byPath } }, { action: "composeScore", style: "s", lyrics: "はてな" });
+      expect(third.message).toContain('"path": "jinglescript/song-4.json"');
     } finally {
       vi.unstubAllEnvs();
     }

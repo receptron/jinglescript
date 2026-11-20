@@ -3,7 +3,7 @@
 // whose `data` a player view renders). Each action calls one library function.
 import { z } from "zod";
 import { AUDIO_FORMATS, MIME_TYPES } from "./audio-format.ts";
-import { encodeAudioBytes, FfmpegMissingError } from "./encode.ts";
+import { encodeAudioBytes, ffmpegAvailable, FfmpegMissingError } from "./encode.ts";
 import { removedInstrument } from "./instruments/index.ts";
 import { getAuthoringGuide, getInstrument, getSchema, listInstruments, SCHEMA_PARTS, type SchemaPart } from "./llm.ts";
 import { writeFile } from "node:fs/promises";
@@ -11,6 +11,8 @@ import { join } from "node:path";
 import { renderToFiles } from "./output.ts";
 import { scoreToMusicXml } from "./musicxml.ts";
 import { deferRender } from "./deferred-renders.ts";
+import { RenderFilesFullError, reserveRenderFiles, type RenderFiles, type RenderSlot } from "./render-files.ts";
+import { toWav } from "./wav.ts";
 import {
   dataUri,
   pendingPlayerData,
@@ -21,6 +23,7 @@ import {
   firstView,
   wavPlayerAudio,
   type PlayerAudio,
+  type PlayerAudioFormat,
   type PlayerData,
   type Presentation,
 } from "./player.ts";
@@ -99,7 +102,7 @@ export const ManageInputSchema = z
       .regex(FILE_STEM, { error: 'fileName is a plain file stem such as "opening" — no folders, no extension.' })
       .optional()
       .describe(
-        'renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle"). composeScore: file stem of the score it saves (default "song"); when that name is taken it saves as "<stem>-2", "<stem>-3" …, never over an earlier score, and answers with the path it used.',
+        'renderScore: file stem for the outputs (default: the score file\'s name with `path`, otherwise "jingle"; a host that keeps renders as files answers with their paths, `audioFile` and `timingFile`, and never overwrites an earlier render: a taken name becomes "<stem>-2", "<stem>-3" …). composeScore: file stem of the score it saves (default "song"); when that name is taken it saves as "<stem>-2", "<stem>-3" …, never over an earlier score, and answers with the path it used.',
       ),
     format: z.enum(AUDIO_FORMATS).optional().describe('renderScore: "wav" (default), "mp3" or "ogg" (MP3 and OGG need ffmpeg).'),
     view: z
@@ -187,8 +190,14 @@ export interface ManageOptions {
    * what a path may reach and what a relative one is relative to. Without it, `path` is refused.
    */
   readScoreFile?: (path: string) => Promise<string>;
-  /** Write renders here (MCP). Without it, renderScore writes no files. */
+  /** Write renders here (MCP). Without it (and without `renderFiles`), renderScore writes no files. */
   outDir?: string;
+  /**
+   * Keeps every render's audio and timing map as files through the carrier's file access (a GUI
+   * Chat host's workspace), and tells the model their paths, for a tool that animates to the song.
+   * A render never takes an earlier one's names: "<stem>-2", "<stem>-3" … Not used with `outDir`.
+   */
+  renderFiles?: RenderFiles;
   /** Build PlayerData for a view (GUI Chat Protocol). */
   player?: boolean;
   /**
@@ -219,6 +228,34 @@ async function embeddedAudio(result: RenderResult, score: Score): Promise<Player
     return wavPlayerAudio(result, score);
   }
 }
+
+/** The render as the bytes of an audio file in `format`, tagged like the embedded audio. */
+async function audioBytes(result: RenderResult, score: Score, format: PlayerAudioFormat): Promise<Uint8Array> {
+  if (format === "mp3") return encodeAudioBytes(result.audio, result.sampleRate, "mp3", tagsOf(score));
+  return toWav(result.audio, result.sampleRate, 16, tagsOf(score));
+}
+
+/** The files a render is kept as, named before it starts; undefined when the carrier keeps none (or writes to `outDir`). */
+async function slotFor(input: ManageInput, options: ManageOptions, stem: string): Promise<RenderSlot | undefined> {
+  if (options.outDir !== undefined || options.renderFiles === undefined) return undefined;
+  // Named after the score file it was read from: that file is this render's own, not another song's.
+  const ownsScore = input.fileName === undefined && input.path !== undefined && stemOf(input.path) === stem;
+  return reserveRenderFiles(options.renderFiles, stem, (await ffmpegAvailable()) ? "mp3" : "wav", ownsScore);
+}
+
+/** The audio a player embeds; with a slot, the same bytes and the timing map are written to its files first. */
+async function playerAudio(result: RenderResult, score: Score, slot: RenderSlot | undefined): Promise<PlayerAudio> {
+  if (slot === undefined) return embeddedAudio(result, score);
+  const bytes = await audioBytes(result, score, slot.format);
+  await slot.save(bytes, result.timing);
+  return { audio: dataUri(MIME_TYPES[slot.format], bytes), mimeType: MIME_TYPES[slot.format] };
+}
+
+/** Where a kept render's files are, for the model to hand to another tool. */
+const slotPaths = (slot: RenderSlot | undefined): { audioFile: string; timingFile: string } | Record<string, never> =>
+  slot === undefined ? {} : { audioFile: slot.audioFile, timingFile: slot.timingFile };
+
+const TIMING_IN_FILE = "in timingFile, or render again with includeTiming: true";
 
 function parseMaybeJson(score: unknown): unknown {
   if (typeof score !== "string") return score;
@@ -351,38 +388,82 @@ function deferWait(options: ManageOptions): number | undefined {
   return options.deferAudio === true ? DEFER_WAIT_MS : options.deferAudio.waitMs;
 }
 
+/** A renderScore call that passed its checks: what to render, under which name, and the files it is kept as. */
+interface RenderJob {
+  input: ManageInput;
+  score: Score;
+  /** The score as it was written, for the player to give back. */
+  written: unknown;
+  stem: string;
+  warnings: readonly ScoreProblem[];
+  slot: RenderSlot | undefined;
+}
+
 async function renderAction(input: ManageInput, options: ManageOptions): Promise<ManageResult> {
   const source = await scoreOf(input, options);
   if (!source.ok) return source.result;
-  const raw = source.score;
-  const check = checkScore(raw, { notation: input.view === "notation" });
+  const check = checkScore(source.score, { notation: input.view === "notation" });
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
-  const score = parseScore(raw);
+  const score = parseScore(source.score);
   const stem = stemFor(input);
   const missing = missingSinger(score);
   if (missing !== undefined) return missing;
-  const waitMs = deferWait(options);
-  if (waitMs !== undefined) return deferredRenderAction(input, score, raw, stem, check.warnings, waitMs);
-  let files: { audio: string; timing: string } | undefined;
-  let result: RenderResult;
+  let slot: RenderSlot | undefined;
   try {
-    if (options.outDir === undefined) result = await render(score, { samples: await loadSamples(score) });
-    else ({ result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" }));
+    slot = await slotFor(input, options, stem);
+  } catch (error) {
+    if (error instanceof RenderFilesFullError) return { text: error.message, isError: true };
+    throw error;
+  }
+  const job: RenderJob = { input, score, written: source.score, stem, warnings: check.warnings, slot };
+  const waitMs = deferWait(options);
+  return waitMs === undefined ? renderNow(job, options) : deferredRenderAction(job, waitMs);
+}
+
+/** A render that is done: its files in `outDir` (MCP), and the audio a player embeds (also written to the job's slot). */
+interface Rendered {
+  result: RenderResult;
+  files?: { audio: string; timing: string };
+  audio?: PlayerAudio;
+}
+
+async function rendered(job: RenderJob, options: ManageOptions): Promise<Rendered> {
+  const { input, score, stem, slot } = job;
+  try {
+    if (options.outDir !== undefined) {
+      const { result, ...files } = await renderToFiles(score, options.outDir, stem, { format: input.format ?? "wav" });
+      return { result, files, ...(options.player === true ? { audio: await embeddedAudio(result, score) } : {}) };
+    }
+    const result = await render(score, { samples: await loadSamples(score) });
+    return { result, ...(options.player === true || slot !== undefined ? { audio: await playerAudio(result, score, slot) } : {}) };
+  } catch (error) {
+    slot?.release();
+    throw error;
+  }
+}
+
+/** renderScore that answers when the audio is there. */
+async function renderNow(job: RenderJob, options: ManageOptions): Promise<ManageResult> {
+  const { input, score, stem, slot } = job;
+  let done: Rendered;
+  try {
+    done = await rendered(job, options);
   } catch (error) {
     if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;
   }
+  const { result, files, audio } = done;
   const notationFile =
     files && options.outDir !== undefined && wantsNotation(score, input.view ?? "waveform") ? await writeNotation(score, options.outDir, stem) : undefined;
-  const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : FULL_TIMING_AT;
   const summary = {
     ok: true,
     ...(files ? { audio: files.audio, timingFile: files.timing } : {}),
+    ...slotPaths(slot),
     ...(notationFile === undefined ? {} : { notationFile }),
-    ...renderSummary(input, score, result, check.warnings, fullTimingAt),
+    ...renderSummary(input, score, result, job.warnings, files || slot ? TIMING_IN_FILE : FULL_TIMING_AT),
   };
-  if (!options.player) return { text: json(summary), isError: false };
-  const player = { ...toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input, score)), written: raw };
+  if (options.player !== true || audio === undefined) return { text: json(summary), isError: false };
+  const player = { ...toPlayerData(score, result, stem, audio, presentationOf(input, score)), written: job.written };
   return { text: json(summary), isError: false, player };
 }
 
@@ -402,11 +483,17 @@ async function renderPlayer(
   score: Score,
   stem: string,
   presentation: Presentation,
+  slot: RenderSlot | undefined,
   onProgress?: (progress: RenderProgress) => void,
 ): Promise<{ result: RenderResult; player: PlayerData }> {
-  const result = await render(score, { samples: await loadSamples(score), ...(onProgress ? { onProgress } : {}) });
-  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), { ...presentation, renderedAt: Date.now() });
-  return { result, player };
+  try {
+    const result = await render(score, { samples: await loadSamples(score), ...(onProgress ? { onProgress } : {}) });
+    const player = toPlayerData(score, result, stem, await playerAudio(result, score, slot), { ...presentation, renderedAt: Date.now() });
+    return { result, player };
+  } catch (error) {
+    slot?.release();
+    throw error;
+  }
 }
 
 const FULL_TIMING_AT = "render again with includeTiming: true to get them";
@@ -416,17 +503,11 @@ const FULL_TIMING_AT = "render again with includeTiming: true to get them";
  * ready within `waitMs`, else (and always when `waitMs` is 0) a `pending` player at once while the
  * render goes on.
  */
-async function deferredRenderAction(
-  input: ManageInput,
-  score: Score,
-  written: unknown,
-  stem: string,
-  warnings: readonly ScoreProblem[],
-  waitMs: number,
-): Promise<ManageResult> {
+async function deferredRenderAction(job: RenderJob, waitMs: number): Promise<ManageResult> {
+  const { input, score, written, stem, warnings, slot } = job;
   const presentation = presentationOf(input, score);
   let progress: RenderProgress | undefined;
-  const rendering = renderPlayer(score, stem, presentation, (latest) => (progress = latest)).then(({ result, player }) => ({
+  const rendering = renderPlayer(score, stem, presentation, slot, (latest) => (progress = latest)).then(({ result, player }) => ({
     result,
     player: { ...player, written },
   }));
@@ -439,7 +520,11 @@ async function deferredRenderAction(
     throw error;
   }
   if (done !== undefined)
-    return { text: json({ ok: true, ...renderSummary(input, score, done.result, warnings, FULL_TIMING_AT) }), isError: false, player: done.player };
+    return {
+      text: json({ ok: true, ...slotPaths(slot), ...renderSummary(input, score, done.result, warnings, slot ? TIMING_IN_FILE : FULL_TIMING_AT) }),
+      isError: false,
+      player: done.player,
+    };
   const id = deferRender(
     rendering.then(({ player }) => player),
     () => progress,
@@ -447,7 +532,8 @@ async function deferredRenderAction(
   const player = { ...pendingPlayerData(score, stem, presentation, id), written };
   const summary = {
     ok: true,
-    audio: "still rendering: the player shows the score now and plays it when the audio is ready (loudness and true peak are not known yet)",
+    audio: `still rendering: the player shows the score now and plays it when the audio is ready (loudness and true peak are not known yet${slot ? "; audioFile and timingFile are written then" : ""})`,
+    ...slotPaths(slot),
     warnings,
     timing: input.includeTiming ? player.timing : timingSummary(player.timing, score.tracks.length, FULL_TIMING_AT),
   };

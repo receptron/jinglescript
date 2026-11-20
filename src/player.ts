@@ -25,7 +25,7 @@ export interface PlayerData {
   loudness: number;
   /** The score that was rendered, with its defaults filled in. */
   score: Score;
-  /** The same score as it was written (a valid score, nothing filled in), for saving it; absent in results rendered before it was added. */
+  /** The same score as it was written (a valid score, nothing filled in), for saving it; absent in results rendered before 1.3. */
   written?: unknown;
   /** The score as a Standard MIDI File, as a data URI. */
   midi: string;

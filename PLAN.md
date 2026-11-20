@@ -1614,3 +1614,11 @@ Decided:
   without writing (MCP: `wx`; plugin: `files.byPath.exists`), and composeScore tries
   `<stem>-2`, `<stem>-3` … up to 1000, saving the ABC under the same stem (left out when only it
   is taken).
+
+- 2026-11-20 — Sheet music first for a score written for it; the view downloads the score
+  (1.3.0). In MulmoChat a piano piece opened as sheet music and a sung song as a waveform: the
+  first view came only from `view` (default "waveform"), and the guide names `view` only under
+  Sheet music. Now renderScore without `view` opens a score that sets `meter`, `key` or `pickup`
+  as sheet music (`firstView` in src/player.ts); `"view": "waveform"` still opens the waveform.
+  The player data carries the score as written (`written`), and the view has "Download
+  JingleScript" (.json). Not looked at in a browser.

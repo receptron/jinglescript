@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { awaitDeferredPlayer } from "../src/deferred-renders.ts";
 import { ffmpegAvailable } from "../src/encode.ts";
 import { manage } from "../src/manage.ts";
-import type { RenderFiles } from "../src/render-files.ts";
+import { renderStemHeld, type RenderFiles } from "../src/render-files.ts";
 import { TimingSchema } from "../src/timing.ts";
 
 const extension = (await ffmpegAvailable()) ? "mp3" : "wav";
@@ -90,6 +90,16 @@ describe("renderScore with renderFiles (a carrier that keeps renders as files)",
     expect(summaryOf((await manage({ action: "renderScore", score, fileName: "song-2" }, options)).text).audioFile).toBe(`work/song-2-2.${extension}`);
   });
 
+  it("takes a score file as its own only at the kept files' own path: the same name elsewhere is another song", async () => {
+    const { files, stored } = memoryFiles();
+    const options = { renderFiles: files, readScoreFile: () => Promise.resolve(JSON.stringify(score)) };
+    stored.set("song.json", "a song kept here");
+    const audioOf = async (path: string) => summaryOf((await manage({ action: "renderScore", path }, options)).text).audioFile;
+    expect(await audioOf("elsewhere/song.json")).toBe(`work/song-2.${extension}`);
+    expect(await audioOf("/abs/work/song.json")).toBe(`work/song-3.${extension}`);
+    expect(await audioOf("work/song.json")).toBe(`work/song.${extension}`);
+  });
+
   it("tells the model to give another name when none is left", async () => {
     const files: RenderFiles = { pathOf: (name) => name, exists: () => Promise.resolve(true), write: () => Promise.resolve() };
     const result = await manage({ action: "renderScore", score }, { renderFiles: files });
@@ -105,12 +115,15 @@ describe("renderScore with renderFiles (a carrier that keeps renders as files)",
     expect([a.audioFile, b.audioFile].sort()).toEqual([`work/jingle-2.${extension}`, `work/jingle.${extension}`]);
     expect(a.audio).toContain("audioFile and timingFile are written then");
     expect(first.player?.pending).toEqual(expect.any(String));
+    // Until their files are written, the names are held: a carrier saving a score asks before taking one.
+    expect(["jingle", "jingle-2", "jingle-3"].map((stem) => renderStemHeld(files, stem))).toEqual([true, true, false]);
 
     for (const result of [first, second]) {
       const outcome = await awaitDeferredPlayer(result.player?.pending ?? "");
       expect(outcome.kind).toBe("ready");
     }
     expect([...stored.keys()].sort()).toEqual([`jingle-2.${extension}`, "jingle-2.timing.json", `jingle.${extension}`, "jingle.timing.json"].sort());
+    expect(renderStemHeld(files, "jingle")).toBe(false);
   });
 
   it("keeps nothing and frees the name when the score is refused or the carrier writes to outDir", async () => {

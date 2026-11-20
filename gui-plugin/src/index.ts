@@ -16,6 +16,7 @@ import {
   ManageInputSchema,
   manage,
   renderFileNames,
+  renderStemHeld,
   type PlayerData,
   type RenderFiles,
 } from "jinglescript";
@@ -68,11 +69,14 @@ const renderFilesIn = (files: FileOps): RenderFiles => ({
 
 /**
  * Never overwrites: a name that is taken answers undefined, and composeScore tries another. A
- * score's name is taken too when a render is kept under it ("song-2.mp3", of an earlier song).
+ * score's name is taken too when a render is kept under it ("song-2.mp3", of an earlier song), or
+ * will be (a render still running that holds the name).
  */
 async function saveComposed(files: FileOps, name: string, content: string): Promise<string | undefined> {
   const path = `${COMPOSED_DIR}/${name}`;
-  const others = name.endsWith(".json") ? renderFileNames(name.slice(0, -".json".length)).map((file) => `${COMPOSED_DIR}/${file}`) : [];
+  const stem = name.endsWith(".json") ? name.slice(0, -".json".length) : undefined;
+  if (stem !== undefined && renderStemHeld(renderFilesIn(files), stem)) return undefined;
+  const others = stem === undefined ? [] : renderFileNames(stem).map((file) => `${COMPOSED_DIR}/${file}`);
   if ((await Promise.all([path, ...others].map((file) => files.exists(file)))).some(Boolean)) return undefined;
   await files.write(path, content);
   return path;

@@ -1634,5 +1634,7 @@ Decided:
   constant of this encoder, not recorded in the file (written through a pipe, it has no header,
   so ffprobe also estimates its length wrongly: 2.85 s for 4 s). A reader takes the length from
   the timing map's `duration` and shifts times by 23 ms for an MP3 (0 for a WAV). User,
-  2026-11-20: MP3 stays. Not yet tried from
+  2026-11-20: MP3 stays. Codex review: a score file is the render's own only at the kept files'
+  own path (the same name in another folder is another song), and composeScore does not take a
+  name a running render holds (`renderStemHeld`). Not yet tried from
   MulmoChat, nor read by AvatarScript.

@@ -46,8 +46,14 @@ export class RenderFilesFullError extends Error {
   }
 }
 
-/** Stems of renders still running, by the path of their audio: their files do not exist yet. */
+/** Stems of renders still running, by the path the carrier gives the stem: their files do not exist yet. */
 const held = new Set<string>();
+
+/**
+ * Whether a render that is still running holds `stem`: its files are not there yet, so a carrier
+ * that saves something else under the stem (a composed score) asks this as well as its files.
+ */
+export const renderStemHeld = (files: Pick<RenderFiles, "pathOf">, stem: string): boolean => held.has(files.pathOf(stem));
 
 /**
  * Names the files of a render that is about to start: `<stem>.<format>` and `<stem>.timing.json`,

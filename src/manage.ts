@@ -235,11 +235,15 @@ async function audioBytes(result: RenderResult, score: Score, format: PlayerAudi
   return toWav(result.audio, result.sampleRate, 16, tagsOf(score));
 }
 
+/** Whether two paths the model and the carrier use name the same file: as written, but for `\\` (a score path has no `.` or `..` segment). */
+const samePath = (a: string, b: string): boolean => a.replaceAll("\\", "/") === b.replaceAll("\\", "/");
+
 /** The files a render is kept as, named before it starts; undefined when the carrier keeps none (or writes to `outDir`). */
 async function slotFor(input: ManageInput, options: ManageOptions, stem: string): Promise<RenderSlot | undefined> {
   if (options.outDir !== undefined || options.renderFiles === undefined) return undefined;
-  // Named after the score file it was read from: that file is this render's own, not another song's.
-  const ownsScore = input.fileName === undefined && input.path !== undefined && stemOf(input.path) === stem;
+  // Read from the very file that holds the stem among the kept files ("jinglescript/song.json"): that
+  // score is this render's own. A file of the same name elsewhere is another song's.
+  const ownsScore = input.fileName === undefined && input.path !== undefined && samePath(input.path, options.renderFiles.pathOf(`${stem}.json`));
   return reserveRenderFiles(options.renderFiles, stem, (await ffmpegAvailable()) ? "mp3" : "wav", ownsScore);
 }
 

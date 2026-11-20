@@ -1622,7 +1622,7 @@ Decided:
   as sheet music (`firstView` in src/player.ts); `"view": "waveform"` still opens the waveform.
   The player data carries the score as written (`written`), and the view has "Download
   JingleScript" (.json). Not looked at in a browser.
-- 2026-11-20 — The plugin keeps every render as files, for a tool that animates to the song
+- 2026-11-20 — The plugin keeps every render as files, for a tool that animates to the song (1.4.0)
   (the aim: an AvatarScript avatar that sings a JingleScript song; AvatarScript takes character
   times from outside, so lyric syllables in the timing map are all it needs). New carrier option
   `renderFiles` of `manage()` (src/render-files.ts): with it, renderScore writes

@@ -339,7 +339,9 @@ message when the user has heard it to the end, so you can ask about it or go on 
 exercise. Say what to listen for before renderScore, and say nothing while it plays: speech over
 the music drowns it out. In a voice chat the player waits until you have answered the render and
 fallen quiet; \`"autoplayDelay": n\` makes it wait n seconds after it appears instead. The sound is the same either way: sheet music is drawn from the score you
-wrote.
+wrote. Without \`view\`, a score that sets \`meter\`, \`key\` or \`pickup\` (a sung one too) opens as
+sheet music and any other as its waveform; \`"view": "waveform"\` opens the waveform whatever the
+score sets.
 
 - Set \`"meter"\` ("4/4", "3/4", "2/4", "6/8") and \`"key"\` ("C", "G", "F", "D", "Bb", "Am", "Em" …).
   They only change the page; still write every note's real pitch ("F#4" in G major, "Bb4" in F).

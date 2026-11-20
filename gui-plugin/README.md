@@ -7,8 +7,8 @@ successful `renderScore` returns the jingle as `data`, and the view plays it wit
 beat grid, named cues (click one to jump there) and a lane of notes per track; effects with a
 length (risers, whooshes) show as bars. When the score has lyrics, the view shows them
 karaoke-style: the line being played and the next, each syllable filling in as its note plays.
-The audio and the music as MIDI (the library's `scoreToMidi`) can be downloaded from the view;
-the data also carries the score that was rendered. Every other action answers the LLM in text and shows no card.
+The audio, the music as MIDI (the library's `scoreToMidi`) and the score itself (JingleScript, a
+`.json` file `renderScore` and the CLI take back) can be downloaded from the view. Every other action answers the LLM in text and shows no card.
 
 **Composing.** `composeScore` has [YuE2](https://github.com/receptron/jinglescript#compose-with-yue2-optional) write a melody
 and chords for lyrics, when it is set up on the host's machine (`YUE2_PYTHON`; its weights are
@@ -18,7 +18,8 @@ for `renderScore`; a host without `files.byPath` gets the score itself in the an
 
 **Sheet music, for teaching.** `renderScore` takes three options for the view:
 
-- `view`: `"waveform"` (default) or `"notation"`: sheet music drawn by
+- `view`: `"waveform"` or `"notation"` (the default for a score that sets `meter`, `key` or
+  `pickup`; any other opens as its waveform): sheet music drawn by
   [OpenSheetMusicDisplay](https://opensheetmusicdisplay.org/) from the library's MusicXML, with a
   cursor on the note being played and a bar to seek. A score that sets `meter`, `key` or `pickup`
   carries its sheet music either way, and the view offers a Waveform / Sheet music switch; the

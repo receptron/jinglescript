@@ -44,7 +44,22 @@ describe("manageJingleScript, carried by any protocol", () => {
     expect(player?.timing.cues).toEqual({ hit: 1 });
     expect(player?.tracks).toEqual(["marimba"]);
     expect(player?.score).toMatchObject({ title: "Test sting", tempo: 120 });
+    expect(player?.score).toHaveProperty("seed");
+    expect(player?.written).toEqual(score);
     expect(player?.midi.startsWith("data:audio/midi;base64,TVRoZA")).toBe(true);
+  });
+
+  it("opens a score written for sheet music (meter, key or pickup) as sheet music, unless the waveform is asked for", async () => {
+    const first = async (extra: object, view?: "waveform" | "notation") =>
+      (await manage({ action: "renderScore", score: { ...score, ...extra }, ...(view === undefined ? {} : { view }) }, { player: true })).player;
+    expect((await first({}))?.presentation?.view).toBe("waveform");
+    expect((await first({}))?.musicxml).toBeUndefined();
+    expect((await first({ meter: "4/4" }))?.presentation?.view).toBe("notation");
+    expect((await first({ key: "C" }))?.presentation?.view).toBe("notation");
+    const asked = await first({ meter: "4/4" }, "waveform");
+    expect(asked?.presentation?.view).toBe("waveform");
+    expect(asked?.musicxml).toEqual(expect.any(String));
+    expect((await first({}, "notation"))?.presentation?.view).toBe("notation");
   });
 
   it("writes no files without an output folder, and no player data unless asked", async () => {
@@ -109,6 +124,7 @@ describe("renderScore with deferAudio (a view that collects the audio later)", (
     expect(result.isError).toBe(false);
     expect(pending?.pending).toEqual(expect.any(String));
     expect(pending).toMatchObject({ audio: "", peaks: [], title: "Test sting", tracks: ["marimba"], duration: 3 });
+    expect(pending?.written).toEqual(score);
     expect(pending?.timing.cues).toEqual({ hit: 1 });
     expect(pending?.presentation).toMatchObject({ autoplay: true });
     expect(JSON.parse(result.text)).toMatchObject({ ok: true, audio: expect.stringContaining("still rendering") });
@@ -116,6 +132,7 @@ describe("renderScore with deferAudio (a view that collects the audio later)", (
     const outcome = await awaitDeferredPlayer(pending?.pending ?? "");
     if (outcome.kind !== "ready") throw new Error(`expected the finished player, got ${outcome.kind}`);
     const finished = outcome.player;
+    expect(finished.written).toEqual(score);
     expect(finished.pending).toBeUndefined();
     expect(finished.audio.startsWith("data:")).toBe(true);
     expect(finished.peaks.length).toBeGreaterThan(500);

@@ -18,6 +18,7 @@ import {
   toPlayerData,
   VIEWS,
   wantsNotation,
+  firstView,
   wavPlayerAudio,
   type PlayerAudio,
   type PlayerData,
@@ -105,7 +106,7 @@ export const ManageInputSchema = z
       .enum(VIEWS)
       .optional()
       .describe(
-        'renderScore: what the player shows the user first — "waveform" (default: the sound with its cues and beats) or "notation" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
+        'renderScore: what the player shows the user first — "waveform" (the sound with its cues and beats) or "notation" (sheet music with a cursor following playback, for teaching and reading music; give the score a `meter`, and `key` when it has one). Default: "notation" for a score that sets `meter`, `key` or `pickup`, else "waveform". checkScore: "notation" also reports what the sheet music had to round or shorten. Only where a player view shows the result.',
       ),
     autoplay: z
       .boolean()
@@ -299,9 +300,9 @@ async function writeNotation(score: Score, dir: string, stem: string): Promise<s
 }
 
 /** What the player was asked to do with the render. */
-function presentationOf(input: ManageInput): Presentation {
+function presentationOf(input: ManageInput, score: Score): Presentation {
   return {
-    view: input.view ?? "waveform",
+    view: firstView(score, input.view),
     autoplay: input.autoplay === true,
     ...(input.autoplayDelay === undefined ? {} : { autoplayDelay: input.autoplayDelay }),
     notifyWhenDone: input.notifyWhenDone === true,
@@ -354,15 +355,14 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
   const source = await scoreOf(input, options);
   if (!source.ok) return source.result;
   const raw = source.score;
-  const view = input.view ?? "waveform";
-  const check = checkScore(raw, { notation: view === "notation" });
+  const check = checkScore(raw, { notation: input.view === "notation" });
   if (!check.ok) return { text: json({ ok: false, errors: check.errors }), isError: true };
   const score = parseScore(raw);
   const stem = stemFor(input);
   const missing = missingSinger(score);
   if (missing !== undefined) return missing;
   const waitMs = deferWait(options);
-  if (waitMs !== undefined) return deferredRenderAction(input, score, stem, check.warnings, waitMs);
+  if (waitMs !== undefined) return deferredRenderAction(input, score, raw, stem, check.warnings, waitMs);
   let files: { audio: string; timing: string } | undefined;
   let result: RenderResult;
   try {
@@ -372,7 +372,8 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     if (isSetupError(error)) return { text: error.message, isError: true };
     throw error;
   }
-  const notationFile = files && options.outDir !== undefined && wantsNotation(score, view) ? await writeNotation(score, options.outDir, stem) : undefined;
+  const notationFile =
+    files && options.outDir !== undefined && wantsNotation(score, input.view ?? "waveform") ? await writeNotation(score, options.outDir, stem) : undefined;
   const fullTimingAt = files ? "in timingFile, or render again with includeTiming: true" : FULL_TIMING_AT;
   const summary = {
     ok: true,
@@ -381,7 +382,7 @@ async function renderAction(input: ManageInput, options: ManageOptions): Promise
     ...renderSummary(input, score, result, check.warnings, fullTimingAt),
   };
   if (!options.player) return { text: json(summary), isError: false };
-  const player = toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input));
+  const player = { ...toPlayerData(score, result, stem, await embeddedAudio(result, score), presentationOf(input, score)), written: raw };
   return { text: json(summary), isError: false, player };
 }
 
@@ -415,10 +416,20 @@ const FULL_TIMING_AT = "render again with includeTiming: true to get them";
  * ready within `waitMs`, else (and always when `waitMs` is 0) a `pending` player at once while the
  * render goes on.
  */
-async function deferredRenderAction(input: ManageInput, score: Score, stem: string, warnings: readonly ScoreProblem[], waitMs: number): Promise<ManageResult> {
-  const presentation = presentationOf(input);
+async function deferredRenderAction(
+  input: ManageInput,
+  score: Score,
+  written: unknown,
+  stem: string,
+  warnings: readonly ScoreProblem[],
+  waitMs: number,
+): Promise<ManageResult> {
+  const presentation = presentationOf(input, score);
   let progress: RenderProgress | undefined;
-  const rendering = renderPlayer(score, stem, presentation, (latest) => (progress = latest));
+  const rendering = renderPlayer(score, stem, presentation, (latest) => (progress = latest)).then(({ result, player }) => ({
+    result,
+    player: { ...player, written },
+  }));
   let done: { result: RenderResult; player: PlayerData } | undefined;
   try {
     // A render that runs in place (no worker) can finish before even a 0 ms timer: 0 does not wait at all.
@@ -433,7 +444,7 @@ async function deferredRenderAction(input: ManageInput, score: Score, stem: stri
     rendering.then(({ player }) => player),
     () => progress,
   );
-  const player = pendingPlayerData(score, stem, presentation, id);
+  const player = { ...pendingPlayerData(score, stem, presentation, id), written };
   const summary = {
     ok: true,
     audio: "still rendering: the player shows the score now and plays it when the audio is ready (loudness and true peak are not known yet)",

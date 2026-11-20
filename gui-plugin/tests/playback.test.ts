@@ -156,8 +156,19 @@ describe("the plugin's instructions to the LLM", () => {
     );
   });
 
-  it("keep the old wording for a plain render", async () => {
+  it("say sheet music for a score written for it (a meter), without `view`", async () => {
     const result = await executeManage({}, { action: "renderScore", score });
+    expect(result.data?.presentation?.view).toBe("notation");
+    expect(result.instructions).toBe(
+      "The music is shown to the user as sheet music, with a cursor that follows playback. Ask whether it fits, and offer changes.",
+    );
+    const asked = await executeManage({}, { action: "renderScore", score, view: "waveform" });
+    expect(asked.instructions).toContain("waveform");
+  });
+
+  it("keep the old wording for a plain render", async () => {
+    const { meter: _meter, ...plain } = score;
+    const result = await executeManage({}, { action: "renderScore", score: plain });
     expect(result.instructions).toBe("The jingle is shown to the user in a player with its waveform, cues and beats. Ask whether it fits, and offer changes.");
     if (result.data) expect(instructionsFor({ ...result.data, presentation: undefined })).toContain("waveform");
   });

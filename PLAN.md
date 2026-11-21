@@ -1652,3 +1652,12 @@ Decided:
   unreadable where the list of cards and the system disagreed (the user: "it seems made for a
   black background"). The player view was not affected: it sets its background and its text
   together. The demo's preview cards now set a host's colours (`?dark` for a dark host).
+- 2026-11-21 — The guide and the tool's `view` description tell the model to leave `view` out
+  (1.5.1). With 1.5.0 in MulmoChat a sung song still opened as a waveform: the model passed
+  `"view": "waveform"` itself (the user's log of the calls shows it; the card had its MusicXML).
+  The guide's section was headed "Sheet music (teaching and reading music)", said sheet music is
+  "for a lesson" and that the view "is chosen in the renderScore call", and the tool's
+  description offered the two values side by side, so a song that is not a lesson got the
+  other value. Now both say: leave `view` out, and give "waveform" only when the user asks to
+  see the waveform. The lesson's example call no longer passes `view`. Not measured with the
+  LLM evaluation; to be seen in MulmoChat.

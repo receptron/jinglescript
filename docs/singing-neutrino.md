@@ -7,7 +7,7 @@ JingleScript の歌詞付きトラックを、利用者が自分でインスト�
 1. https://studio-neutrino.com/downloads/ から NEUTRINO（macOS は Apple Silicon 版）をダウンロードし、利用許諾契約書に同意します。
 2. zip を展開し、`NEUTRINO` フォルダを `/Applications` に置きます（既定の場所は `/Applications/NEUTRINO`）。
 3. 別の場所に置いたときは、プロジェクトのディレクトリ（コマンドを実行する場所）の `.env` に `NEUTRINO_DIR=/path/to/NEUTRINO` と書きます（`.env.example` 参照、`.env` は git に入りません）。同じ名前の環境変数があればそちらが優先です。
-4. macOS で初回に「開発元を確認できない」と出る場合は、NEUTRINO 付属の `Run.sh` と同じく `xattr -dr com.apple.quarantine <NEUTRINO>/bin` を自分で実行してください。
+4. macOS で初回に「開発元を確認できない」と出る場合は、NEUTRINO 付属の `Run.sh` と同じく `xattr -dr com.apple.quarantine /Applications/NEUTRINO/bin` を自分で実行してください（別の場所に置いたときは、そのパスに置き換えます。空白を含むパスは引用符で囲みます）。
 
 NEUTRINO のフォルダには何も書き込みません。中間ファイルは `~/.cache/jinglescript/neutrino-renders/work-*` に作って消し（`NEUTRINO_KEEP_WORK=1` で残せます）、できた WAV は楽譜・声・オプション・NEUTRINO のバージョンから作ったハッシュで `~/.cache/jinglescript/neutrino-renders/` にキャッシュします（同じ楽譜の 2 回目はすぐ終わります）。キャッシュは描画のたびに整理し、30 日より古いものと、新しい順で 200 個を超えたものを消します。ただのキャッシュなので、`neutrino-renders/` フォルダはいつ消しても構いません。
 
